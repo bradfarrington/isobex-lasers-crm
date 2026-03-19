@@ -1,0 +1,550 @@
+/* ══════════════════════════════════════════
+   Pipeline Page
+   ══════════════════════════════════════════ */
+
+/* ── Toolbar ── */
+.pipeline-toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-4) 0;
+  flex-wrap: wrap;
+}
+
+.pipeline-select {
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-bg-raised);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  font-family: inherit;
+  color: var(--color-text-primary);
+  min-width: 200px;
+  cursor: pointer;
+  transition: border-color var(--transition-fast);
+}
+
+.pipeline-select:focus {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
+.pipeline-toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-left: auto;
+}
+
+.pipeline-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-2) var(--space-3);
+  background: transparent;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-xs);
+  font-family: inherit;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  white-space: nowrap;
+}
+
+.pipeline-btn:hover {
+  background: var(--hover-bg);
+  color: var(--color-text-primary);
+  border-color: var(--color-border-strong);
+}
+
+.pipeline-btn.primary {
+  background: var(--color-primary);
+  color: white;
+  border-color: var(--color-primary);
+}
+
+.pipeline-btn.primary:hover {
+  background: var(--color-primary-hover);
+  border-color: var(--color-primary-hover);
+}
+
+.pipeline-btn.danger:hover {
+  background: var(--color-danger);
+  color: white;
+  border-color: var(--color-danger);
+}
+
+.pipeline-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ── Inline rename row ── */
+.pipeline-rename-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.pipeline-rename-input {
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-bg-raised);
+  border: 1px solid var(--color-primary);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  font-family: inherit;
+  color: var(--color-text-primary);
+  min-width: 200px;
+}
+
+.pipeline-rename-input:focus {
+  outline: none;
+}
+
+/* ── Kanban Board ── */
+.pipeline-board {
+  display: flex;
+  gap: var(--space-4);
+  overflow-x: auto;
+  padding: var(--space-2) 0 var(--space-6);
+  flex: 1;
+  align-items: stretch;
+  scrollbar-width: none;           /* Firefox */
+  -ms-overflow-style: none;        /* IE / Edge */
+}
+
+.pipeline-board::-webkit-scrollbar {
+  display: none;                   /* Chrome / Safari */
+}
+
+/* ── Stage Column ── */
+.stage-column {
+  flex: 0 0 280px;
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  transition: box-shadow var(--transition-base);
+  align-self: stretch;
+}
+
+.stage-column:hover {
+  box-shadow: var(--shadow-md);
+}
+
+.stage-column-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-bg-raised);
+  position: relative;
+}
+
+.stage-color-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.stage-column-name {
+  flex: 1;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+  margin: 0;
+}
+
+.stage-column-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+  position: absolute;
+  right: var(--space-2);
+  top: 50%;
+  transform: translateY(-50%);
+  background: var(--color-bg-raised);
+  padding: 0 var(--space-1);
+  border-radius: var(--radius-sm);
+}
+
+.stage-column-header:hover .stage-column-actions {
+  opacity: 1;
+}
+
+.stage-action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text-tertiary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.stage-action-btn:hover {
+  background: var(--hover-bg);
+  color: var(--color-text-primary);
+}
+
+.stage-action-btn.danger:hover {
+  background: rgba(220, 38, 38, 0.1);
+  color: var(--color-danger);
+}
+
+/* Stage edit mode in header */
+.stage-edit-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex: 1;
+}
+
+.stage-edit-input {
+  flex: 1;
+  padding: var(--space-1) var(--space-2);
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-primary);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-sm);
+  font-family: inherit;
+  color: var(--color-text-primary);
+}
+
+.stage-edit-input:focus {
+  outline: none;
+}
+
+/* Stage body (future: deal cards go here) */
+.stage-column-body {
+  padding: var(--space-3);
+  flex: 1;
+  overflow-y: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.stage-column-body::-webkit-scrollbar {
+  display: none;
+}
+
+.stage-column-body-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+}
+
+.stage-empty-text {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-tertiary);
+  text-align: center;
+  line-height: var(--line-height-normal);
+}
+
+/* ── Add Stage Column ── */
+.add-stage-column {
+  flex: 0 0 280px;
+  min-height: 200px;
+  border: 2px dashed var(--color-border);
+  border-radius: var(--radius-lg);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all var(--transition-base);
+  gap: var(--space-2);
+  color: var(--color-text-tertiary);
+}
+
+.add-stage-column:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  background: var(--color-primary-subtle);
+}
+
+.add-stage-column span {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+}
+
+/* Add stage form (replaces the dashed box) */
+.add-stage-form {
+  flex: 0 0 280px;
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.add-stage-form input {
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-bg-raised);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-sm);
+  font-family: inherit;
+  color: var(--color-text-primary);
+}
+
+.add-stage-form input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
+.add-stage-form-actions {
+  display: flex;
+  gap: var(--space-2);
+}
+
+/* ── Empty / No pipeline selected state ── */
+.pipeline-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-16) var(--space-6);
+  text-align: center;
+  color: var(--color-text-tertiary);
+  gap: var(--space-4);
+}
+
+.pipeline-empty-state-icon {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: var(--color-primary-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-primary);
+}
+
+.pipeline-empty-state h3 {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+  margin: 0;
+}
+
+.pipeline-empty-state p {
+  font-size: var(--font-size-sm);
+  max-width: 360px;
+  line-height: var(--line-height-normal);
+  margin: 0;
+}
+
+/* ── Create pipeline inline form ── */
+.pipeline-create-form {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.pipeline-create-input {
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-bg-raised);
+  border: 1px solid var(--color-primary);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  font-family: inherit;
+  color: var(--color-text-primary);
+  min-width: 220px;
+}
+
+.pipeline-create-input:focus {
+  outline: none;
+}
+
+/* ── Header actions (in page shell header) ── */
+.pipeline-header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* ── Deal count badge ── */
+.stage-deal-count {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-tertiary);
+  background: var(--color-bg-surface);
+  border-radius: var(--radius-full);
+  padding: 0 6px;
+  min-width: 20px;
+  height: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: var(--font-weight-medium);
+  margin-left: auto;
+}
+
+/* ── Add deal form (inline in toolbar) ── */
+.pipeline-add-deal-form {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+/* ── Contact search dropdown ── */
+.pipeline-contact-search-wrap {
+  position: relative;
+}
+
+.pipeline-contact-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  min-width: 260px;
+  max-height: 240px;
+  overflow-y: auto;
+  background: var(--color-bg-raised);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  z-index: 50;
+  margin-top: 4px;
+}
+
+.pipeline-contact-option {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--color-border);
+  font-family: inherit;
+  cursor: pointer;
+  text-align: left;
+  transition: background var(--transition-fast);
+}
+
+.pipeline-contact-option:last-child {
+  border-bottom: none;
+}
+
+.pipeline-contact-option:hover {
+  background: var(--hover-bg);
+}
+
+.pipeline-contact-option-name {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-primary);
+}
+
+.pipeline-contact-option-company {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-tertiary);
+}
+
+/* ── Deal Cards ── */
+.deal-card {
+  background: var(--color-bg-raised);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
+  margin-bottom: var(--space-2);
+  transition: all var(--transition-fast);
+  cursor: default;
+}
+
+.deal-card:last-child {
+  margin-bottom: 0;
+}
+
+.deal-card:hover {
+  border-color: var(--color-border-strong);
+  box-shadow: var(--shadow-sm);
+}
+
+.deal-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.deal-card-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.deal-card-name {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.deal-card-company {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-tertiary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.deal-card-delete {
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+  flex-shrink: 0;
+}
+
+.deal-card:hover .deal-card-delete {
+  opacity: 1;
+}
+
+/* ── Responsive ── */
+@media (max-width: 768px) {
+  .pipeline-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .pipeline-header-actions {
+    flex-wrap: wrap;
+  }
+
+  .pipeline-select {
+    min-width: unset;
+    width: 100%;
+  }
+
+  .stage-column,
+  .add-stage-column,
+  .add-stage-form {
+    flex: 0 0 240px;
+  }
+}
+

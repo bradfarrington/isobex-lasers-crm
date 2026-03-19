@@ -1,0 +1,449 @@
+/* ══════════════════════════════════════════
+   Contact Documents Tab
+   ══════════════════════════════════════════ */
+
+/* ── Upload Zone ── */
+.docs-upload-zone {
+  border: 2px dashed var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-8) var(--space-6);
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  background: var(--color-bg-surface);
+  position: relative;
+  margin-bottom: var(--space-5);
+}
+
+.docs-upload-zone:hover {
+  border-color: var(--color-primary);
+  background: rgba(220, 38, 38, 0.03);
+}
+
+.docs-upload-zone.dragging {
+  border-color: var(--color-primary);
+  background: rgba(220, 38, 38, 0.06);
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.1);
+  transform: scale(1.005);
+}
+
+.docs-upload-zone-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-full);
+  background: rgba(220, 38, 38, 0.08);
+  color: var(--color-primary);
+  margin: 0 auto var(--space-3);
+  transition: transform 0.25s ease, background 0.25s ease;
+}
+
+.docs-upload-zone:hover .docs-upload-zone-icon,
+.docs-upload-zone.dragging .docs-upload-zone-icon {
+  transform: scale(1.1);
+  background: rgba(220, 38, 38, 0.15);
+}
+
+.docs-upload-zone h4 {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+  margin-bottom: var(--space-1);
+}
+
+.docs-upload-zone p {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-tertiary);
+  margin: 0;
+}
+
+.docs-upload-zone input[type="file"] {
+  display: none;
+}
+
+/* ── Toolbar row ── */
+.docs-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+  flex-wrap: wrap;
+}
+
+.docs-folder-pills {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  flex: 1;
+  min-width: 0;
+}
+
+.docs-folder-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-3);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  white-space: nowrap;
+}
+
+.docs-folder-pill:hover {
+  border-color: var(--color-primary);
+  color: var(--color-text-primary);
+}
+
+.docs-folder-pill.active {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: white;
+}
+
+.docs-folder-pill .pill-count {
+  font-size: 10px;
+  opacity: 0.7;
+  margin-left: 2px;
+}
+
+.docs-new-folder-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-3);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: var(--color-text-tertiary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.docs-new-folder-btn:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+/* ── File List Table ── */
+.docs-file-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.docs-file-table th {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  text-align: left;
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.docs-file-table td {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-primary);
+  padding: var(--space-3);
+  border-bottom: 1px solid var(--color-border);
+  vertical-align: middle;
+}
+
+.docs-file-table tbody tr {
+  transition: background var(--transition-fast);
+}
+
+.docs-file-table tbody tr:hover {
+  background: var(--color-bg-surface);
+}
+
+.docs-file-name-cell {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.docs-file-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-md);
+  background: rgba(220, 38, 38, 0.08);
+  color: var(--color-primary);
+  flex-shrink: 0;
+}
+
+.docs-file-name {
+  font-weight: var(--font-weight-medium);
+  word-break: break-word;
+}
+
+.docs-file-type {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-tertiary);
+  margin-top: 1px;
+}
+
+/* ── Inline rename input ── */
+.docs-rename-input {
+  width: 100%;
+  max-width: 280px;
+  padding: var(--space-1) var(--space-2);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-primary);
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-primary);
+  border-radius: var(--radius-md);
+  outline: none;
+  font-family: inherit;
+}
+
+/* ── Row actions ── */
+.docs-row-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.docs-action-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-md);
+  border: none;
+  background: transparent;
+  color: var(--color-text-tertiary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.docs-action-btn:hover {
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
+}
+
+.docs-action-btn.danger:hover {
+  background: rgba(220, 38, 38, 0.08);
+  color: var(--color-primary);
+}
+
+/* ── Multi-select folder dropdown ── */
+.docs-folder-multi {
+  position: relative;
+  display: inline-block;
+}
+
+.docs-folder-multi-trigger {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-2);
+  background: transparent;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: border-color var(--transition-fast);
+  min-width: 100px;
+}
+
+.docs-folder-multi-trigger:hover {
+  border-color: var(--color-primary);
+}
+
+.docs-folder-multi-trigger .chevron-open {
+  transform: rotate(180deg);
+}
+
+.docs-folder-multi-trigger svg {
+  flex-shrink: 0;
+  color: var(--color-text-tertiary);
+  transition: transform var(--transition-fast);
+}
+
+.docs-folder-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+}
+
+.docs-folder-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px var(--space-2);
+  font-size: 11px;
+  font-weight: var(--font-weight-medium);
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+
+.docs-folder-multi-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  min-width: 160px;
+  background: var(--color-bg-raised);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+  z-index: 50;
+  padding: var(--space-1) 0;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.docs-folder-checkbox-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-primary);
+  cursor: pointer;
+  transition: background var(--transition-fast);
+  user-select: none;
+}
+
+.docs-folder-checkbox-item:hover {
+  background: var(--color-bg-surface);
+}
+
+.docs-folder-checkbox-item input[type="checkbox"] {
+  accent-color: var(--color-primary);
+  width: 14px;
+  height: 14px;
+  cursor: pointer;
+}
+
+/* ── Upload progress overlay ── */
+.docs-uploading-overlay {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  background: var(--color-bg-raised);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  margin-bottom: var(--space-4);
+  animation: docsPulse 1.5s ease-in-out infinite;
+}
+
+@keyframes docsPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+.docs-uploading-overlay .loading-spinner {
+  width: 20px;
+  height: 20px;
+}
+
+.docs-uploading-overlay span {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+/* ── Empty state ── */
+.docs-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: var(--space-8) var(--space-6);
+  color: var(--color-text-tertiary);
+}
+
+.docs-empty svg {
+  margin-bottom: var(--space-3);
+  opacity: 0.3;
+}
+
+.docs-empty h4 {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-secondary);
+  margin-bottom: var(--space-1);
+}
+
+.docs-empty p {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-tertiary);
+  max-width: 280px;
+}
+
+/* ── New folder inline input ── */
+.docs-new-folder-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.docs-new-folder-inline input {
+  padding: var(--space-1) var(--space-2);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-primary);
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-primary);
+  border-radius: var(--radius-full);
+  outline: none;
+  width: 120px;
+  font-family: inherit;
+}
+
+.docs-new-folder-inline button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: var(--radius-full);
+  border: none;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.docs-new-folder-inline .nf-confirm {
+  background: var(--color-primary);
+  color: white;
+}
+
+.docs-new-folder-inline .nf-cancel {
+  background: var(--color-bg-surface);
+  color: var(--color-text-tertiary);
+  border: 1px solid var(--color-border);
+}
+
+/* ── Responsive ── */
+@media (max-width: 768px) {
+  .docs-file-table th:nth-child(3),
+  .docs-file-table td:nth-child(3),
+  .docs-file-table th:nth-child(4),
+  .docs-file-table td:nth-child(4) {
+    display: none;
+  }
+
+  .docs-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}

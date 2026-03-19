@@ -33,6 +33,82 @@
   color: var(--color-text-tertiary);
 }
 
+/* ── Filter tabs ── */
+.crm-tabs {
+  display: flex;
+  gap: var(--space-1);
+  margin-bottom: var(--space-5);
+  border-bottom: 1px solid var(--color-border);
+  padding-bottom: var(--space-1);
+}
+
+.crm-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.crm-tab:hover {
+  color: var(--color-text-primary);
+}
+
+.crm-tab.active {
+  color: var(--color-primary);
+  border-bottom-color: var(--color-primary);
+}
+
+.crm-tab-count {
+  background: var(--color-bg-surface);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  padding: 2px 6px;
+  border-radius: var(--radius-full);
+}
+
+.crm-tab.active .crm-tab-count {
+  background: var(--color-primary-subtle);
+  color: var(--color-primary);
+}
+
+/* ── Type toggle in modal ── */
+.crm-type-toggle {
+  display: flex;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.crm-type-btn {
+  flex: 1;
+  padding: var(--space-2) var(--space-4);
+  background: transparent;
+  border: none;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.crm-type-btn.active {
+  background: var(--color-primary);
+  color: white;
+}
+
+.crm-type-btn:not(.active):hover {
+  background: var(--hover-bg);
+}
+
 /* ── Shared button ── */
 .btn-primary {
   display: inline-flex;
@@ -91,6 +167,45 @@
   color: var(--color-text-secondary);
   max-width: 400px;
   line-height: var(--line-height-normal);
+}
+
+/* ── Sortable columns ── */
+.sortable-th {
+  user-select: none;
+  white-space: nowrap;
+}
+
+.sort-arrows {
+  display: inline-flex;
+  flex-direction: column;
+  vertical-align: middle;
+  margin-left: 4px;
+  gap: -2px;
+  line-height: 0;
+}
+
+.sort-arrow-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  padding: 0;
+  margin: -1px 0;
+  cursor: pointer;
+  color: var(--color-text-tertiary);
+  opacity: 0.4;
+  transition: opacity var(--transition-fast), color var(--transition-fast);
+}
+
+.sort-arrow-btn:hover {
+  opacity: 0.8;
+  color: var(--color-text-primary);
+}
+
+.sort-arrow-btn.active {
+  opacity: 1;
+  color: var(--color-primary);
 }
 
 @media (max-width: 640px) {

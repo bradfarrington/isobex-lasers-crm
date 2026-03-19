@@ -1,0 +1,172 @@
+/* ══════════════════════════════════════════
+   Custom Color Picker
+   ══════════════════════════════════════════ */
+
+.color-picker-wrapper {
+  position: relative;
+  display: inline-flex;
+}
+
+/* ── Trigger swatch ── */
+.color-picker-trigger {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-sm);
+  border: 2px solid var(--color-border);
+  cursor: pointer;
+  padding: 0;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+  flex-shrink: 0;
+}
+
+.color-picker-trigger:hover {
+  border-color: var(--color-text-tertiary);
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.06);
+}
+
+/* ── Backdrop ── */
+.color-picker-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 999;
+}
+
+/* ── Popover ── */
+.color-picker-popover {
+  position: fixed;
+  z-index: 1000;
+  width: 240px;
+  background: var(--color-bg-raised);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg, 0 10px 25px rgba(0, 0, 0, 0.15));
+  padding: var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  animation: colorPickerFadeIn 0.15s ease-out;
+}
+
+@keyframes colorPickerFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ── Preset swatches ── */
+.color-picker-presets {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 6px;
+}
+
+.color-picker-preset {
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: var(--radius-sm);
+  border: 2px solid transparent;
+  cursor: pointer;
+  padding: 0;
+  transition: transform var(--transition-fast), border-color var(--transition-fast);
+}
+
+.color-picker-preset:hover {
+  transform: scale(1.15);
+}
+
+.color-picker-preset.active {
+  border-color: var(--color-text-primary);
+  box-shadow: 0 0 0 2px var(--color-bg-raised);
+}
+
+/* ── Divider ── */
+.color-picker-divider {
+  height: 1px;
+  background: var(--color-border);
+  margin: 0;
+  border: none;
+}
+
+/* ── SV Canvas ── */
+.color-picker-sv-canvas {
+  width: 100%;
+  height: 140px;
+  border-radius: var(--radius-sm);
+  cursor: crosshair;
+  position: relative;
+  touch-action: none;
+}
+
+.color-picker-sv-handle {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid #fff;
+  box-shadow: 0 0 2px rgba(0, 0, 0, 0.5), inset 0 0 2px rgba(0, 0, 0, 0.25);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+/* ── Hue slider ── */
+.color-picker-hue-track {
+  width: 100%;
+  height: 14px;
+  border-radius: 7px;
+  background: linear-gradient(
+    to right,
+    #ff0000, #ffff00, #00ff00, #00ffff, #0000ff, #ff00ff, #ff0000
+  );
+  cursor: pointer;
+  position: relative;
+  touch-action: none;
+}
+
+.color-picker-hue-thumb {
+  position: absolute;
+  top: 50%;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid #fff;
+  box-shadow: 0 0 3px rgba(0, 0, 0, 0.4);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+/* ── Hex input row ── */
+.color-picker-hex-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.color-picker-hex-preview {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  flex-shrink: 0;
+}
+
+.color-picker-hex-input {
+  flex: 1;
+  padding: var(--space-1) var(--space-2);
+  font-size: var(--font-size-xs);
+  font-family: monospace;
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-primary);
+  text-transform: uppercase;
+}
+
+.color-picker-hex-input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+}

@@ -109,7 +109,26 @@
   font-size: var(--font-size-sm);
 }
 
+/* ── Recent lists ── */
+.dashboard-recent-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.dashboard-recent-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-3) 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.dashboard-recent-item:last-child {
+  border-bottom: none;
+}
+
 /* ── Responsive ── */
+
 @media (max-width: 1200px) {
   .dashboard-stats {
     grid-template-columns: repeat(2, 1fr);

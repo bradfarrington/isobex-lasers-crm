@@ -11,6 +11,7 @@ import {
   Wrench,
   LifeBuoy,
   BarChart3,
+  Settings,
 } from 'lucide-react';
 import type { NavSection } from '@/types/navigation';
 
@@ -45,6 +46,7 @@ export const navigationSections: NavSection[] = [
       { label: 'Documents', path: '/documents', icon: FileText },
       { label: 'Installations', path: '/installations', icon: Wrench },
       { label: 'Reporting', path: '/reporting', icon: BarChart3 },
+      { label: 'Settings', path: '/settings', icon: Settings },
     ],
   },
 ];
