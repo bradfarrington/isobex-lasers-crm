@@ -1,0 +1,119 @@
+.top-header {
+  position: fixed;
+  top: 0;
+  right: 0;
+  left: 0;
+  height: var(--header-height);
+  background: var(--color-bg-header);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--color-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 var(--space-6);
+  z-index: 80;
+  transition: left var(--transition-base);
+}
+
+.sidebar-open .top-header {
+  left: var(--sidebar-width);
+}
+
+.sidebar-closed .top-header {
+  left: 0;
+}
+
+.top-header-left {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.top-header-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.top-header-toggle:hover {
+  background: var(--hover-bg);
+  color: var(--color-text-primary);
+  border-color: var(--color-border-strong);
+}
+
+.top-header-right {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.top-header-icon-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border: none;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  position: relative;
+}
+
+.top-header-icon-btn:hover {
+  background: var(--hover-bg);
+  color: var(--color-text-primary);
+}
+
+.notification-dot {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 7px;
+  height: 7px;
+  background: var(--color-danger);
+  border-radius: var(--radius-full);
+  border: 2px solid var(--color-bg-header);
+}
+
+.top-header-avatar {
+  width: 32px;
+  height: 32px;
+  background: linear-gradient(135deg, #dc2626, #991b1b);
+  border-radius: var(--radius-full);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-bold);
+  color: white;
+  cursor: pointer;
+  margin-left: var(--space-2);
+  transition: box-shadow var(--transition-fast);
+}
+
+.top-header-avatar:hover {
+  box-shadow: var(--shadow-glow);
+}
+
+/* ── Mobile ── */
+@media (max-width: 768px) {
+  .sidebar-open .top-header {
+    left: 0;
+  }
+
+  .top-header {
+    padding: 0 var(--space-4);
+  }
+}

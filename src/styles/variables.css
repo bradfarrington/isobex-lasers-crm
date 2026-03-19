@@ -1,0 +1,143 @@
+:root {
+  /* ── Brand (black / white / red) ── */
+  --color-primary: #dc2626;
+  --color-primary-hover: #b91c1c;
+  --color-primary-subtle: rgba(220, 38, 38, 0.08);
+  --color-accent: #1a1a1a;
+  --color-accent-hover: #333333;
+
+  /* ── Surfaces (light theme) ── */
+  --color-bg-root: #ffffff;
+  --color-bg-surface: #f8f9fa;
+  --color-bg-raised: #ffffff;
+  --color-bg-overlay: rgba(0, 0, 0, 0.45);
+  --color-bg-sidebar: #ffffff;
+  --color-bg-header: rgba(255, 255, 255, 0.88);
+
+  /* ── Text ── */
+  --color-text-primary: #111111;
+  --color-text-secondary: #5f6368;
+  --color-text-tertiary: #9aa0a6;
+  --color-text-inverse: #ffffff;
+
+  /* ── Borders ── */
+  --color-border: rgba(0, 0, 0, 0.08);
+  --color-border-strong: rgba(0, 0, 0, 0.16);
+
+  /* ── Status ── */
+  --color-success: #16a34a;
+  --color-warning: #d97706;
+  --color-danger: #dc2626;
+  --color-info: #2563eb;
+
+  /* ── Sidebar (light) ── */
+  --sidebar-text: #5f6368;
+  --sidebar-text-hover: #111111;
+  --sidebar-text-muted: #9aa0a6;
+  --sidebar-hover-bg: rgba(0, 0, 0, 0.05);
+  --sidebar-border: rgba(0, 0, 0, 0.08);
+  --sidebar-active-bg: rgba(220, 38, 38, 0.08);
+  --sidebar-active-text: #dc2626;
+
+  /* ── Hover backgrounds ── */
+  --hover-bg: rgba(0, 0, 0, 0.05);
+
+  /* ── Spacing scale ── */
+  --space-1: 0.25rem;   /* 4px */
+  --space-2: 0.5rem;    /* 8px */
+  --space-3: 0.75rem;   /* 12px */
+  --space-4: 1rem;      /* 16px */
+  --space-5: 1.25rem;   /* 20px */
+  --space-6: 1.5rem;    /* 24px */
+  --space-8: 2rem;      /* 32px */
+  --space-10: 2.5rem;   /* 40px */
+  --space-12: 3rem;     /* 48px */
+  --space-16: 4rem;     /* 64px */
+
+  /* ── Typography ── */
+  --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-size-xs: 0.6875rem;  /* 11px */
+  --font-size-sm: 0.8125rem;  /* 13px */
+  --font-size-base: 0.875rem; /* 14px */
+  --font-size-md: 1rem;       /* 16px */
+  --font-size-lg: 1.125rem;   /* 18px */
+  --font-size-xl: 1.375rem;   /* 22px */
+  --font-size-2xl: 1.75rem;   /* 28px */
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+  --line-height-tight: 1.2;
+  --line-height-normal: 1.5;
+
+  /* ── Radius ── */
+  --radius-sm: 0.375rem;  /* 6px */
+  --radius-md: 0.5rem;    /* 8px */
+  --radius-lg: 0.75rem;   /* 12px */
+  --radius-xl: 1rem;      /* 16px */
+  --radius-full: 9999px;
+
+  /* ── Shadows ── */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.06);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.12);
+  --shadow-glow: 0 0 20px rgba(220, 38, 38, 0.15);
+
+  /* ── Transitions ── */
+  --transition-fast: 150ms ease;
+  --transition-base: 200ms ease;
+  --transition-slow: 300ms ease;
+
+  /* ── Layout ── */
+  --sidebar-width: 260px;
+  --sidebar-collapsed-width: 0px;
+  --header-height: 56px;
+}
+
+/* ══════════════════════════════════════════
+   Dark theme overrides
+   ══════════════════════════════════════════ */
+[data-theme="dark"] {
+  --color-primary-subtle: rgba(220, 38, 38, 0.12);
+
+  /* Surfaces */
+  --color-bg-root: #0b0e14;
+  --color-bg-surface: #111621;
+  --color-bg-raised: #171d2b;
+  --color-bg-overlay: rgba(11, 14, 20, 0.72);
+  --color-bg-sidebar: #0d1117;
+  --color-bg-header: rgba(17, 22, 33, 0.82);
+
+  /* Text */
+  --color-text-primary: #e6edf3;
+  --color-text-secondary: #8b949e;
+  --color-text-tertiary: #545d68;
+  --color-text-inverse: #0b0e14;
+
+  /* Borders */
+  --color-border: rgba(139, 148, 158, 0.16);
+  --color-border-strong: rgba(139, 148, 158, 0.28);
+
+  /* Status */
+  --color-success: #2dd4bf;
+  --color-warning: #fbbf24;
+  --color-danger: #f87171;
+  --color-info: #60a5fa;
+
+  /* Sidebar (dark) */
+  --sidebar-text: rgba(255, 255, 255, 0.6);
+  --sidebar-text-hover: rgba(255, 255, 255, 0.95);
+  --sidebar-text-muted: rgba(255, 255, 255, 0.4);
+  --sidebar-hover-bg: rgba(255, 255, 255, 0.08);
+  --sidebar-border: rgba(255, 255, 255, 0.1);
+  --sidebar-active-bg: rgba(220, 38, 38, 0.15);
+  --sidebar-active-text: #f87171;
+
+  /* Hover backgrounds */
+  --hover-bg: rgba(255, 255, 255, 0.05);
+
+  /* Shadows */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.35);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
