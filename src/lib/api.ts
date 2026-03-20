@@ -19,6 +19,8 @@ import type {
   PipelineDeal,
   PipelineDealInsert,
   PipelineDealUpdate,
+  PipelineCardField,
+  PipelineFieldConfig,
 } from '@/types/database';
 
 // ─── Contacts ────────────────────────────────────────────
@@ -457,3 +459,82 @@ export async function deletePipelineDeal(id: string): Promise<void> {
   if (error) throw error;
 }
 
+// ─── Pipeline Card Fields (configurable) ────────────────
+
+export async function fetchPipelineCardFields(): Promise<PipelineCardField[]> {
+  const { data, error } = await supabase
+    .from('pipeline_card_fields')
+    .select('*')
+    .order('sort_order', { ascending: true });
+
+  if (error) throw error;
+  return data as PipelineCardField[];
+}
+
+export async function fetchPipelineFieldConfig(
+  pipelineId: string
+): Promise<PipelineFieldConfig[]> {
+  const { data, error } = await supabase
+    .from('pipeline_field_config')
+    .select('*, field:pipeline_card_fields(*)')
+    .eq('pipeline_id', pipelineId)
+    .order('sort_order', { ascending: true });
+
+  if (error) throw error;
+  return data as PipelineFieldConfig[];
+}
+
+export async function createPipelineFieldConfigs(
+  pipelineId: string,
+  fieldSelections: { field_id: string; enabled: boolean; sort_order: number }[]
+): Promise<PipelineFieldConfig[]> {
+  const rows = fieldSelections.map((fs) => ({
+    pipeline_id: pipelineId,
+    field_id: fs.field_id,
+    enabled: fs.enabled,
+    sort_order: fs.sort_order,
+  }));
+
+  const { data, error } = await supabase
+    .from('pipeline_field_config')
+    .insert(rows)
+    .select('*, field:pipeline_card_fields(*)');
+
+  if (error) throw error;
+  return data as PipelineFieldConfig[];
+}
+
+export async function updatePipelineFieldConfig(
+  pipelineId: string,
+  fieldId: string,
+  enabled: boolean
+): Promise<void> {
+  const { error } = await supabase
+    .from('pipeline_field_config')
+    .update({ enabled })
+    .eq('pipeline_id', pipelineId)
+    .eq('field_id', fieldId);
+
+  if (error) throw error;
+}
+
+// ─── Pipeline Deals by Contact ──────────────────────────
+
+export async function fetchPipelineDealsByContact(
+  contactId: string
+): Promise<PipelineDeal[]> {
+  const { data, error } = await supabase
+    .from('pipeline_deals')
+    .select(`
+      *,
+      contact:contacts(id, first_name, last_name, company:companies(id, name)),
+      stage:pipeline_stages(id, name, color, pipeline_id,
+        pipeline:pipelines(id, name)
+      )
+    `)
+    .eq('contact_id', contactId)
+    .order('created_at', { ascending: false });
+
+  if (error) throw error;
+  return data as PipelineDeal[];
+}

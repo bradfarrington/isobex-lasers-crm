@@ -1,10 +1,18 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { PageShell } from '@/components/layout/PageShell';
 import { ColorPicker } from '@/components/ui/ColorPicker';
+import { DatePicker } from '@/components/ui/DatePicker';
 import { useAlert } from '@/components/ui/AlertDialog';
 import { useData } from '@/context/DataContext';
 import * as api from '@/lib/api';
-import type { Pipeline, PipelineStage, PipelineDeal, Contact } from '@/types/database';
+import type {
+  Pipeline,
+  PipelineStage,
+  PipelineDeal,
+  PipelineCardField,
+  PipelineFieldConfig,
+  Contact,
+} from '@/types/database';
 import {
   Target,
   Plus,
@@ -14,6 +22,11 @@ import {
   Check,
   Building2,
   User,
+  Settings2,
+  Calendar,
+  PoundSterling,
+  AlertTriangle,
+  FileText,
 } from 'lucide-react';
 import './PipelinePage.css';
 
@@ -21,6 +34,12 @@ const STAGE_COLORS = [
   '#6b7280', '#3b82f6', '#8b5cf6', '#ec4899',
   '#f59e0b', '#10b981', '#ef4444', '#06b6d4',
 ];
+
+const PRIORITY_COLORS: Record<string, string> = {
+  Low: '#10b981',
+  Medium: '#f59e0b',
+  High: '#ef4444',
+};
 
 export function PipelinePage() {
   const { state } = useData();
@@ -32,11 +51,17 @@ export function PipelinePage() {
   const [loading, setLoading] = useState(true);
 
   // ── Pipeline CRUD inline state ──
-  const [showCreate, setShowCreate] = useState(false);
-  const [createName, setCreateName] = useState('');
   const [renamingPipeline, setRenamingPipeline] = useState(false);
   const [renamePipelineName, setRenamePipelineName] = useState('');
   const [saving, setSaving] = useState(false);
+
+  // ── Create Pipeline Modal ──
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [createName, setCreateName] = useState('');
+  const [allFields, setAllFields] = useState<PipelineCardField[]>([]);
+  const [createFieldSelections, setCreateFieldSelections] = useState<
+    Record<string, boolean>
+  >({});
 
   // ── Stage state ──
   const [stages, setStages] = useState<PipelineStage[]>([]);
@@ -54,12 +79,34 @@ export function PipelinePage() {
 
   // ── Deal state ──
   const [deals, setDeals] = useState<PipelineDeal[]>([]);
-  const [showAddDeal, setShowAddDeal] = useState(false);
-  const [addDealStageId, setAddDealStageId] = useState<string | null>(null);
-  const [addDealContactId, setAddDealContactId] = useState('');
-  const [contactSearch, setContactSearch] = useState('');
 
-  // ── Load pipelines on mount ──
+  // ── Add Deal Modal ──
+  const [showDealModal, setShowDealModal] = useState(false);
+  const [dealModalStageId, setDealModalStageId] = useState<string | null>(null);
+  const [dealModalContactId, setDealModalContactId] = useState('');
+  const [dealModalContactSearch, setDealModalContactSearch] = useState('');
+  const [dealModalFieldData, setDealModalFieldData] = useState<
+    Record<string, any>
+  >({});
+
+  // ── Field config ──
+  const [fieldConfigs, setFieldConfigs] = useState<PipelineFieldConfig[]>([]);
+  const [showFieldConfig, setShowFieldConfig] = useState(false);
+
+  // ── Derived: enabled fields for current pipeline ──
+  const enabledFields = useMemo(
+    () =>
+      fieldConfigs
+        .filter((fc) => fc.enabled && fc.field)
+        .sort((a, b) => a.sort_order - b.sort_order)
+        .map((fc) => fc.field!),
+    [fieldConfigs]
+  );
+
+  // ══════════════════════════════════════════
+  //  DATA LOADING
+  // ══════════════════════════════════════════
+
   const loadPipelines = useCallback(async () => {
     try {
       const data = await api.fetchPipelines();
@@ -78,13 +125,28 @@ export function PipelinePage() {
     loadPipelines();
   }, [loadPipelines]);
 
-  // ── Load stages + deals when pipeline changes ──
+  // Load card field definitions (for create modal & config panel)
+  useEffect(() => {
+    api
+      .fetchPipelineCardFields()
+      .then((fields) => {
+        setAllFields(fields);
+        // Pre-check defaults for create modal
+        const selections: Record<string, boolean> = {};
+        fields.forEach((f) => {
+          selections[f.id] = f.is_default;
+        });
+        setCreateFieldSelections(selections);
+      })
+      .catch((err) => console.error('Failed to load card fields:', err));
+  }, []);
+
+  // Load stages + deals + field config when pipeline changes
   const loadStages = useCallback(async (pipelineId: string) => {
     setStagesLoading(true);
     try {
       const stData = await api.fetchPipelineStages(pipelineId);
       setStages(stData);
-      // Load deals for all stages (separate try so stages still show if deals table missing)
       try {
         const stageIds = stData.map((s) => s.id);
         const dlData = await api.fetchPipelineDeals(stageIds);
@@ -93,14 +155,34 @@ export function PipelinePage() {
         console.error('Failed to load deals:', dealErr);
         setDeals([]);
       }
+      try {
+        let configs = await api.fetchPipelineFieldConfig(pipelineId);
+        // Auto-seed defaults for pipelines created before the config system
+        if (configs.length === 0 && allFields.length > 0) {
+          const defaultSelections = allFields.map((f, i) => ({
+            field_id: f.id,
+            enabled: f.is_default,
+            sort_order: i,
+          }));
+          configs = await api.createPipelineFieldConfigs(
+            pipelineId,
+            defaultSelections
+          );
+        }
+        setFieldConfigs(configs);
+      } catch (cfgErr) {
+        console.error('Failed to load field config:', cfgErr);
+        setFieldConfigs([]);
+      }
     } catch (err) {
       console.error('Failed to load stages:', err);
       setStages([]);
       setDeals([]);
+      setFieldConfigs([]);
     } finally {
       setStagesLoading(false);
     }
-  }, []);
+  }, [allFields]);
 
   useEffect(() => {
     if (selectedId) {
@@ -108,29 +190,64 @@ export function PipelinePage() {
     } else {
       setStages([]);
       setDeals([]);
+      setFieldConfigs([]);
     }
   }, [selectedId, loadStages]);
 
   const selectedPipeline = pipelines.find((p) => p.id === selectedId) || null;
 
-  // ═══════ Pipeline CRUD ═══════
+  // ══════════════════════════════════════════
+  //  PIPELINE CRUD
+  // ══════════════════════════════════════════
+
+  const openCreateModal = () => {
+    setCreateName('');
+    // Reset selections to defaults
+    const selections: Record<string, boolean> = {};
+    allFields.forEach((f) => {
+      selections[f.id] = f.is_default;
+    });
+    setCreateFieldSelections(selections);
+    setShowCreateModal(true);
+  };
 
   const handleCreatePipeline = async () => {
     if (!createName.trim() || saving) return;
     setSaving(true);
     try {
+      // Create the pipeline
       const created = await api.createPipeline({ name: createName.trim() });
+
+      // Create field config rows based on user selections
+      const fieldSelections = allFields.map((f, i) => ({
+        field_id: f.id,
+        enabled: createFieldSelections[f.id] ?? f.is_default,
+        sort_order: i,
+      }));
+
+      await api.createPipelineFieldConfigs(created.id, fieldSelections);
+
       setPipelines((prev) => [...prev, created]);
       setSelectedId(created.id);
+      setShowCreateModal(false);
       setCreateName('');
-      setShowCreate(false);
     } catch (err: unknown) {
-      const msg = err && typeof err === 'object' && 'message' in err
-        ? (err as { message: string }).message : 'Unknown error';
+      const msg =
+        err && typeof err === 'object' && 'message' in err
+          ? (err as { message: string }).message
+          : 'Unknown error';
       if (msg.includes('duplicate') || msg.includes('unique')) {
-        showAlert({ title: 'Duplicate Name', message: `"${createName.trim()}" already exists.`, variant: 'warning' });
+        showAlert({
+          title: 'Duplicate Name',
+          message: `"${createName.trim()}" already exists.`,
+          variant: 'warning',
+        });
       } else {
-        showAlert({ title: 'Error', message: `Failed to create pipeline: ${msg}`, variant: 'danger' });
+        showAlert({
+          title: 'Error',
+          message: `Failed to create pipeline: ${msg}`,
+          variant: 'danger',
+        });
       }
     } finally {
       setSaving(false);
@@ -173,7 +290,9 @@ export function PipelinePage() {
     }
   };
 
-  // ═══════ Stage CRUD ═══════
+  // ══════════════════════════════════════════
+  //  STAGE CRUD
+  // ══════════════════════════════════════════
 
   const handleAddStage = async () => {
     if (!selectedId || !newStageName.trim() || saving) return;
@@ -187,7 +306,9 @@ export function PipelinePage() {
       });
       setStages((prev) => [...prev, created]);
       setNewStageName('');
-      setNewStageColor(STAGE_COLORS[(stages.length + 1) % STAGE_COLORS.length]);
+      setNewStageColor(
+        STAGE_COLORS[(stages.length + 1) % STAGE_COLORS.length]
+      );
       setShowAddStage(false);
     } catch (err) {
       console.error('Failed to add stage:', err);
@@ -210,7 +331,9 @@ export function PipelinePage() {
         name: editStageName.trim(),
         color: editStageColor,
       });
-      setStages((prev) => prev.map((s) => (s.id === updated.id ? updated : s)));
+      setStages((prev) =>
+        prev.map((s) => (s.id === updated.id ? updated : s))
+      );
       setEditingStageId(null);
     } catch (err) {
       console.error('Failed to update stage:', err);
@@ -235,30 +358,37 @@ export function PipelinePage() {
     }
   };
 
-  // ═══════ Deal CRUD ═══════
+  // ══════════════════════════════════════════
+  //  DEAL CRUD
+  // ══════════════════════════════════════════
 
-  const openAddDeal = (stageId: string) => {
-    setAddDealStageId(stageId);
-    setAddDealContactId('');
-    setContactSearch('');
-    setShowAddDeal(true);
+  const openDealModal = (stageId: string) => {
+    setDealModalStageId(stageId);
+    setDealModalContactId('');
+    setDealModalContactSearch('');
+    setDealModalFieldData({});
+    setShowDealModal(true);
   };
 
   const handleAddDeal = async () => {
-    if (!addDealStageId || !addDealContactId || saving) return;
+    if (!dealModalStageId || !dealModalContactId || saving) return;
     setSaving(true);
     try {
-      const stageDeals = deals.filter((d) => d.stage_id === addDealStageId);
+      const stageDeals = deals.filter(
+        (d) => d.stage_id === dealModalStageId
+      );
       const created = await api.createPipelineDeal({
-        stage_id: addDealStageId,
-        contact_id: addDealContactId,
+        stage_id: dealModalStageId,
+        contact_id: dealModalContactId,
+        field_data: dealModalFieldData,
         sort_order: stageDeals.length,
       });
       setDeals((prev) => [...prev, created]);
-      setShowAddDeal(false);
-      setAddDealStageId(null);
-      setAddDealContactId('');
-      setContactSearch('');
+      setShowDealModal(false);
+      setDealModalStageId(null);
+      setDealModalContactId('');
+      setDealModalContactSearch('');
+      setDealModalFieldData({});
     } catch (err) {
       console.error('Failed to add deal:', err);
     } finally {
@@ -281,14 +411,34 @@ export function PipelinePage() {
     }
   };
 
-  // ── Filter contacts for the search dropdown ──
-  const filteredContacts = contactSearch.trim()
-    ? state.contacts.filter((c) => {
-        const term = contactSearch.toLowerCase();
-        const name = `${c.first_name} ${c.last_name}`.toLowerCase();
-        const company = c.company?.name?.toLowerCase() || '';
-        return name.includes(term) || company.includes(term);
-      }).slice(0, 8)
+  // ══════════════════════════════════════════
+  //  FIELD CONFIG
+  // ══════════════════════════════════════════
+
+  const handleToggleField = async (fieldId: string, enabled: boolean) => {
+    if (!selectedId) return;
+    try {
+      await api.updatePipelineFieldConfig(selectedId, fieldId, enabled);
+      setFieldConfigs((prev) =>
+        prev.map((fc) =>
+          fc.field_id === fieldId ? { ...fc, enabled } : fc
+        )
+      );
+    } catch (err) {
+      console.error('Failed to toggle field:', err);
+    }
+  };
+
+  // ── Contact search for deal modal ──
+  const filteredContacts = dealModalContactSearch.trim()
+    ? state.contacts
+        .filter((c) => {
+          const term = dealModalContactSearch.toLowerCase();
+          const name = `${c.first_name} ${c.last_name}`.toLowerCase();
+          const company = c.company?.name?.toLowerCase() || '';
+          return name.includes(term) || company.includes(term);
+        })
+        .slice(0, 8)
     : [];
 
   // ── Helpers ──
@@ -304,7 +454,26 @@ export function PipelinePage() {
     };
   };
 
-  // ═══════ Render ═══════
+  const formatCurrency = (val: number) =>
+    new Intl.NumberFormat('en-GB', {
+      style: 'currency',
+      currency: 'GBP',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(val);
+
+  const formatDate = (dateStr: string) => {
+    const d = new Date(dateStr);
+    return d.toLocaleDateString('en-GB', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+    });
+  };
+
+  // ══════════════════════════════════════════
+  //  RENDER
+  // ══════════════════════════════════════════
 
   // Build header action buttons
   const headerActions = (
@@ -328,43 +497,16 @@ export function PipelinePage() {
           >
             <Check size={14} /> Save
           </button>
-          <button className="pipeline-btn" onClick={() => setRenamingPipeline(false)}>
-            <X size={14} />
-          </button>
-        </div>
-      ) : showCreate ? (
-        <div className="pipeline-create-form">
-          <input
-            className="pipeline-create-input"
-            placeholder="Pipeline name…"
-            value={createName}
-            onChange={(e) => setCreateName(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') handleCreatePipeline();
-              if (e.key === 'Escape') {
-                setShowCreate(false);
-                setCreateName('');
-              }
-            }}
-            autoFocus
-          />
-          <button
-            className="pipeline-btn primary"
-            onClick={handleCreatePipeline}
-            disabled={!createName.trim() || saving}
-          >
-            <Check size={14} /> Create
-          </button>
           <button
             className="pipeline-btn"
-            onClick={() => { setShowCreate(false); setCreateName(''); }}
+            onClick={() => setRenamingPipeline(false)}
           >
             <X size={14} />
           </button>
         </div>
       ) : (
         <>
-          <button className="pipeline-btn primary" onClick={() => setShowCreate(true)}>
+          <button className="pipeline-btn primary" onClick={openCreateModal}>
             <Plus size={14} /> New Pipeline
           </button>
           {selectedPipeline && (
@@ -378,7 +520,10 @@ export function PipelinePage() {
               >
                 <Pencil size={14} /> Rename
               </button>
-              <button className="pipeline-btn danger" onClick={handleDeletePipeline}>
+              <button
+                className="pipeline-btn danger"
+                onClick={handleDeletePipeline}
+              >
                 <Trash2 size={14} /> Delete
               </button>
             </>
@@ -390,7 +535,10 @@ export function PipelinePage() {
 
   if (loading) {
     return (
-      <PageShell title="Pipeline" subtitle="Manage your sales pipelines and stages.">
+      <PageShell
+        title="Pipeline"
+        subtitle="Manage your sales pipelines and stages."
+      >
         <div className="pipeline-empty-state">
           <p>Loading pipelines…</p>
         </div>
@@ -404,7 +552,7 @@ export function PipelinePage() {
       subtitle="Manage your sales pipelines and stages."
       actions={headerActions}
     >
-      {/* ── Toolbar: pipeline selector + add to pipeline ── */}
+      {/* ── Toolbar: pipeline selector + actions ── */}
       {pipelines.length > 0 && (
         <div className="pipeline-toolbar">
           <select
@@ -413,89 +561,60 @@ export function PipelinePage() {
             onChange={(e) => setSelectedId(e.target.value)}
           >
             {pipelines.map((p) => (
-              <option key={p.id} value={p.id}>{p.name}</option>
+              <option key={p.id} value={p.id}>
+                {p.name}
+              </option>
             ))}
           </select>
 
-          {selectedPipeline && stages.length > 0 && !showAddDeal && (
+          {selectedPipeline && stages.length > 0 && (
             <button
               className="pipeline-btn primary"
-              onClick={() => openAddDeal(stages[0].id)}
+              onClick={() => openDealModal(stages[0].id)}
             >
               <Plus size={14} /> Add to Pipeline
             </button>
           )}
 
-          {/* Inline add deal form */}
-          {showAddDeal && (
-            <div className="pipeline-add-deal-form">
-              <select
-                className="pipeline-select"
-                value={addDealStageId || ''}
-                onChange={(e) => setAddDealStageId(e.target.value)}
-                style={{ minWidth: 140 }}
-              >
-                {stages.map((s) => (
-                  <option key={s.id} value={s.id}>{s.name}</option>
-                ))}
-              </select>
-
-              <div className="pipeline-contact-search-wrap">
-                <input
-                  className="pipeline-rename-input"
-                  placeholder="Search contact…"
-                  value={contactSearch}
-                  onChange={(e) => {
-                    setContactSearch(e.target.value);
-                    setAddDealContactId('');
-                  }}
-                  autoFocus
-                />
-                {filteredContacts.length > 0 && !addDealContactId && (
-                  <div className="pipeline-contact-dropdown">
-                    {filteredContacts.map((c) => (
-                      <button
-                        key={c.id}
-                        className="pipeline-contact-option"
-                        onClick={() => {
-                          setAddDealContactId(c.id);
-                          setContactSearch(`${c.first_name} ${c.last_name}`);
-                        }}
-                      >
-                        <span className="pipeline-contact-option-name">
-                          {c.first_name} {c.last_name}
-                        </span>
-                        {c.company && (
-                          <span className="pipeline-contact-option-company">
-                            {c.company.name}
-                          </span>
-                        )}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              <button
-                className="pipeline-btn primary"
-                onClick={handleAddDeal}
-                disabled={!addDealContactId || saving}
-              >
-                <Check size={14} /> Add
-              </button>
-              <button
-                className="pipeline-btn"
-                onClick={() => {
-                  setShowAddDeal(false);
-                  setAddDealStageId(null);
-                  setAddDealContactId('');
-                  setContactSearch('');
-                }}
-              >
-                <X size={14} />
-              </button>
-            </div>
+          {selectedPipeline && (
+            <button
+              className="pipeline-btn"
+              onClick={() => setShowFieldConfig(!showFieldConfig)}
+              title="Configure card fields"
+            >
+              <Settings2 size={14} /> Card Fields
+            </button>
           )}
+        </div>
+      )}
+
+      {/* ── Field Config Panel ── */}
+      {showFieldConfig && selectedPipeline && (
+        <div className="field-config-panel">
+          <div className="field-config-header">
+            <span className="field-config-title">Card Fields</span>
+            <span className="field-config-subtitle">
+              Choose which fields appear on deal cards and in the add deal modal
+            </span>
+          </div>
+          <div className="field-config-list">
+            {fieldConfigs.map((fc) => {
+              const field = fc.field;
+              if (!field) return null;
+              return (
+                <label key={fc.id} className="field-config-item">
+                  <input
+                    type="checkbox"
+                    checked={fc.enabled}
+                    onChange={(e) =>
+                      handleToggleField(fc.field_id, e.target.checked)
+                    }
+                  />
+                  <span className="field-config-label">{field.label}</span>
+                </label>
+              );
+            })}
+          </div>
         </div>
       )}
 
@@ -510,7 +629,7 @@ export function PipelinePage() {
             Create your first pipeline to start tracking sales processes,
             enquiries, and more.
           </p>
-          <button className="pipeline-btn primary" onClick={() => setShowCreate(true)}>
+          <button className="pipeline-btn primary" onClick={openCreateModal}>
             <Plus size={14} /> Create Pipeline
           </button>
         </div>
@@ -527,39 +646,69 @@ export function PipelinePage() {
                 <div className="stage-column-header">
                   {editingStageId === stage.id ? (
                     <>
-                      <ColorPicker value={editStageColor} onChange={setEditStageColor} />
+                      <ColorPicker
+                        value={editStageColor}
+                        onChange={setEditStageColor}
+                      />
                       <div className="stage-edit-row">
                         <input
                           className="stage-edit-input"
                           value={editStageName}
                           onChange={(e) => setEditStageName(e.target.value)}
                           onKeyDown={(e) => {
-                            if (e.key === 'Enter') handleEditStage(stage.id);
-                            if (e.key === 'Escape') setEditingStageId(null);
+                            if (e.key === 'Enter')
+                              handleEditStage(stage.id);
+                            if (e.key === 'Escape')
+                              setEditingStageId(null);
                           }}
                           autoFocus
                         />
-                        <button className="stage-action-btn" title="Save" onClick={() => handleEditStage(stage.id)}>
+                        <button
+                          className="stage-action-btn"
+                          title="Save"
+                          onClick={() => handleEditStage(stage.id)}
+                        >
                           <Check size={14} />
                         </button>
-                        <button className="stage-action-btn" title="Cancel" onClick={() => setEditingStageId(null)}>
+                        <button
+                          className="stage-action-btn"
+                          title="Cancel"
+                          onClick={() => setEditingStageId(null)}
+                        >
                           <X size={14} />
                         </button>
                       </div>
                     </>
                   ) : (
                     <>
-                      <div className="stage-color-dot" style={{ backgroundColor: stage.color }} />
+                      <div
+                        className="stage-color-dot"
+                        style={{ backgroundColor: stage.color }}
+                      />
                       <span className="stage-column-name">{stage.name}</span>
-                      <span className="stage-deal-count">{stageDeals.length}</span>
+                      <span className="stage-deal-count">
+                        {stageDeals.length}
+                      </span>
                       <div className="stage-column-actions">
-                        <button className="stage-action-btn" title="Add deal" onClick={() => openAddDeal(stage.id)}>
+                        <button
+                          className="stage-action-btn"
+                          title="Add deal"
+                          onClick={() => openDealModal(stage.id)}
+                        >
                           <Plus size={14} />
                         </button>
-                        <button className="stage-action-btn" title="Edit" onClick={() => startEditStage(stage)}>
+                        <button
+                          className="stage-action-btn"
+                          title="Edit"
+                          onClick={() => startEditStage(stage)}
+                        >
                           <Pencil size={14} />
                         </button>
-                        <button className="stage-action-btn danger" title="Delete" onClick={() => handleDeleteStage(stage.id)}>
+                        <button
+                          className="stage-action-btn danger"
+                          title="Delete"
+                          onClick={() => handleDeleteStage(stage.id)}
+                        >
                           <Trash2 size={14} />
                         </button>
                       </div>
@@ -573,13 +722,21 @@ export function PipelinePage() {
                     </div>
                   ) : (
                     stageDeals.map((deal) => {
-                      const { name, company } = getContactDisplay(deal);
+                      const { name: contactName, company } =
+                        getContactDisplay(deal);
+                      const fd = deal.field_data || {};
                       return (
                         <div className="deal-card" key={deal.id}>
                           <div className="deal-card-header">
                             <div className="deal-card-info">
+                              {/* Deal name (if enabled) */}
+                              {fd.deal_name && (
+                                <span className="deal-card-deal-name">
+                                  {fd.deal_name}
+                                </span>
+                              )}
                               <span className="deal-card-name">
-                                <User size={12} /> {name}
+                                <User size={12} /> {contactName}
                               </span>
                               {company && (
                                 <span className="deal-card-company">
@@ -595,6 +752,40 @@ export function PipelinePage() {
                               <X size={14} />
                             </button>
                           </div>
+                          {/* Deal metadata row */}
+                          <div className="deal-card-meta">
+                            {fd.value != null && fd.value !== '' && (
+                              <span className="deal-meta-badge value">
+                                <PoundSterling size={10} />
+                                {formatCurrency(Number(fd.value))}
+                              </span>
+                            )}
+                            {fd.expected_close_date && (
+                              <span className="deal-meta-badge date">
+                                <Calendar size={10} />
+                                {formatDate(fd.expected_close_date)}
+                              </span>
+                            )}
+                            {fd.priority && (
+                              <span
+                                className="deal-meta-badge priority"
+                                style={{
+                                  color: PRIORITY_COLORS[fd.priority] || '#6b7280',
+                                }}
+                              >
+                                <AlertTriangle size={10} />
+                                {fd.priority}
+                              </span>
+                            )}
+                            {fd.notes && (
+                              <span
+                                className="deal-meta-badge notes"
+                                title={fd.notes}
+                              >
+                                <FileText size={10} />
+                              </span>
+                            )}
+                          </div>
                         </div>
                       );
                     })
@@ -607,15 +798,27 @@ export function PipelinePage() {
           {/* Add stage column */}
           {showAddStage ? (
             <div className="add-stage-form">
-              <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
-                <ColorPicker value={newStageColor} onChange={setNewStageColor} />
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 'var(--space-2)',
+                }}
+              >
+                <ColorPicker
+                  value={newStageColor}
+                  onChange={setNewStageColor}
+                />
                 <input
                   placeholder="Stage name…"
                   value={newStageName}
                   onChange={(e) => setNewStageName(e.target.value)}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') handleAddStage();
-                    if (e.key === 'Escape') { setShowAddStage(false); setNewStageName(''); }
+                    if (e.key === 'Escape') {
+                      setShowAddStage(false);
+                      setNewStageName('');
+                    }
                   }}
                   autoFocus
                 />
@@ -629,17 +832,299 @@ export function PipelinePage() {
                 >
                   <Check size={14} /> Add Stage
                 </button>
-                <button className="pipeline-btn" onClick={() => { setShowAddStage(false); setNewStageName(''); }}>
+                <button
+                  className="pipeline-btn"
+                  onClick={() => {
+                    setShowAddStage(false);
+                    setNewStageName('');
+                  }}
+                >
                   <X size={14} />
                 </button>
               </div>
             </div>
           ) : (
-            <div className="add-stage-column" onClick={() => setShowAddStage(true)}>
+            <div
+              className="add-stage-column"
+              onClick={() => setShowAddStage(true)}
+            >
               <Plus size={24} />
               <span>Add Stage</span>
             </div>
           )}
+        </div>
+      )}
+
+      {/* ══════ Create Pipeline Modal ══════ */}
+      {showCreateModal && (
+        <div
+          className="pipeline-modal-overlay"
+          onClick={() => setShowCreateModal(false)}
+        >
+          <div
+            className="pipeline-modal"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="pipeline-modal-header">
+              <h3>Create Pipeline</h3>
+              <button
+                className="pipeline-modal-close"
+                onClick={() => setShowCreateModal(false)}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="pipeline-modal-body">
+              <div className="pipeline-modal-field">
+                <label className="pipeline-modal-label">Pipeline Name</label>
+                <input
+                  className="pipeline-modal-input"
+                  placeholder="e.g. Sales Pipeline, Order Tracking…"
+                  value={createName}
+                  onChange={(e) => setCreateName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && createName.trim())
+                      handleCreatePipeline();
+                  }}
+                  autoFocus
+                />
+              </div>
+
+              <div className="pipeline-modal-field">
+                <label className="pipeline-modal-label">
+                  Card Fields
+                </label>
+                <p className="pipeline-modal-hint">
+                  Choose which fields to show on deal cards. You can change
+                  these later.
+                </p>
+                <div className="pipeline-modal-field-list">
+                  {allFields.map((field) => (
+                    <label
+                      key={field.id}
+                      className="pipeline-modal-field-option"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={createFieldSelections[field.id] ?? false}
+                        onChange={(e) =>
+                          setCreateFieldSelections((prev) => ({
+                            ...prev,
+                            [field.id]: e.target.checked,
+                          }))
+                        }
+                      />
+                      <span className="pipeline-modal-field-option-label">
+                        {field.label}
+                      </span>
+                      <span className="pipeline-modal-field-option-type">
+                        {field.field_type}
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="pipeline-modal-footer">
+              <button
+                className="pipeline-btn"
+                onClick={() => setShowCreateModal(false)}
+              >
+                Cancel
+              </button>
+              <button
+                className="pipeline-btn primary"
+                onClick={handleCreatePipeline}
+                disabled={!createName.trim() || saving}
+              >
+                {saving ? 'Creating…' : 'Create Pipeline'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ══════ Add Deal Modal ══════ */}
+      {showDealModal && (
+        <div
+          className="pipeline-modal-overlay"
+          onClick={() => setShowDealModal(false)}
+        >
+          <div
+            className="pipeline-modal"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="pipeline-modal-header">
+              <h3>Add Deal</h3>
+              <button
+                className="pipeline-modal-close"
+                onClick={() => setShowDealModal(false)}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="pipeline-modal-body">
+              {/* Stage selector */}
+              <div className="pipeline-modal-field">
+                <label className="pipeline-modal-label">Stage</label>
+                <select
+                  className="pipeline-modal-input"
+                  value={dealModalStageId || ''}
+                  onChange={(e) => setDealModalStageId(e.target.value)}
+                >
+                  {stages.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Contact search */}
+              <div className="pipeline-modal-field">
+                <label className="pipeline-modal-label">Contact</label>
+                <div className="pipeline-contact-search-wrap">
+                  <input
+                    className="pipeline-modal-input"
+                    placeholder="Search contact…"
+                    value={dealModalContactSearch}
+                    onChange={(e) => {
+                      setDealModalContactSearch(e.target.value);
+                      setDealModalContactId('');
+                    }}
+                  />
+                  {filteredContacts.length > 0 && !dealModalContactId && (
+                    <div className="pipeline-contact-dropdown">
+                      {filteredContacts.map((c) => (
+                        <button
+                          key={c.id}
+                          className="pipeline-contact-option"
+                          onClick={() => {
+                            setDealModalContactId(c.id);
+                            setDealModalContactSearch(
+                              `${c.first_name} ${c.last_name}`
+                            );
+                          }}
+                        >
+                          <span className="pipeline-contact-option-name">
+                            {c.first_name} {c.last_name}
+                          </span>
+                          {c.company && (
+                            <span className="pipeline-contact-option-company">
+                              {c.company.name}
+                            </span>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Dynamic fields based on pipeline config */}
+              {enabledFields.map((field) => (
+                <div key={field.id} className="pipeline-modal-field">
+                  <label className="pipeline-modal-label">
+                    {field.label}
+                  </label>
+                  {field.field_type === 'text' && (
+                    <input
+                      className="pipeline-modal-input"
+                      type="text"
+                      placeholder={field.label}
+                      value={dealModalFieldData[field.key] ?? ''}
+                      onChange={(e) =>
+                        setDealModalFieldData((prev) => ({
+                          ...prev,
+                          [field.key]: e.target.value,
+                        }))
+                      }
+                    />
+                  )}
+                  {field.field_type === 'number' && (
+                    <input
+                      className="pipeline-modal-input"
+                      type="number"
+                      placeholder="0"
+                      value={dealModalFieldData[field.key] ?? ''}
+                      onChange={(e) =>
+                        setDealModalFieldData((prev) => ({
+                          ...prev,
+                          [field.key]: e.target.value,
+                        }))
+                      }
+                    />
+                  )}
+                  {field.field_type === 'date' && (
+                    <DatePicker
+                      value={dealModalFieldData[field.key] ?? ''}
+                      onChange={(val) =>
+                        setDealModalFieldData((prev) => ({
+                          ...prev,
+                          [field.key]: val,
+                        }))
+                      }
+                      placeholder={field.label}
+                    />
+                  )}
+                  {field.field_type === 'select' && (
+                    <select
+                      className="pipeline-modal-input"
+                      value={dealModalFieldData[field.key] ?? ''}
+                      onChange={(e) =>
+                        setDealModalFieldData((prev) => ({
+                          ...prev,
+                          [field.key]: e.target.value,
+                        }))
+                      }
+                    >
+                      <option value="">Select…</option>
+                      {(field.field_options?.choices || []).map(
+                        (choice: string) => (
+                          <option key={choice} value={choice}>
+                            {choice}
+                          </option>
+                        )
+                      )}
+                    </select>
+                  )}
+                  {field.field_type === 'textarea' && (
+                    <textarea
+                      className="pipeline-modal-textarea"
+                      placeholder={field.label}
+                      rows={3}
+                      value={dealModalFieldData[field.key] ?? ''}
+                      onChange={(e) =>
+                        setDealModalFieldData((prev) => ({
+                          ...prev,
+                          [field.key]: e.target.value,
+                        }))
+                      }
+                    />
+                  )}
+                </div>
+              ))}
+            </div>
+
+            <div className="pipeline-modal-footer">
+              <button
+                className="pipeline-btn"
+                onClick={() => setShowDealModal(false)}
+              >
+                Cancel
+              </button>
+              <button
+                className="pipeline-btn primary"
+                onClick={handleAddDeal}
+                disabled={!dealModalContactId || saving}
+              >
+                {saving ? 'Adding…' : 'Add Deal'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </PageShell>

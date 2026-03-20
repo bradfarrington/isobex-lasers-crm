@@ -6,6 +6,7 @@ import { useAlert } from '@/components/ui/AlertDialog';
 import * as api from '@/lib/api';
 import type { Contact, ContactUpdate } from '@/types/database';
 import { ContactDocumentsTab } from './ContactDocumentsTab';
+import { ContactDealsTab } from './ContactDealsTab';
 import {
   ArrowLeft,
   Mail,
@@ -27,7 +28,7 @@ import {
 } from 'lucide-react';
 import './ContactDetailPage.css';
 
-type DetailTab = 'overview' | 'notes' | 'comms' | 'orders' | 'documents';
+type DetailTab = 'overview' | 'notes' | 'comms' | 'orders' | 'documents' | 'deals';
 type EditingCard = 'details' | 'lead' | 'notes' | null;
 
 const tabs: { key: DetailTab; label: string }[] = [
@@ -36,6 +37,7 @@ const tabs: { key: DetailTab; label: string }[] = [
   { key: 'comms', label: 'Communications' },
   { key: 'orders', label: 'Orders & Jobs' },
   { key: 'documents', label: 'Documents' },
+  { key: 'deals', label: 'Deals' },
 ];
 
 export function ContactDetailPage() {
@@ -619,6 +621,7 @@ export function ContactDetailPage() {
         {activeTab === 'comms' && renderComms()}
         {activeTab === 'orders' && renderOrders()}
         {activeTab === 'documents' && renderDocuments()}
+        {activeTab === 'deals' && <ContactDealsTab contactId={contact.id} />}
       </div>
     </div>
   );

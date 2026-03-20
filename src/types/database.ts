@@ -111,16 +111,42 @@ export interface PipelineDeal {
   id: string;
   stage_id: string;
   contact_id: string;
+  field_data: Record<string, any>;
   sort_order: number;
   created_at: string;
   updated_at: string;
   // Joined
   contact?: Contact | null;
+  stage?: PipelineStage | null;
+  pipeline?: Pipeline | null;
 }
 
 export type PipelineDealInsert = {
   stage_id: string;
   contact_id: string;
+  field_data?: Record<string, any>;
   sort_order?: number;
 };
-export type PipelineDealUpdate = Partial<Pick<PipelineDeal, 'stage_id' | 'sort_order'>>;
+export type PipelineDealUpdate = Partial<Pick<PipelineDeal, 'stage_id' | 'sort_order' | 'field_data'>>;
+
+// ─── Pipeline Card Fields (configurable) ────────────────
+export interface PipelineCardField {
+  id: string;
+  key: string;
+  label: string;
+  field_type: 'text' | 'number' | 'date' | 'select' | 'textarea';
+  field_options: Record<string, any> | null;
+  is_default: boolean;
+  sort_order: number;
+  created_at: string;
+}
+
+export interface PipelineFieldConfig {
+  id: string;
+  pipeline_id: string;
+  field_id: string;
+  enabled: boolean;
+  sort_order: number;
+  // Joined
+  field?: PipelineCardField | null;
+}

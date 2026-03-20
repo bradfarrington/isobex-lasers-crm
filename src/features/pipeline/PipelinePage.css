@@ -226,7 +226,7 @@
   outline: none;
 }
 
-/* Stage body (future: deal cards go here) */
+/* Stage body */
 .stage-column-body {
   padding: var(--space-3);
   flex: 1;
@@ -349,28 +349,6 @@
   margin: 0;
 }
 
-/* ── Create pipeline inline form ── */
-.pipeline-create-form {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-}
-
-.pipeline-create-input {
-  padding: var(--space-2) var(--space-3);
-  background: var(--color-bg-raised);
-  border: 1px solid var(--color-primary);
-  border-radius: var(--radius-md);
-  font-size: var(--font-size-sm);
-  font-family: inherit;
-  color: var(--color-text-primary);
-  min-width: 220px;
-}
-
-.pipeline-create-input:focus {
-  outline: none;
-}
-
 /* ── Header actions (in page shell header) ── */
 .pipeline-header-actions {
   display: flex;
@@ -394,14 +372,6 @@
   margin-left: auto;
 }
 
-/* ── Add deal form (inline in toolbar) ── */
-.pipeline-add-deal-form {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  flex-wrap: wrap;
-}
-
 /* ── Contact search dropdown ── */
 .pipeline-contact-search-wrap {
   position: relative;
@@ -419,7 +389,7 @@
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-lg);
-  z-index: 50;
+  z-index: 1010;
   margin-top: 4px;
 }
 
@@ -492,13 +462,22 @@
   min-width: 0;
 }
 
+.deal-card-deal-name {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .deal-card-name {
   display: flex;
   align-items: center;
   gap: var(--space-1);
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-xs);
   font-weight: var(--font-weight-medium);
-  color: var(--color-text-primary);
+  color: var(--color-text-secondary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -525,6 +504,307 @@
   opacity: 1;
 }
 
+/* Deal card metadata row */
+.deal-card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  margin-top: var(--space-2);
+}
+
+.deal-card-meta:empty {
+  display: none;
+}
+
+.deal-meta-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 10px;
+  font-weight: var(--font-weight-medium);
+  padding: 2px 6px;
+  border-radius: var(--radius-full);
+  background: var(--color-bg-surface);
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border);
+  white-space: nowrap;
+}
+
+.deal-meta-badge.value {
+  color: var(--color-primary);
+  border-color: var(--color-primary);
+  background: var(--color-primary-subtle);
+}
+
+.deal-meta-badge.date {
+  color: var(--color-text-tertiary);
+}
+
+.deal-meta-badge.priority {
+  font-weight: var(--font-weight-semibold);
+}
+
+.deal-meta-badge.notes {
+  cursor: help;
+  color: var(--color-text-tertiary);
+}
+
+/* ══════════════════════════════════════════
+   Modal Overlay & Content
+   ══════════════════════════════════════════ */
+
+.pipeline-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: var(--space-4);
+  animation: modal-fade-in 0.15s ease-out;
+}
+
+@keyframes modal-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.pipeline-modal {
+  background: var(--color-bg-raised);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-xl);
+  width: 100%;
+  max-width: 560px;
+  max-height: 90vh;
+  overflow: visible;
+  display: flex;
+  flex-direction: column;
+  animation: modal-slide-up 0.2s ease-out;
+}
+
+@keyframes modal-slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.pipeline-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-4) var(--space-5);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.pipeline-modal-header h3 {
+  margin: 0;
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+}
+
+.pipeline-modal-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text-tertiary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.pipeline-modal-close:hover {
+  background: var(--hover-bg);
+  color: var(--color-text-primary);
+}
+
+.pipeline-modal-body {
+  padding: var(--space-5);
+  overflow: visible;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.pipeline-modal-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.pipeline-modal-label {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.pipeline-modal-hint {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-tertiary);
+  margin: 0 0 var(--space-2) 0;
+  line-height: var(--line-height-normal);
+}
+
+.pipeline-modal-input {
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  font-family: inherit;
+  color: var(--color-text-primary);
+  transition: border-color var(--transition-fast);
+}
+
+.pipeline-modal-input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
+.pipeline-modal-textarea {
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  font-family: inherit;
+  color: var(--color-text-primary);
+  resize: vertical;
+  transition: border-color var(--transition-fast);
+}
+
+.pipeline-modal-textarea:focus {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
+.pipeline-modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  padding: var(--space-4) var(--space-5);
+  border-top: 1px solid var(--color-border);
+}
+
+/* ── Field selection list (create pipeline modal) ── */
+.pipeline-modal-field-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
+}
+
+.pipeline-modal-field-option {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  cursor: pointer;
+  padding: var(--space-1) 0;
+  font-size: var(--font-size-sm);
+}
+
+.pipeline-modal-field-option input[type='checkbox'] {
+  accent-color: var(--color-primary);
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+.pipeline-modal-field-option-label {
+  flex: 1;
+  color: var(--color-text-primary);
+  font-weight: var(--font-weight-medium);
+}
+
+.pipeline-modal-field-option-type {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-tertiary);
+  text-transform: capitalize;
+}
+
+/* ══════════════════════════════════════════
+   Field Config Panel
+   ══════════════════════════════════════════ */
+
+.field-config-panel {
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
+  margin-bottom: var(--space-4);
+}
+
+.field-config-header {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: var(--space-3);
+}
+
+.field-config-title {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+}
+
+.field-config-subtitle {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-tertiary);
+}
+
+.field-config-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.field-config-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  cursor: pointer;
+  font-size: var(--font-size-sm);
+}
+
+.field-config-item input[type='checkbox'] {
+  accent-color: var(--color-primary);
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+.field-config-label {
+  color: var(--color-text-primary);
+  font-weight: var(--font-weight-medium);
+}
+
+.field-config-type {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-tertiary);
+  text-transform: capitalize;
+}
+
 /* ── Responsive ── */
 @media (max-width: 768px) {
   .pipeline-toolbar {
@@ -546,5 +826,9 @@
   .add-stage-form {
     flex: 0 0 240px;
   }
-}
 
+  .pipeline-modal {
+    max-width: 100%;
+    margin: var(--space-2);
+  }
+}
