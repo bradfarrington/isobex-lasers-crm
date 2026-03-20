@@ -24,9 +24,8 @@ import {
   User,
   Settings2,
   Calendar,
-  PoundSterling,
-  AlertTriangle,
   FileText,
+  GripVertical,
 } from 'lucide-react';
 import './PipelinePage.css';
 
@@ -80,14 +79,19 @@ export function PipelinePage() {
   // ── Deal state ──
   const [deals, setDeals] = useState<PipelineDeal[]>([]);
 
-  // ── Add Deal Modal ──
+  // ── Deal Modal (add + edit) ──
   const [showDealModal, setShowDealModal] = useState(false);
+  const [editingDealId, setEditingDealId] = useState<string | null>(null);
   const [dealModalStageId, setDealModalStageId] = useState<string | null>(null);
   const [dealModalContactId, setDealModalContactId] = useState('');
   const [dealModalContactSearch, setDealModalContactSearch] = useState('');
   const [dealModalFieldData, setDealModalFieldData] = useState<
     Record<string, any>
   >({});
+
+  // ── Drag and Drop ──
+  const [dragDealId, setDragDealId] = useState<string | null>(null);
+  const [dragOverStageId, setDragOverStageId] = useState<string | null>(null);
 
   // ── Field config ──
   const [fieldConfigs, setFieldConfigs] = useState<PipelineFieldConfig[]>([]);
@@ -363,6 +367,7 @@ export function PipelinePage() {
   // ══════════════════════════════════════════
 
   const openDealModal = (stageId: string) => {
+    setEditingDealId(null);
     setDealModalStageId(stageId);
     setDealModalContactId('');
     setDealModalContactSearch('');
@@ -370,27 +375,58 @@ export function PipelinePage() {
     setShowDealModal(true);
   };
 
-  const handleAddDeal = async () => {
+  const openEditDealModal = (deal: PipelineDeal) => {
+    setEditingDealId(deal.id);
+    setDealModalStageId(deal.stage_id);
+    setDealModalContactId(deal.contact_id);
+    const c = deal.contact;
+    if (c) {
+      setDealModalContactSearch(`${c.first_name} ${c.last_name}`);
+    } else {
+      setDealModalContactSearch('');
+    }
+    setDealModalFieldData(deal.field_data || {});
+    setShowDealModal(true);
+  };
+
+  const closeDealModal = () => {
+    setShowDealModal(false);
+    setEditingDealId(null);
+    setDealModalStageId(null);
+    setDealModalContactId('');
+    setDealModalContactSearch('');
+    setDealModalFieldData({});
+  };
+
+  const handleSaveDeal = async () => {
     if (!dealModalStageId || !dealModalContactId || saving) return;
     setSaving(true);
     try {
-      const stageDeals = deals.filter(
-        (d) => d.stage_id === dealModalStageId
-      );
-      const created = await api.createPipelineDeal({
-        stage_id: dealModalStageId,
-        contact_id: dealModalContactId,
-        field_data: dealModalFieldData,
-        sort_order: stageDeals.length,
-      });
-      setDeals((prev) => [...prev, created]);
-      setShowDealModal(false);
-      setDealModalStageId(null);
-      setDealModalContactId('');
-      setDealModalContactSearch('');
-      setDealModalFieldData({});
+      if (editingDealId) {
+        // Update existing deal
+        const updated = await api.updatePipelineDeal(editingDealId, {
+          stage_id: dealModalStageId,
+          field_data: dealModalFieldData,
+        });
+        setDeals((prev) =>
+          prev.map((d) => (d.id === updated.id ? updated : d))
+        );
+      } else {
+        // Create new deal
+        const stageDeals = deals.filter(
+          (d) => d.stage_id === dealModalStageId
+        );
+        const created = await api.createPipelineDeal({
+          stage_id: dealModalStageId,
+          contact_id: dealModalContactId,
+          field_data: dealModalFieldData,
+          sort_order: stageDeals.length,
+        });
+        setDeals((prev) => [...prev, created]);
+      }
+      closeDealModal();
     } catch (err) {
-      console.error('Failed to add deal:', err);
+      console.error('Failed to save deal:', err);
     } finally {
       setSaving(false);
     }
@@ -408,6 +444,73 @@ export function PipelinePage() {
       setDeals((prev) => prev.filter((d) => d.id !== dealId));
     } catch (err) {
       console.error('Failed to delete deal:', err);
+    }
+  };
+
+  // ══════════════════════════════════════════
+  //  DRAG AND DROP
+  // ══════════════════════════════════════════
+
+  const handleDragStart = (e: React.DragEvent, dealId: string) => {
+    setDragDealId(dealId);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', dealId);
+    // Add a slight delay to allow the drag image to render
+    setTimeout(() => {
+      const card = document.querySelector(`[data-deal-id="${dealId}"]`);
+      if (card) card.classList.add('dragging');
+    }, 0);
+  };
+
+  const handleDragEnd = () => {
+    if (dragDealId) {
+      const card = document.querySelector(`[data-deal-id="${dragDealId}"]`);
+      if (card) card.classList.remove('dragging');
+    }
+    setDragDealId(null);
+    setDragOverStageId(null);
+  };
+
+  const handleDragOver = (e: React.DragEvent, stageId: string) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    setDragOverStageId(stageId);
+  };
+
+  const handleDragLeave = () => {
+    setDragOverStageId(null);
+  };
+
+  const handleDrop = async (e: React.DragEvent, targetStageId: string) => {
+    e.preventDefault();
+    setDragOverStageId(null);
+    const dealId = e.dataTransfer.getData('text/plain');
+    if (!dealId) return;
+
+    const deal = deals.find((d) => d.id === dealId);
+    if (!deal || deal.stage_id === targetStageId) {
+      setDragDealId(null);
+      return;
+    }
+
+    // Optimistic update
+    setDeals((prev) =>
+      prev.map((d) =>
+        d.id === dealId ? { ...d, stage_id: targetStageId } : d
+      )
+    );
+    setDragDealId(null);
+
+    try {
+      await api.updatePipelineDeal(dealId, { stage_id: targetStageId });
+    } catch (err) {
+      console.error('Failed to move deal:', err);
+      // Revert on error
+      setDeals((prev) =>
+        prev.map((d) =>
+          d.id === dealId ? { ...d, stage_id: deal.stage_id } : d
+        )
+      );
     }
   };
 
@@ -689,6 +792,17 @@ export function PipelinePage() {
                       <span className="stage-deal-count">
                         {stageDeals.length}
                       </span>
+                      {(() => {
+                        const total = stageDeals.reduce((sum, d) => {
+                          const v = Number(d.field_data?.value);
+                          return sum + (isNaN(v) ? 0 : v);
+                        }, 0);
+                        return total > 0 ? (
+                          <span className="stage-total-value">
+                            {formatCurrency(total)}
+                          </span>
+                        ) : null;
+                      })()}
                       <div className="stage-column-actions">
                         <button
                           className="stage-action-btn"
@@ -715,7 +829,12 @@ export function PipelinePage() {
                     </>
                   )}
                 </div>
-                <div className="stage-column-body">
+                <div
+                  className={`stage-column-body ${dragOverStageId === stage.id ? 'drag-over' : ''}`}
+                  onDragOver={(e) => handleDragOver(e, stage.id)}
+                  onDragLeave={handleDragLeave}
+                  onDrop={(e) => handleDrop(e, stage.id)}
+                >
                   {stageDeals.length === 0 ? (
                     <div className="stage-column-body-empty">
                       <span className="stage-empty-text">No deals yet</span>
@@ -726,10 +845,20 @@ export function PipelinePage() {
                         getContactDisplay(deal);
                       const fd = deal.field_data || {};
                       return (
-                        <div className="deal-card" key={deal.id}>
+                        <div
+                          className="deal-card"
+                          key={deal.id}
+                          data-deal-id={deal.id}
+                          draggable
+                          onDragStart={(e) => handleDragStart(e, deal.id)}
+                          onDragEnd={handleDragEnd}
+                          onClick={() => openEditDealModal(deal)}
+                        >
                           <div className="deal-card-header">
+                            <div className="deal-card-drag-handle">
+                              <GripVertical size={14} />
+                            </div>
                             <div className="deal-card-info">
-                              {/* Deal name (if enabled) */}
                               {fd.deal_name && (
                                 <span className="deal-card-deal-name">
                                   {fd.deal_name}
@@ -747,45 +876,56 @@ export function PipelinePage() {
                             <button
                               className="stage-action-btn danger deal-card-delete"
                               title="Remove"
-                              onClick={() => handleDeleteDeal(deal.id)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteDeal(deal.id);
+                              }}
                             >
                               <X size={14} />
                             </button>
                           </div>
-                          {/* Deal metadata row */}
-                          <div className="deal-card-meta">
-                            {fd.value != null && fd.value !== '' && (
-                              <span className="deal-meta-badge value">
-                                <PoundSterling size={10} />
-                                {formatCurrency(Number(fd.value))}
-                              </span>
-                            )}
-                            {fd.expected_close_date && (
-                              <span className="deal-meta-badge date">
-                                <Calendar size={10} />
-                                {formatDate(fd.expected_close_date)}
-                              </span>
-                            )}
-                            {fd.priority && (
-                              <span
-                                className="deal-meta-badge priority"
-                                style={{
-                                  color: PRIORITY_COLORS[fd.priority] || '#6b7280',
-                                }}
-                              >
-                                <AlertTriangle size={10} />
-                                {fd.priority}
-                              </span>
-                            )}
-                            {fd.notes && (
-                              <span
-                                className="deal-meta-badge notes"
-                                title={fd.notes}
-                              >
-                                <FileText size={10} />
-                              </span>
-                            )}
-                          </div>
+
+                          {/* Value + Priority row */}
+                          {(fd.value != null && fd.value !== '') || fd.priority ? (
+                            <div className="deal-card-value-row">
+                              {fd.value != null && fd.value !== '' && (
+                                <span className="deal-card-value">
+                                  {formatCurrency(Number(fd.value))}
+                                </span>
+                              )}
+                              {fd.priority && (
+                                <span
+                                  className="deal-card-priority"
+                                  style={{
+                                    color: PRIORITY_COLORS[fd.priority] || '#6b7280',
+                                    background: `${PRIORITY_COLORS[fd.priority] || '#6b7280'}14`,
+                                  }}
+                                >
+                                  {fd.priority}
+                                </span>
+                              )}
+                            </div>
+                          ) : null}
+
+                          {/* Footer: date + notes */}
+                          {(fd.expected_close_date || fd.notes) && (
+                            <div className="deal-card-footer">
+                              {fd.expected_close_date && (
+                                <span className="deal-card-date">
+                                  <Calendar size={10} />
+                                  {formatDate(fd.expected_close_date)}
+                                </span>
+                              )}
+                              {fd.notes && (
+                                <span
+                                  className="deal-card-notes"
+                                  title={fd.notes}
+                                >
+                                  <FileText size={10} />
+                                </span>
+                              )}
+                            </div>
+                          )}
                         </div>
                       );
                     })
@@ -957,10 +1097,10 @@ export function PipelinePage() {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="pipeline-modal-header">
-              <h3>Add Deal</h3>
+              <h3>{editingDealId ? 'Edit Deal' : 'Add Deal'}</h3>
               <button
                 className="pipeline-modal-close"
-                onClick={() => setShowDealModal(false)}
+                onClick={closeDealModal}
               >
                 <X size={18} />
               </button>
@@ -991,6 +1131,7 @@ export function PipelinePage() {
                     className="pipeline-modal-input"
                     placeholder="Search contact…"
                     value={dealModalContactSearch}
+                    disabled={!!editingDealId}
                     onChange={(e) => {
                       setDealModalContactSearch(e.target.value);
                       setDealModalContactId('');
@@ -1110,18 +1251,34 @@ export function PipelinePage() {
             </div>
 
             <div className="pipeline-modal-footer">
+              {editingDealId && (
+                <button
+                  className="pipeline-btn danger"
+                  onClick={() => {
+                    handleDeleteDeal(editingDealId);
+                    closeDealModal();
+                  }}
+                >
+                  Delete
+                </button>
+              )}
+              <div style={{ flex: 1 }} />
               <button
                 className="pipeline-btn"
-                onClick={() => setShowDealModal(false)}
+                onClick={closeDealModal}
               >
                 Cancel
               </button>
               <button
                 className="pipeline-btn primary"
-                onClick={handleAddDeal}
+                onClick={handleSaveDeal}
                 disabled={!dealModalContactId || saving}
               >
-                {saving ? 'Adding…' : 'Add Deal'}
+                {saving
+                  ? 'Saving…'
+                  : editingDealId
+                    ? 'Save Changes'
+                    : 'Add Deal'}
               </button>
             </div>
           </div>

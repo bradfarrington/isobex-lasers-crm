@@ -18,6 +18,7 @@ interface DataState {
   leadSources: LookupItem[];
   leadStatuses: LookupItem[];
   companyStatuses: LookupItem[];
+  productLabels: LookupItem[];
   dashboardStats: DashboardStats;
   loading: boolean;
   error: string | null;
@@ -29,6 +30,7 @@ const initialState: DataState = {
   leadSources: [],
   leadStatuses: [],
   companyStatuses: [],
+  productLabels: [],
   dashboardStats: {
     totalContacts: 0,
     totalCompanies: 0,
@@ -49,6 +51,7 @@ type Action =
   | { type: 'SET_LEAD_SOURCES'; payload: LookupItem[] }
   | { type: 'SET_LEAD_STATUSES'; payload: LookupItem[] }
   | { type: 'SET_COMPANY_STATUSES'; payload: LookupItem[] }
+  | { type: 'SET_PRODUCT_LABELS'; payload: LookupItem[] }
   | { type: 'SET_DASHBOARD_STATS'; payload: DashboardStats }
   | { type: 'ADD_CONTACT'; payload: Contact }
   | { type: 'UPDATE_CONTACT'; payload: Contact }
@@ -57,9 +60,9 @@ type Action =
   | { type: 'UPDATE_COMPANY'; payload: Company }
   | { type: 'DELETE_COMPANY'; payload: string }
   // Lookup CRUD
-  | { type: 'ADD_LOOKUP'; collection: 'leadSources' | 'leadStatuses' | 'companyStatuses'; payload: LookupItem }
-  | { type: 'UPDATE_LOOKUP'; collection: 'leadSources' | 'leadStatuses' | 'companyStatuses'; payload: LookupItem }
-  | { type: 'DELETE_LOOKUP'; collection: 'leadSources' | 'leadStatuses' | 'companyStatuses'; payload: string };
+  | { type: 'ADD_LOOKUP'; collection: 'leadSources' | 'leadStatuses' | 'companyStatuses' | 'productLabels'; payload: LookupItem }
+  | { type: 'UPDATE_LOOKUP'; collection: 'leadSources' | 'leadStatuses' | 'companyStatuses' | 'productLabels'; payload: LookupItem }
+  | { type: 'DELETE_LOOKUP'; collection: 'leadSources' | 'leadStatuses' | 'companyStatuses' | 'productLabels'; payload: string };
 
 function dataReducer(state: DataState, action: Action): DataState {
   switch (action.type) {
@@ -77,6 +80,8 @@ function dataReducer(state: DataState, action: Action): DataState {
       return { ...state, leadStatuses: action.payload };
     case 'SET_COMPANY_STATUSES':
       return { ...state, companyStatuses: action.payload };
+    case 'SET_PRODUCT_LABELS':
+      return { ...state, productLabels: action.payload };
     case 'SET_DASHBOARD_STATS':
       return { ...state, dashboardStats: action.payload };
 
@@ -166,7 +171,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     dispatch({ type: 'SET_ERROR', payload: null });
 
     try {
-      const [contacts, companies, stats, leadSources, leadStatuses, companyStatuses] =
+      const [contacts, companies, stats, leadSources, leadStatuses, companyStatuses, productLabels] =
         await Promise.all([
           api.fetchContacts(),
           api.fetchCompanies(),
@@ -174,6 +179,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
           api.fetchLookup('lead_sources'),
           api.fetchLookup('lead_statuses'),
           api.fetchLookup('company_statuses'),
+          api.fetchLookup('product_labels'),
         ]);
 
       dispatch({ type: 'SET_CONTACTS', payload: contacts });
@@ -182,6 +188,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       dispatch({ type: 'SET_LEAD_SOURCES', payload: leadSources });
       dispatch({ type: 'SET_LEAD_STATUSES', payload: leadStatuses });
       dispatch({ type: 'SET_COMPANY_STATUSES', payload: companyStatuses });
+      dispatch({ type: 'SET_PRODUCT_LABELS', payload: productLabels });
     } catch (err) {
       dispatch({
         type: 'SET_ERROR',

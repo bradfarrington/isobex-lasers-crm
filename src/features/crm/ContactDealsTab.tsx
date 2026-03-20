@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import * as api from '@/lib/api';
 import type { PipelineDeal } from '@/types/database';
 import {
@@ -23,6 +24,7 @@ interface ContactDealsTabProps {
 export function ContactDealsTab({ contactId }: ContactDealsTabProps) {
   const [deals, setDeals] = useState<PipelineDeal[]>([]);
   const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
 
   useEffect(() => {
     setLoading(true);
@@ -81,9 +83,16 @@ export function ContactDealsTab({ contactId }: ContactDealsTabProps) {
         const stageColor = (deal.stage as any)?.color || '#6b7280';
         const pipelineName =
           (deal.stage as any)?.pipeline?.name || 'Unknown Pipeline';
+        const pipelineId = (deal.stage as any)?.pipeline_id || null;
 
         return (
-          <div className="contact-deal-card" key={deal.id}>
+          <div
+            className="contact-deal-card"
+            key={deal.id}
+            onClick={() => pipelineId && navigate('/pipeline')}
+            style={{ cursor: pipelineId ? 'pointer' : 'default' }}
+            title="Click to open in pipeline"
+          >
             <div className="contact-deal-card-top">
               <div className="contact-deal-card-title">
                 {fd.deal_name || 'Untitled Deal'}

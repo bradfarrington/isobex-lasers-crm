@@ -6,6 +6,11 @@ import { ContactDetailPage } from '@/features/crm/ContactDetailPage';
 import { CompaniesPage } from '@/features/companies/CompaniesPage';
 import { PipelinePage } from '@/features/pipeline/PipelinePage';
 import { StorePage } from '@/features/store/StorePage';
+import { ProductEditorPage } from '@/features/store/ProductEditorPage';
+import { CollectionsPage } from '@/features/store/CollectionsPage';
+import { InventoryPage } from '@/features/store/InventoryPage';
+import { GiftCardsPage } from '@/features/store/GiftCardsPage';
+import { DiscountsPage } from '@/features/store/DiscountsPage';
 import { OrdersPage } from '@/features/orders/OrdersPage';
 import { EmailMarketingPage } from '@/features/email-marketing/EmailMarketingPage';
 import { ReviewsPage } from '@/features/reviews/ReviewsPage';
@@ -25,7 +30,14 @@ export function App() {
           <Route path="crm/:id" element={<ContactDetailPage />} />
           <Route path="companies" element={<CompaniesPage />} />
           <Route path="pipeline" element={<PipelinePage />} />
+          {/* Store sub-routes */}
           <Route path="store" element={<StorePage />} />
+          <Route path="store/new" element={<ProductEditorPage />} />
+          <Route path="store/:id" element={<ProductEditorPage />} />
+          <Route path="store/collections" element={<CollectionsPage />} />
+          <Route path="store/inventory" element={<InventoryPage />} />
+          <Route path="store/gift-cards" element={<GiftCardsPage />} />
+          <Route path="store/discounts" element={<DiscountsPage />} />
           <Route path="orders" element={<OrdersPage />} />
           <Route path="email-marketing" element={<EmailMarketingPage />} />
           <Route path="reviews" element={<ReviewsPage />} />
@@ -39,3 +51,4 @@ export function App() {
     </BrowserRouter>
   );
 }
+

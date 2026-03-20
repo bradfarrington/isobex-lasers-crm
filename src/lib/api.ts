@@ -21,6 +21,19 @@ import type {
   PipelineDealUpdate,
   PipelineCardField,
   PipelineFieldConfig,
+  Product,
+  ProductInsert,
+  ProductUpdate,
+  Collection,
+  CollectionInsert,
+  CollectionUpdate,
+  ProductMedia,
+  ProductMediaInsert,
+  ProductOptionGroup,
+  ProductOptionValue,
+  ProductVariant,
+  ProductVariantInsert,
+  InventoryItem,
 } from '@/types/database';
 
 // ─── Contacts ────────────────────────────────────────────
@@ -141,7 +154,7 @@ export async function fetchDashboardStats(): Promise<DashboardStats> {
 
 // ─── Configurable Lookups ────────────────────────────────
 
-type LookupTable = 'lead_sources' | 'lead_statuses' | 'company_statuses';
+type LookupTable = 'lead_sources' | 'lead_statuses' | 'company_statuses' | 'product_labels';
 
 export async function fetchLookup(table: LookupTable): Promise<LookupItem[]> {
   const { data, error } = await supabase
@@ -537,4 +550,420 @@ export async function fetchPipelineDealsByContact(
 
   if (error) throw error;
   return data as PipelineDeal[];
+}
+
+// ─── Online Store: Products ─────────────────────────────────
+
+export async function fetchProducts(): Promise<Product[]> {
+  const { data, error } = await supabase
+    .from('products')
+    .select('*')
+    .order('created_at', { ascending: false });
+
+  if (error) throw error;
+  const products = data as Product[];
+
+  // Fetch all variants in one query to compute stock aggregates
+  const { data: variants, error: vErr } = await supabase
+    .from('product_variants')
+    .select('product_id, option_values, stock_quantity');
+
+  if (vErr) throw vErr;
+
+  // Group variants by product_id
+  const variantsByProduct = new Map<string, any[]>();
+  (variants || []).forEach((v: any) => {
+    const list = variantsByProduct.get(v.product_id) || [];
+    list.push(v);
+    variantsByProduct.set(v.product_id, list);
+  });
+
+  // Attach variant stock metadata to each product
+  return products.map((p) => {
+    const pvariants = variantsByProduct.get(p.id);
+    if (pvariants && pvariants.length > 0) {
+      const details = pvariants.map((v: any) => ({
+        label: (v.option_values || []).map((ov: any) => ov.value).join(' / ') || 'Default',
+        stock: v.stock_quantity ?? 0,
+      }));
+      const total = details.reduce((sum: number, d: { stock: number }) => sum + d.stock, 0);
+      return {
+        ...p,
+        variant_count: pvariants.length,
+        total_variant_stock: total,
+        variant_stock_details: details,
+      };
+    }
+    return p;
+  });
+}
+
+export async function fetchProduct(productId: string): Promise<Product> {
+  const { data, error } = await supabase
+    .from('products')
+    .select('*')
+    .eq('id', productId)
+    .single();
+
+  if (error) throw error;
+  return data as Product;
+}
+
+export async function createProduct(product: ProductInsert): Promise<Product> {
+  const { data, error } = await supabase
+    .from('products')
+    .insert(product)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as Product;
+}
+
+export async function updateProduct(id: string, updates: ProductUpdate): Promise<Product> {
+  const { data, error } = await supabase
+    .from('products')
+    .update(updates)
+    .eq('id', id)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as Product;
+}
+
+export async function deleteProduct(id: string): Promise<void> {
+  const { error } = await supabase.from('products').delete().eq('id', id);
+  if (error) throw error;
+}
+
+// ─── Online Store: Product Media ────────────────────────────
+
+export async function fetchProductMedia(productId: string): Promise<ProductMedia[]> {
+  const { data, error } = await supabase
+    .from('product_media')
+    .select('*')
+    .eq('product_id', productId)
+    .order('sort_order', { ascending: true });
+
+  if (error) throw error;
+  return data as ProductMedia[];
+}
+
+export async function addProductMedia(media: ProductMediaInsert): Promise<ProductMedia> {
+  const { data, error } = await supabase
+    .from('product_media')
+    .insert(media)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as ProductMedia;
+}
+
+export async function deleteProductMedia(id: string): Promise<void> {
+  const { error } = await supabase.from('product_media').delete().eq('id', id);
+  if (error) throw error;
+}
+
+export async function reorderProductMedia(
+  _productId: string,
+  orderedIds: string[]
+): Promise<void> {
+  const updates = orderedIds.map((id, index) =>
+    supabase.from('product_media').update({ sort_order: index }).eq('id', id)
+  );
+  await Promise.all(updates);
+}
+
+// ─── Online Store: Product Options & Variants ───────────────
+
+export async function fetchProductOptions(
+  productId: string
+): Promise<ProductOptionGroup[]> {
+  const { data: groups, error: gErr } = await supabase
+    .from('product_option_groups')
+    .select('*')
+    .eq('product_id', productId)
+    .order('sort_order', { ascending: true });
+
+  if (gErr) throw gErr;
+
+  const groupIds = (groups || []).map((g: ProductOptionGroup) => g.id);
+  if (groupIds.length === 0) return [];
+
+  const { data: values, error: vErr } = await supabase
+    .from('product_option_values')
+    .select('*')
+    .in('option_group_id', groupIds)
+    .order('sort_order', { ascending: true });
+
+  if (vErr) throw vErr;
+
+  return (groups as ProductOptionGroup[]).map((g) => ({
+    ...g,
+    values: (values as ProductOptionValue[]).filter((v) => v.option_group_id === g.id),
+  }));
+}
+
+export async function saveProductOptions(
+  productId: string,
+  groups: { name: string; values: string[] }[]
+): Promise<ProductOptionGroup[]> {
+  await supabase.from('product_option_groups').delete().eq('product_id', productId);
+
+  const result: ProductOptionGroup[] = [];
+
+  for (let gi = 0; gi < groups.length; gi++) {
+    const g = groups[gi];
+    const { data: group, error: gErr } = await supabase
+      .from('product_option_groups')
+      .insert({ product_id: productId, name: g.name, sort_order: gi })
+      .select()
+      .single();
+
+    if (gErr) throw gErr;
+
+    const valRows = g.values.map((v, vi) => ({
+      option_group_id: group.id,
+      value: v,
+      sort_order: vi,
+    }));
+
+    const { data: vals, error: vErr } = await supabase
+      .from('product_option_values')
+      .insert(valRows)
+      .select();
+
+    if (vErr) throw vErr;
+
+    result.push({ ...group, values: vals as ProductOptionValue[] } as ProductOptionGroup);
+  }
+
+  return result;
+}
+
+export async function fetchProductVariants(
+  productId: string
+): Promise<ProductVariant[]> {
+  const { data, error } = await supabase
+    .from('product_variants')
+    .select('*')
+    .eq('product_id', productId)
+    .order('created_at', { ascending: true });
+
+  if (error) throw error;
+  return data as ProductVariant[];
+}
+
+export async function saveProductVariants(
+  productId: string,
+  variants: ProductVariantInsert[]
+): Promise<ProductVariant[]> {
+  await supabase.from('product_variants').delete().eq('product_id', productId);
+
+  if (variants.length === 0) return [];
+
+  const { data, error } = await supabase
+    .from('product_variants')
+    .insert(variants)
+    .select();
+
+  if (error) throw error;
+  return data as ProductVariant[];
+}
+
+export async function updateProductVariant(
+  id: string,
+  updates: Partial<Pick<ProductVariant, 'price_override' | 'sku' | 'stock_quantity'>>
+): Promise<ProductVariant> {
+  const { data, error } = await supabase
+    .from('product_variants')
+    .update(updates)
+    .eq('id', id)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as ProductVariant;
+}
+
+// ─── Online Store: Collections ──────────────────────────────
+
+export async function fetchCollections(): Promise<Collection[]> {
+  const { data, error } = await supabase
+    .from('collections')
+    .select('*')
+    .order('sort_order', { ascending: true });
+
+  if (error) throw error;
+
+  const { data: counts } = await supabase
+    .from('product_collection_assignments')
+    .select('collection_id');
+
+  const countMap: Record<string, number> = {};
+  (counts || []).forEach((row: { collection_id: string }) => {
+    countMap[row.collection_id] = (countMap[row.collection_id] || 0) + 1;
+  });
+
+  return (data as Collection[]).map((c) => ({
+    ...c,
+    product_count: countMap[c.id] || 0,
+  }));
+}
+
+export async function createCollection(collection: CollectionInsert): Promise<Collection> {
+  const { data, error } = await supabase
+    .from('collections')
+    .insert(collection)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return { ...data, product_count: 0 } as Collection;
+}
+
+export async function updateCollection(
+  id: string,
+  updates: CollectionUpdate
+): Promise<Collection> {
+  const { data, error } = await supabase
+    .from('collections')
+    .update(updates)
+    .eq('id', id)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as Collection;
+}
+
+export async function deleteCollection(id: string): Promise<void> {
+  const { error } = await supabase.from('collections').delete().eq('id', id);
+  if (error) throw error;
+}
+
+// ─── Online Store: Product ↔ Label assignments ──────────────
+
+export async function fetchProductLabelIds(productId: string): Promise<string[]> {
+  const { data, error } = await supabase
+    .from('product_label_assignments')
+    .select('label_id')
+    .eq('product_id', productId);
+
+  if (error) throw error;
+  return (data || []).map((r: { label_id: string }) => r.label_id);
+}
+
+export async function assignProductLabels(
+  productId: string,
+  labelIds: string[]
+): Promise<void> {
+  await supabase
+    .from('product_label_assignments')
+    .delete()
+    .eq('product_id', productId);
+
+  if (labelIds.length === 0) return;
+
+  const rows = labelIds.map((labelId) => ({ product_id: productId, label_id: labelId }));
+  const { error } = await supabase.from('product_label_assignments').insert(rows);
+  if (error) throw error;
+}
+
+// ─── Online Store: Product ↔ Collection assignments ─────────
+
+export async function fetchProductCollectionIds(productId: string): Promise<string[]> {
+  const { data, error } = await supabase
+    .from('product_collection_assignments')
+    .select('collection_id')
+    .eq('product_id', productId);
+
+  if (error) throw error;
+  return (data || []).map((r: { collection_id: string }) => r.collection_id);
+}
+
+export async function assignProductCollections(
+  productId: string,
+  collectionIds: string[]
+): Promise<void> {
+  await supabase
+    .from('product_collection_assignments')
+    .delete()
+    .eq('product_id', productId);
+
+  if (collectionIds.length === 0) return;
+
+  const rows = collectionIds.map((collectionId) => ({
+    product_id: productId,
+    collection_id: collectionId,
+  }));
+  const { error } = await supabase.from('product_collection_assignments').insert(rows);
+  if (error) throw error;
+}
+
+// ─── Online Store: Inventory Summary ────────────────────────
+
+export async function fetchInventorySummary(): Promise<InventoryItem[]> {
+  const { data: products, error: pErr } = await supabase
+    .from('products')
+    .select('id, name, sku, price, stock_quantity, min_stock_threshold, continue_selling_when_out_of_stock')
+    .order('name', { ascending: true });
+
+  if (pErr) throw pErr;
+
+  const { data: variants, error: vErr } = await supabase
+    .from('product_variants')
+    .select('id, product_id, option_values, price_override, sku, stock_quantity');
+
+  if (vErr) throw vErr;
+
+  const items: InventoryItem[] = [];
+  const productMap = new Map((products || []).map((p: any) => [p.id, p]));
+
+  const variantsByProduct = new Map<string, any[]>();
+  (variants || []).forEach((v: any) => {
+    const list = variantsByProduct.get(v.product_id) || [];
+    list.push(v);
+    variantsByProduct.set(v.product_id, list);
+  });
+
+  for (const [pid, product] of productMap.entries()) {
+    const pvariants = variantsByProduct.get(pid);
+    if (pvariants && pvariants.length > 0) {
+      for (const v of pvariants) {
+        const label = (v.option_values || [])
+          .map((ov: any) => ov.value)
+          .join(' / ');
+        items.push({
+          product_id: pid,
+          product_name: product.name,
+          product_sku: product.sku,
+          variant_id: v.id,
+          variant_label: label || null,
+          variant_sku: v.sku,
+          stock_quantity: v.stock_quantity ?? 0,
+          min_stock_threshold: product.min_stock_threshold ?? 0,
+          continue_selling_when_out_of_stock: product.continue_selling_when_out_of_stock ?? false,
+          price: v.price_override ?? product.price ?? 0,
+        });
+      }
+    } else {
+      items.push({
+        product_id: pid,
+        product_name: product.name,
+        product_sku: product.sku,
+        variant_id: null,
+        variant_label: null,
+        variant_sku: null,
+        stock_quantity: product.stock_quantity ?? 0,
+        min_stock_threshold: product.min_stock_threshold ?? 0,
+        continue_selling_when_out_of_stock: product.continue_selling_when_out_of_stock ?? false,
+        price: product.price ?? 0,
+      });
+    }
+  }
+
+  return items;
 }
