@@ -50,7 +50,7 @@ export function CrmPage() {
   const [editingContact, setEditingContact] = useState<Contact | null>(null);
   const [form, setForm] = useState<ContactInsert>(emptyForm);
   const [saving, setSaving] = useState(false);
-  const [sortColumn, setSortColumn] = useState<SortColumn | null>(null);
+  const [sortColumn, setSortColumn] = useState<SortColumn | null>('name');
   const [sortDir, setSortDir] = useState<SortDir>('asc');
 
   // Filter and sort contacts

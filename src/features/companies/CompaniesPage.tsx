@@ -43,7 +43,7 @@ export function CompaniesPage() {
   const [editingCompany, setEditingCompany] = useState<Company | null>(null);
   const [form, setForm] = useState<CompanyInsert>(emptyForm);
   const [saving, setSaving] = useState(false);
-  const [sortColumn, setSortColumn] = useState<SortColumn | null>(null);
+  const [sortColumn, setSortColumn] = useState<SortColumn | null>('name');
   const [sortDir, setSortDir] = useState<SortDir>('asc');
 
   const filtered = useMemo(() => {

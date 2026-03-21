@@ -143,19 +143,38 @@
   font-size: var(--font-size-sm);
 }
 
-/* Products page column widths (6 columns) */
-.products-table:not(.inventory-table) th:nth-child(1),
-.products-table:not(.inventory-table) td:nth-child(1) { width: 38%; }
-.products-table:not(.inventory-table) th:nth-child(2),
-.products-table:not(.inventory-table) td:nth-child(2) { width: 10%; }
-.products-table:not(.inventory-table) th:nth-child(3),
-.products-table:not(.inventory-table) td:nth-child(3) { width: 12%; }
-.products-table:not(.inventory-table) th:nth-child(4),
-.products-table:not(.inventory-table) td:nth-child(4) { width: 16%; }
-.products-table:not(.inventory-table) th:nth-child(5),
-.products-table:not(.inventory-table) td:nth-child(5) { width: 16%; }
-.products-table:not(.inventory-table) th:nth-child(6),
-.products-table:not(.inventory-table) td:nth-child(6) { width: 8%; text-align: center; }
+/* Products page column widths (7 columns) — exclude variants table */
+.products-table:not(.inventory-table):not(.variants-table) th:nth-child(1),
+.products-table:not(.inventory-table):not(.variants-table) td:nth-child(1) { width: 32%; }
+.products-table:not(.inventory-table):not(.variants-table) th:nth-child(2),
+.products-table:not(.inventory-table):not(.variants-table) td:nth-child(2) { width: 10%; }
+.products-table:not(.inventory-table):not(.variants-table) th:nth-child(3),
+.products-table:not(.inventory-table):not(.variants-table) td:nth-child(3) { width: 10%; }
+.products-table:not(.inventory-table):not(.variants-table) th:nth-child(4),
+.products-table:not(.inventory-table):not(.variants-table) td:nth-child(4) { width: 10%; }
+.products-table:not(.inventory-table):not(.variants-table) th:nth-child(5),
+.products-table:not(.inventory-table):not(.variants-table) td:nth-child(5) { width: 15%; }
+.products-table:not(.inventory-table):not(.variants-table) th:nth-child(6),
+.products-table:not(.inventory-table):not(.variants-table) td:nth-child(6) { width: 15%; }
+.products-table:not(.inventory-table):not(.variants-table) th:nth-child(7),
+.products-table:not(.inventory-table):not(.variants-table) td:nth-child(7) { width: 8%; text-align: center; }
+
+/* Variant table column widths (6 columns: checkbox, combo, price, compare-at, SKU, stock) */
+.products-table.variants-table {
+  table-layout: fixed;
+}
+.products-table.variants-table th:nth-child(1),
+.products-table.variants-table td:nth-child(1) { width: 5%; text-align: center; }
+.products-table.variants-table th:nth-child(2),
+.products-table.variants-table td:nth-child(2) { width: 27%; }
+.products-table.variants-table th:nth-child(3),
+.products-table.variants-table td:nth-child(3) { width: 18%; }
+.products-table.variants-table th:nth-child(4),
+.products-table.variants-table td:nth-child(4) { width: 18%; }
+.products-table.variants-table th:nth-child(5),
+.products-table.variants-table td:nth-child(5) { width: 18%; }
+.products-table.variants-table th:nth-child(6),
+.products-table.variants-table td:nth-child(6) { width: 14%; }
 
 .products-table th {
   text-align: left;
@@ -232,6 +251,31 @@
 [data-theme="dark"] .product-type-badge.digital {
   background: rgba(139, 92, 246, 0.15);
   color: #a78bfa;
+}
+
+/* Pack quantity badge */
+.pack-qty-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  white-space: nowrap;
+}
+
+.pack-qty-badge.single {
+  background: rgba(107, 114, 128, 0.1);
+  color: var(--color-text-secondary);
+}
+
+.pack-qty-badge.multi {
+  background: rgba(217, 119, 6, 0.1);
+  color: var(--color-warning);
+}
+
+[data-theme="dark"] .pack-qty-badge.multi {
+  background: rgba(217, 119, 6, 0.15);
 }
 
 .product-price-cell {
@@ -717,7 +761,35 @@
 }
 
 .radio-option input[type='radio'] {
-  accent-color: var(--color-primary);
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+
+.radio-option span {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  line-height: 1;
+}
+
+.radio-option span::before {
+  content: '';
+  display: block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--color-text-tertiary);
+  border-radius: 50%;
+  flex-shrink: 0;
+  box-sizing: border-box;
+  transition: all var(--transition-fast);
+}
+
+.radio-option.selected span::before {
+  border-color: var(--color-primary);
+  border-width: 5px;
 }
 
 /* Toggle row */
@@ -944,14 +1016,79 @@
 }
 
 .variants-table .form-input {
-  min-width: 80px;
+  min-width: 60px;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .variant-combo-cell {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: var(--space-2);
   font-weight: var(--font-weight-medium);
+  white-space: nowrap;
+}
+
+.variants-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+/* ─── Variant multi-select action bar ──────────────────── */
+.variant-action-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-primary-subtle);
+  border: 1px solid var(--color-primary);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--space-3);
+  animation: tooltipFadeIn 0.15s ease;
+}
+
+.variant-action-bar-label {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-primary);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.variant-action-bar-fields {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex: 1;
+}
+
+.variant-action-bar-fields .form-input {
+  max-width: 110px;
+}
+
+.variant-action-bar-fields label {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+
+.variant-checkbox {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--color-primary);
+  cursor: pointer;
+  margin: 0;
+}
+
+.variant-select-all-label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  cursor: pointer;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-tertiary);
 }
 
 .grip-icon {

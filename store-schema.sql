@@ -47,6 +47,7 @@ create table if not exists products (
   is_visible boolean default false,
   stock_quantity int default 0,
   min_stock_threshold int default 0,
+  pack_quantity int default 1,
   created_at timestamptz default now(),
   updated_at timestamptz default now()
 );

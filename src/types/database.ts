@@ -166,6 +166,7 @@ export interface Product {
   is_visible: boolean;
   stock_quantity: number;
   min_stock_threshold: number;
+  pack_quantity: number;
   continue_selling_when_out_of_stock: boolean;
   created_at: string;
   updated_at: string;
@@ -247,6 +248,7 @@ export interface ProductVariant {
   product_id: string;
   option_values: VariantOptionEntry[];
   price_override: number | null;
+  compare_at_price: number | null;
   sku: string | null;
   stock_quantity: number;
   created_at: string;

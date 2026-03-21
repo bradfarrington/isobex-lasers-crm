@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { PageShell } from '@/components/layout/PageShell';
@@ -6,8 +6,11 @@ import { StoreTabBar } from './StoreTabBar';
 import { useData } from '@/context/DataContext';
 import * as api from '@/lib/api';
 import type { Product } from '@/types/database';
-import { Plus, Search, Eye, EyeOff, Package } from 'lucide-react';
+import { Plus, Search, Eye, EyeOff, Package, ChevronUp, ChevronDown } from 'lucide-react';
 import './StorePage.css';
+
+type ProductSortColumn = 'name' | 'type' | 'pack_quantity' | 'price' | 'stock';
+type SortDir = 'asc' | 'desc';
 
 export function StorePage() {
   const navigate = useNavigate();
@@ -18,6 +21,8 @@ export function StorePage() {
   const [labelAssignments, setLabelAssignments] = useState<Record<string, string[]>>({});
   const [tooltipProduct, setTooltipProduct] = useState<Product | null>(null);
   const [tooltipPos, setTooltipPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
+  const [sortColumn, setSortColumn] = useState<ProductSortColumn | null>('name');
+  const [sortDir, setSortDir] = useState<SortDir>('asc');
   const tooltipTimeout = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   useEffect(() => {
@@ -58,9 +63,81 @@ export function StorePage() {
     }
   };
 
-  const filtered = products.filter((p) =>
-    p.name.toLowerCase().includes(search.toLowerCase()) ||
-    (p.sku && p.sku.toLowerCase().includes(search.toLowerCase()))
+  const filtered = useMemo(() => {
+    let list = products.filter((p) =>
+      p.name.toLowerCase().includes(search.toLowerCase()) ||
+      (p.sku && p.sku.toLowerCase().includes(search.toLowerCase()))
+    );
+
+    if (sortColumn) {
+      const dir = sortDir === 'asc' ? 1 : -1;
+      list = [...list].sort((a, b) => {
+        let aVal: string | number = '';
+        let bVal: string | number = '';
+        switch (sortColumn) {
+          case 'name':
+            aVal = a.name.toLowerCase();
+            bVal = b.name.toLowerCase();
+            break;
+          case 'type':
+            aVal = a.product_type;
+            bVal = b.product_type;
+            break;
+          case 'pack_quantity':
+            aVal = a.pack_quantity ?? 1;
+            bVal = b.pack_quantity ?? 1;
+            break;
+          case 'price':
+            aVal = a.price;
+            bVal = b.price;
+            break;
+          case 'stock': {
+            const aHas = a.variant_count && a.variant_count > 0;
+            const bHas = b.variant_count && b.variant_count > 0;
+            aVal = aHas ? (a.total_variant_stock ?? 0) : a.stock_quantity;
+            bVal = bHas ? (b.total_variant_stock ?? 0) : b.stock_quantity;
+            break;
+          }
+        }
+        if (aVal < bVal) return -1 * dir;
+        if (aVal > bVal) return 1 * dir;
+        return 0;
+      });
+    }
+
+    return list;
+  }, [products, search, sortColumn, sortDir]);
+
+  const handleSort = useCallback((col: ProductSortColumn, dir: SortDir) => {
+    if (sortColumn === col && sortDir === dir) {
+      setSortColumn(null);
+      setSortDir('asc');
+    } else {
+      setSortColumn(col);
+      setSortDir(dir);
+    }
+  }, [sortColumn, sortDir]);
+
+  const SortHeader = ({ col, label }: { col: ProductSortColumn; label: string }) => (
+    <th className="sortable-th">
+      {label}
+      <span className="sort-arrows">
+        <button
+          className={`sort-arrow-btn ${sortColumn === col && sortDir === 'asc' ? 'active' : ''}`}
+          onClick={(e) => { e.stopPropagation(); handleSort(col, 'asc'); }}
+          title={`Sort ${label} ascending`}
+        >
+          <ChevronUp size={12} />
+        </button>
+        <button
+          className={`sort-arrow-btn ${sortColumn === col && sortDir === 'desc' ? 'active' : ''}`}
+          onClick={(e) => { e.stopPropagation(); handleSort(col, 'desc'); }}
+          title={`Sort ${label} descending`}
+        >
+          <ChevronDown size={12} />
+        </button>
+      </span>
+    </th>
   );
 
   const getLabelsForProduct = (productId: string) => {
@@ -133,10 +210,11 @@ export function StorePage() {
           <table className="products-table">
             <thead>
               <tr>
-                <th>Product</th>
-                <th>Type</th>
-                <th>Price</th>
-                <th>Stock</th>
+                <SortHeader col="name" label="Product" />
+                <SortHeader col="type" label="Type" />
+                <SortHeader col="pack_quantity" label="Pack Qty" />
+                <SortHeader col="price" label="Price" />
+                <SortHeader col="stock" label="Stock" />
                 <th>Labels</th>
                 <th>Visible</th>
               </tr>
@@ -168,6 +246,13 @@ export function StorePage() {
                       <span className={`product-type-badge ${product.product_type}`}>
                         {product.product_type === 'physical' ? 'Physical' : 'Digital'}
                       </span>
+                    </td>
+                    <td>
+                      {product.pack_quantity > 1 ? (
+                        <span className="pack-qty-badge multi">Pack of {product.pack_quantity}</span>
+                      ) : (
+                        <span className="pack-qty-badge single">Single</span>
+                      )}
                     </td>
                     <td className="product-price-cell">
                       <span className="product-price">{formatPrice(product.price)}</span>

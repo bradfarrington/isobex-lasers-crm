@@ -7,33 +7,37 @@
 ALTER TABLE products
   ADD COLUMN IF NOT EXISTS continue_selling_when_out_of_stock boolean DEFAULT false;
 
+-- ─── 1b. Add pack_quantity column ───────────────────────────
+ALTER TABLE products
+  ADD COLUMN IF NOT EXISTS pack_quantity int DEFAULT 1;
+
 -- ─── 2. Insert 8 single-variant products ────────────────────
 -- (These have no size variants — stock lives on the product row)
 
-INSERT INTO products (name, product_type, price, sku, is_visible, stock_quantity, continue_selling_when_out_of_stock)
+INSERT INTO products (name, product_type, price, sku, is_visible, stock_quantity, continue_selling_when_out_of_stock, pack_quantity)
 VALUES
-  ('Protective Lens 37 x 7 6KW (Pack of 5)', 'physical', 0, null, true, 15, false),
-  ('Protective Lens 27.9 x 4.11 (Pack of 5)', 'physical', 0, null, true, 18, false),
-  ('Ceramic Body Dia. 32 / M14', 'physical', 0, null, true, 16, false),
-  ('Ceramic Body Dia. 19.5 / M8', 'physical', 0, null, true, 20, false),
-  ('Seal Ring 32.2 x 2.4 x 3.55mm', 'physical', 0, null, true, 20, false),
-  ('Ceramic Body Dia. 28 / M11', 'physical', 0, null, true, 20, false),
-  ('Seal Ring 42.2 x 4 x 3.2mm', 'physical', 0, null, true, 20, false),
-  ('Protective Lens 27.9 x 1.5 (Pack of 5)', 'physical', 0, null, true, 20, false);
+  ('Protective Lens 37 x 7 6KW', 'physical', 0, null, true, 15, false, 5),
+  ('Protective Lens 27.9 x 4.11', 'physical', 0, null, true, 18, false, 5),
+  ('Ceramic Body Dia. 32 / M14', 'physical', 0, null, true, 16, false, 1),
+  ('Ceramic Body Dia. 19.5 / M8', 'physical', 0, null, true, 20, false, 1),
+  ('Seal Ring 32.2 x 2.4 x 3.55mm', 'physical', 0, null, true, 20, false, 1),
+  ('Ceramic Body Dia. 28 / M11', 'physical', 0, null, true, 20, false, 1),
+  ('Seal Ring 42.2 x 4 x 3.2mm', 'physical', 0, null, true, 20, false, 1),
+  ('Protective Lens 27.9 x 1.5', 'physical', 0, null, true, 20, false, 5);
 
 -- ─── 3. Insert 8 multi-variant products ─────────────────────
 -- (Stock lives on the variant rows, product stock_quantity = 0)
 
-INSERT INTO products (name, product_type, price, sku, is_visible, stock_quantity, continue_selling_when_out_of_stock)
+INSERT INTO products (name, product_type, price, sku, is_visible, stock_quantity, continue_selling_when_out_of_stock, pack_quantity)
 VALUES
-  ('D32 H15-M14 Double Layer Nozzle (Pack of 10)', 'physical', 0, null, true, 0, false),
-  ('D28 H11-M11 Double Layer Nozzle (Pack of 10)', 'physical', 0, null, true, 0, false),
-  ('D32 H15-M14 Single Layer Nozzle (Pack of 10)', 'physical', 0, null, true, 0, false),
-  ('D28 H11-M11 Top Hat Single Layer Nozzle (Pack of 10)', 'physical', 0, null, true, 0, false),
-  ('D28 H15-M11 Double Layer Nozzle (Pack of 10)', 'physical', 0, null, true, 0, false),
-  ('D28 H15-M11 Single Layer Nozzle (Pack of 10)', 'physical', 0, null, true, 0, false),
-  ('D15 H19-M8 3D Double Layer Nozzle (Pack of 10)', 'physical', 0, null, true, 0, false),
-  ('D15 H19-M8 3D Single Layer Nozzle (Pack of 10)', 'physical', 0, null, true, 0, false);
+  ('D32 H15-M14 Double Layer Nozzle', 'physical', 0, null, true, 0, false, 10),
+  ('D28 H11-M11 Double Layer Nozzle', 'physical', 0, null, true, 0, false, 10),
+  ('D32 H15-M14 Single Layer Nozzle', 'physical', 0, null, true, 0, false, 10),
+  ('D28 H11-M11 Top Hat Single Layer Nozzle', 'physical', 0, null, true, 0, false, 10),
+  ('D28 H15-M11 Double Layer Nozzle', 'physical', 0, null, true, 0, false, 10),
+  ('D28 H15-M11 Single Layer Nozzle', 'physical', 0, null, true, 0, false, 10),
+  ('D15 H19-M8 3D Double Layer Nozzle', 'physical', 0, null, true, 0, false, 10),
+  ('D15 H19-M8 3D Single Layer Nozzle', 'physical', 0, null, true, 0, false, 10);
 
 -- ─── 4. Create option groups + values + variants ────────────
 -- Each of the 8 nozzle products gets a "Size" option group
@@ -82,7 +86,7 @@ BEGIN
   -- ════════════════════════════════════════════════
 
   -- ── 1. D32 H15-M14 Double Layer Nozzle ──
-  SELECT id INTO p_id FROM products WHERE name = 'D32 H15-M14 Double Layer Nozzle (Pack of 10)' LIMIT 1;
+  SELECT id INTO p_id FROM products WHERE name = 'D32 H15-M14 Double Layer Nozzle' LIMIT 1;
   INSERT INTO product_option_groups (product_id, name, sort_order) VALUES (p_id, 'Size', 0) RETURNING id INTO og_id;
   ov_ids := ARRAY[]::uuid[];
   FOR i IN 1..array_length(sizes, 1) LOOP
@@ -95,7 +99,7 @@ BEGIN
   END LOOP;
 
   -- ── 2. D28 H11-M11 Double Layer Nozzle ──
-  SELECT id INTO p_id FROM products WHERE name = 'D28 H11-M11 Double Layer Nozzle (Pack of 10)' LIMIT 1;
+  SELECT id INTO p_id FROM products WHERE name = 'D28 H11-M11 Double Layer Nozzle' LIMIT 1;
   INSERT INTO product_option_groups (product_id, name, sort_order) VALUES (p_id, 'Size', 0) RETURNING id INTO og_id;
   ov_ids := ARRAY[]::uuid[];
   FOR i IN 1..array_length(sizes, 1) LOOP
@@ -108,7 +112,7 @@ BEGIN
   END LOOP;
 
   -- ── 3. D32 H15-M14 Single Layer Nozzle ──
-  SELECT id INTO p_id FROM products WHERE name = 'D32 H15-M14 Single Layer Nozzle (Pack of 10)' LIMIT 1;
+  SELECT id INTO p_id FROM products WHERE name = 'D32 H15-M14 Single Layer Nozzle' LIMIT 1;
   INSERT INTO product_option_groups (product_id, name, sort_order) VALUES (p_id, 'Size', 0) RETURNING id INTO og_id;
   ov_ids := ARRAY[]::uuid[];
   FOR i IN 1..array_length(sizes, 1) LOOP
@@ -121,7 +125,7 @@ BEGIN
   END LOOP;
 
   -- ── 4. D28 H11-M11 Top Hat Single Layer Nozzle ──
-  SELECT id INTO p_id FROM products WHERE name = 'D28 H11-M11 Top Hat Single Layer Nozzle (Pack of 10)' LIMIT 1;
+  SELECT id INTO p_id FROM products WHERE name = 'D28 H11-M11 Top Hat Single Layer Nozzle' LIMIT 1;
   INSERT INTO product_option_groups (product_id, name, sort_order) VALUES (p_id, 'Size', 0) RETURNING id INTO og_id;
   ov_ids := ARRAY[]::uuid[];
   FOR i IN 1..array_length(sizes, 1) LOOP
@@ -134,7 +138,7 @@ BEGIN
   END LOOP;
 
   -- ── 5. D28 H15-M11 Double Layer Nozzle ──
-  SELECT id INTO p_id FROM products WHERE name = 'D28 H15-M11 Double Layer Nozzle (Pack of 10)' LIMIT 1;
+  SELECT id INTO p_id FROM products WHERE name = 'D28 H15-M11 Double Layer Nozzle' LIMIT 1;
   INSERT INTO product_option_groups (product_id, name, sort_order) VALUES (p_id, 'Size', 0) RETURNING id INTO og_id;
   ov_ids := ARRAY[]::uuid[];
   FOR i IN 1..array_length(sizes, 1) LOOP
@@ -147,7 +151,7 @@ BEGIN
   END LOOP;
 
   -- ── 6. D28 H15-M11 Single Layer Nozzle ──
-  SELECT id INTO p_id FROM products WHERE name = 'D28 H15-M11 Single Layer Nozzle (Pack of 10)' LIMIT 1;
+  SELECT id INTO p_id FROM products WHERE name = 'D28 H15-M11 Single Layer Nozzle' LIMIT 1;
   INSERT INTO product_option_groups (product_id, name, sort_order) VALUES (p_id, 'Size', 0) RETURNING id INTO og_id;
   ov_ids := ARRAY[]::uuid[];
   FOR i IN 1..array_length(sizes, 1) LOOP
@@ -160,7 +164,7 @@ BEGIN
   END LOOP;
 
   -- ── 7. D15 H19-M8 3D Double Layer Nozzle ──
-  SELECT id INTO p_id FROM products WHERE name = 'D15 H19-M8 3D Double Layer Nozzle (Pack of 10)' LIMIT 1;
+  SELECT id INTO p_id FROM products WHERE name = 'D15 H19-M8 3D Double Layer Nozzle' LIMIT 1;
   INSERT INTO product_option_groups (product_id, name, sort_order) VALUES (p_id, 'Size', 0) RETURNING id INTO og_id;
   ov_ids := ARRAY[]::uuid[];
   FOR i IN 1..array_length(sizes, 1) LOOP
@@ -173,7 +177,7 @@ BEGIN
   END LOOP;
 
   -- ── 8. D15 H19-M8 3D Single Layer Nozzle ──
-  SELECT id INTO p_id FROM products WHERE name = 'D15 H19-M8 3D Single Layer Nozzle (Pack of 10)' LIMIT 1;
+  SELECT id INTO p_id FROM products WHERE name = 'D15 H19-M8 3D Single Layer Nozzle' LIMIT 1;
   INSERT INTO product_option_groups (product_id, name, sort_order) VALUES (p_id, 'Size', 0) RETURNING id INTO og_id;
   ov_ids := ARRAY[]::uuid[];
   FOR i IN 1..array_length(sizes, 1) LOOP

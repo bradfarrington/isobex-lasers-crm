@@ -19,6 +19,7 @@ import {
   Image,
   Upload,
   GripVertical,
+  Check,
 } from 'lucide-react';
 import './StorePage.css';
 
@@ -30,6 +31,7 @@ interface OptionGroupDraft {
 interface VariantDraft {
   option_values: VariantOptionEntry[];
   price_override: string;
+  compare_at_price: string;
   sku: string;
   stock_quantity: string;
 }
@@ -52,6 +54,7 @@ export function ProductEditorPage() {
   const [continueSelling, setContinueSelling] = useState(false);
   const [stockQuantity, setStockQuantity] = useState('0');
   const [minStockThreshold, setMinStockThreshold] = useState('0');
+  const [packQuantity, setPackQuantity] = useState('1');
 
   // ─── Associations ───────────────────────────
   const [selectedLabelIds, setSelectedLabelIds] = useState<string[]>([]);
@@ -65,6 +68,9 @@ export function ProductEditorPage() {
   const [optionGroups, setOptionGroups] = useState<OptionGroupDraft[]>([]);
   const [variants, setVariants] = useState<VariantDraft[]>([]);
   const [newOptionName, setNewOptionName] = useState('');
+  const [selectedVariants, setSelectedVariants] = useState<Set<number>>(new Set());
+  const [bulkPrice, setBulkPrice] = useState('');
+  const [bulkCompareAt, setBulkCompareAt] = useState('');
 
   // ─── State ──────────────────────────────────
   const [loading, setLoading] = useState(!isNew);
@@ -96,6 +102,7 @@ export function ProductEditorPage() {
       setContinueSelling(product.continue_selling_when_out_of_stock ?? false);
       setStockQuantity(String(product.stock_quantity));
       setMinStockThreshold(String(product.min_stock_threshold));
+      setPackQuantity(String(product.pack_quantity ?? 1));
       setSelectedLabelIds(labelIds);
       setSelectedCollectionIds(collectionIds);
       setAllCollections(collections);
@@ -112,6 +119,7 @@ export function ProductEditorPage() {
       const varDrafts: VariantDraft[] = existingVariants.map((v) => ({
         option_values: v.option_values,
         price_override: v.price_override ? String(v.price_override) : '',
+        compare_at_price: v.compare_at_price ? String(v.compare_at_price) : '',
         sku: v.sku || '',
         stock_quantity: String(v.stock_quantity),
       }));
@@ -176,6 +184,7 @@ export function ProductEditorPage() {
       return existing || {
         option_values: combo,
         price_override: '',
+        compare_at_price: '',
         sku: '',
         stock_quantity: '0',
       };
@@ -276,14 +285,60 @@ export function ProductEditorPage() {
   };
 
   // ─── Save ─────────────────────────────────
+  // ─── Multi-select variant helpers ─────────
+  const toggleVariantSelected = (index: number) => {
+    setSelectedVariants((prev) => {
+      const next = new Set(prev);
+      if (next.has(index)) next.delete(index);
+      else next.add(index);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedVariants.size === variants.length) {
+      setSelectedVariants(new Set());
+    } else {
+      setSelectedVariants(new Set(variants.map((_, i) => i)));
+    }
+  };
+
+  const applyBulkPricing = () => {
+    if (selectedVariants.size === 0) return;
+    setVariants((prev) =>
+      prev.map((v, i) => {
+        if (!selectedVariants.has(i)) return v;
+        return {
+          ...v,
+          ...(bulkPrice !== '' ? { price_override: bulkPrice } : {}),
+          ...(bulkCompareAt !== '' ? { compare_at_price: bulkCompareAt } : {}),
+        };
+      })
+    );
+    setSelectedVariants(new Set());
+    setBulkPrice('');
+    setBulkCompareAt('');
+  };
+
   const handleSave = async () => {
     if (!name.trim()) {
       showAlert({ title: 'Missing Name', message: 'Please enter a product name.', variant: 'warning' });
       return;
     }
-    if (!price || isNaN(Number(price))) {
-      showAlert({ title: 'Invalid Price', message: 'Please enter a valid price.', variant: 'warning' });
-      return;
+
+    const hasVariants = variants.length > 0;
+
+    if (!hasVariants) {
+      if (!price || isNaN(Number(price))) {
+        showAlert({ title: 'Invalid Price', message: 'Please enter a valid price.', variant: 'warning' });
+        return;
+      }
+    } else {
+      const missingPrice = variants.some((v) => !v.price_override || isNaN(Number(v.price_override)));
+      if (missingPrice) {
+        showAlert({ title: 'Missing Variant Prices', message: 'Please enter a valid price for every variant.', variant: 'warning' });
+        return;
+      }
     }
 
     setSaving(true);
@@ -299,6 +354,7 @@ export function ProductEditorPage() {
         continue_selling_when_out_of_stock: continueSelling,
         stock_quantity: Number(stockQuantity) || 0,
         min_stock_threshold: Number(minStockThreshold) || 0,
+        pack_quantity: Number(packQuantity) || 1,
       };
 
       let productId = id;
@@ -327,6 +383,7 @@ export function ProductEditorPage() {
           product_id: productId!,
           option_values: v.option_values,
           price_override: v.price_override ? Number(v.price_override) : null,
+          compare_at_price: v.compare_at_price ? Number(v.compare_at_price) : null,
           sku: v.sku.trim() || null,
           stock_quantity: Number(v.stock_quantity) || 0,
         }));
@@ -443,36 +500,38 @@ export function ProductEditorPage() {
             </div>
           </div>
 
-          {/* Pricing */}
-          <div className="editor-card">
-            <h3 className="editor-card-title">Pricing</h3>
-            <div className="form-row">
-              <div className="form-group">
-                <label className="form-label">Price (£)</label>
-                <input
-                  type="number"
-                  className="form-input"
-                  value={price}
-                  onChange={(e) => setPrice(e.target.value)}
-                  placeholder="0.00"
-                  step="0.01"
-                  min="0"
-                />
-              </div>
-              <div className="form-group">
-                <label className="form-label">Compare at Price (£)</label>
-                <input
-                  type="number"
-                  className="form-input"
-                  value={compareAtPrice}
-                  onChange={(e) => setCompareAtPrice(e.target.value)}
-                  placeholder="Original price if on sale"
-                  step="0.01"
-                  min="0"
-                />
+          {/* Pricing — only for single products (no variants) */}
+          {variants.length === 0 && (
+            <div className="editor-card">
+              <h3 className="editor-card-title">Pricing</h3>
+              <div className="form-row">
+                <div className="form-group">
+                  <label className="form-label">Price (£)</label>
+                  <input
+                    type="number"
+                    className="form-input"
+                    value={price}
+                    onChange={(e) => setPrice(e.target.value)}
+                    placeholder="0.00"
+                    step="0.01"
+                    min="0"
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Compare at Price (£)</label>
+                  <input
+                    type="number"
+                    className="form-input"
+                    value={compareAtPrice}
+                    onChange={(e) => setCompareAtPrice(e.target.value)}
+                    placeholder="Original price if on sale"
+                    step="0.01"
+                    min="0"
+                  />
+                </div>
               </div>
             </div>
-          </div>
+          )}
 
           {/* Media */}
           <div className="editor-card">
@@ -559,23 +618,84 @@ export function ProductEditorPage() {
             {/* Variant table */}
             {variants.length > 0 && (
               <div className="variants-section">
-                <h4>Variants ({variants.length})</h4>
+                <div className="variants-header-row">
+                  <h4>Variants ({variants.length})</h4>
+                </div>
+
+                {/* Multi-select action bar */}
+                {selectedVariants.size > 0 && (
+                  <div className="variant-action-bar">
+                    <span className="variant-action-bar-label">
+                      {selectedVariants.size} selected
+                    </span>
+                    <div className="variant-action-bar-fields">
+                      <label>Price £</label>
+                      <input
+                        type="number"
+                        className="form-input form-input-sm"
+                        value={bulkPrice}
+                        onChange={(e) => setBulkPrice(e.target.value)}
+                        placeholder="0.00"
+                        step="0.01"
+                        min="0"
+                      />
+                      <label>Compare at £</label>
+                      <input
+                        type="number"
+                        className="form-input form-input-sm"
+                        value={bulkCompareAt}
+                        onChange={(e) => setBulkCompareAt(e.target.value)}
+                        placeholder="—"
+                        step="0.01"
+                        min="0"
+                      />
+                      <button
+                        type="button"
+                        className="btn btn-primary btn-sm"
+                        onClick={applyBulkPricing}
+                        disabled={bulkPrice === '' && bulkCompareAt === ''}
+                      >
+                        <Check size={12} /> Apply
+                      </button>
+                    </div>
+                  </div>
+                )}
+
                 <div className="products-table-wrap">
                   <table className="products-table variants-table">
                     <thead>
                       <tr>
+                        <th>
+                          <input
+                            type="checkbox"
+                            className="variant-checkbox"
+                            checked={selectedVariants.size === variants.length && variants.length > 0}
+                            onChange={toggleSelectAll}
+                          />
+                        </th>
                         <th>Combination</th>
-                        <th>Price Override (£)</th>
+                        <th>Price (£)</th>
+                        <th>Compare at (£)</th>
                         <th>SKU</th>
                         <th>Stock</th>
                       </tr>
                     </thead>
                     <tbody>
                       {variants.map((v, vi) => (
-                        <tr key={vi}>
-                          <td className="variant-combo-cell">
-                            <GripVertical size={14} className="grip-icon" />
-                            {v.option_values.map((ov) => ov.value).join(' / ')}
+                        <tr key={vi} style={selectedVariants.has(vi) ? { background: 'var(--color-primary-subtle)' } : undefined}>
+                          <td>
+                            <input
+                              type="checkbox"
+                              className="variant-checkbox"
+                              checked={selectedVariants.has(vi)}
+                              onChange={() => toggleVariantSelected(vi)}
+                            />
+                          </td>
+                          <td>
+                            <span className="variant-combo-cell">
+                              <GripVertical size={14} className="grip-icon" />
+                              {v.option_values.map((ov) => ov.value).join(' / ')}
+                            </span>
                           </td>
                           <td>
                             <input
@@ -583,7 +703,18 @@ export function ProductEditorPage() {
                               className="form-input form-input-sm"
                               value={v.price_override}
                               onChange={(e) => updateVariant(vi, 'price_override', e.target.value)}
-                              placeholder={price || '—'}
+                              placeholder="0.00"
+                              step="0.01"
+                              min="0"
+                            />
+                          </td>
+                          <td>
+                            <input
+                              type="number"
+                              className="form-input form-input-sm"
+                              value={v.compare_at_price}
+                              onChange={(e) => updateVariant(vi, 'compare_at_price', e.target.value)}
+                              placeholder="—"
                               step="0.01"
                               min="0"
                             />
@@ -674,6 +805,46 @@ export function ProductEditorPage() {
                 min="0"
               />
               <span className="form-hint">You'll be alerted when stock falls below this.</span>
+            </div>
+            <div className="form-group">
+              <label className="form-label">Selling Quantity</label>
+              <div className="radio-group">
+                <label className={`radio-option ${packQuantity === '1' ? 'selected' : ''}`}>
+                  <input
+                    type="radio"
+                    name="packType"
+                    value="single"
+                    checked={packQuantity === '1'}
+                    onChange={() => setPackQuantity('1')}
+                  />
+                  <span>Single</span>
+                </label>
+                <label className={`radio-option ${packQuantity !== '1' ? 'selected' : ''}`}>
+                  <input
+                    type="radio"
+                    name="packType"
+                    value="multi"
+                    checked={packQuantity !== '1'}
+                    onChange={() => setPackQuantity('2')}
+                  />
+                  <span>Multi-pack</span>
+                </label>
+              </div>
+              {packQuantity !== '1' && (
+                <div style={{ marginTop: 12 }}>
+                  <label className="form-label">Items Per Pack</label>
+                  <input
+                    type="number"
+                    className="form-input"
+                    value={packQuantity}
+                    onChange={(e) => {
+                      const val = Number(e.target.value);
+                      setPackQuantity(String(val < 2 ? 2 : val));
+                    }}
+                    min="2"
+                  />
+                </div>
+              )}
             </div>
           </div>
 
