@@ -1,18 +1,22 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { PageShell } from '@/components/layout/PageShell';
 import { StoreTabBar } from './StoreTabBar';
 import * as api from '@/lib/api';
 import type { InventoryItem } from '@/types/database';
-import { Search, Download, BarChart3, AlertTriangle, XCircle, Package } from 'lucide-react';
+import { Search, Download, BarChart3, AlertTriangle, XCircle, Package, ChevronUp, ChevronDown } from 'lucide-react';
 import './StorePage.css';
 
 type FilterTab = 'all' | 'low' | 'out';
+type InventorySortColumn = 'product' | 'variant' | 'sku' | 'stock' | 'threshold' | 'price' | 'status';
+type SortDir = 'asc' | 'desc';
 
 export function InventoryPage() {
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<FilterTab>('all');
+  const [sortColumn, setSortColumn] = useState<InventorySortColumn | null>('product');
+  const [sortDir, setSortDir] = useState<SortDir>('asc');
 
   useEffect(() => {
     loadInventory();
@@ -36,22 +40,101 @@ export function InventoryPage() {
     return 'good';
   };
 
-  const filtered = items
-    .filter((item) => {
-      if (filter === 'low') return getStatus(item) === 'low';
-      if (filter === 'out') return getStatus(item) === 'out';
-      return true;
-    })
-    .filter((item) => {
-      if (!search) return true;
-      const q = search.toLowerCase();
-      return (
-        item.product_name.toLowerCase().includes(q) ||
-        (item.product_sku && item.product_sku.toLowerCase().includes(q)) ||
-        (item.variant_sku && item.variant_sku.toLowerCase().includes(q)) ||
-        (item.variant_label && item.variant_label.toLowerCase().includes(q))
-      );
-    });
+  const statusOrder = { out: 0, low: 1, good: 2 };
+
+  const filtered = useMemo(() => {
+    let list = items
+      .filter((item) => {
+        if (filter === 'low') return getStatus(item) === 'low';
+        if (filter === 'out') return getStatus(item) === 'out';
+        return true;
+      })
+      .filter((item) => {
+        if (!search) return true;
+        const q = search.toLowerCase();
+        return (
+          item.product_name.toLowerCase().includes(q) ||
+          (item.product_sku && item.product_sku.toLowerCase().includes(q)) ||
+          (item.variant_sku && item.variant_sku.toLowerCase().includes(q)) ||
+          (item.variant_label && item.variant_label.toLowerCase().includes(q))
+        );
+      });
+
+    if (sortColumn) {
+      const dir = sortDir === 'asc' ? 1 : -1;
+      list = [...list].sort((a, b) => {
+        let aVal: string | number = '';
+        let bVal: string | number = '';
+        switch (sortColumn) {
+          case 'product':
+            aVal = a.product_name.toLowerCase();
+            bVal = b.product_name.toLowerCase();
+            break;
+          case 'variant':
+            aVal = (a.variant_label || '').toLowerCase();
+            bVal = (b.variant_label || '').toLowerCase();
+            break;
+          case 'sku':
+            aVal = (a.variant_sku || a.product_sku || '').toLowerCase();
+            bVal = (b.variant_sku || b.product_sku || '').toLowerCase();
+            break;
+          case 'stock':
+            aVal = a.stock_quantity;
+            bVal = b.stock_quantity;
+            break;
+          case 'threshold':
+            aVal = a.min_stock_threshold;
+            bVal = b.min_stock_threshold;
+            break;
+          case 'price':
+            aVal = a.price;
+            bVal = b.price;
+            break;
+          case 'status':
+            aVal = statusOrder[getStatus(a)];
+            bVal = statusOrder[getStatus(b)];
+            break;
+        }
+        if (aVal < bVal) return -1 * dir;
+        if (aVal > bVal) return 1 * dir;
+        return 0;
+      });
+    }
+
+    return list;
+  }, [items, search, filter, sortColumn, sortDir]);
+
+  const handleSort = useCallback((col: InventorySortColumn, dir: SortDir) => {
+    if (sortColumn === col && sortDir === dir) {
+      setSortColumn(null);
+      setSortDir('asc');
+    } else {
+      setSortColumn(col);
+      setSortDir(dir);
+    }
+  }, [sortColumn, sortDir]);
+
+  const SortHeader = ({ col, label }: { col: InventorySortColumn; label: string }) => (
+    <th className="sortable-th">
+      {label}
+      <span className="sort-arrows">
+        <button
+          className={`sort-arrow-btn ${sortColumn === col && sortDir === 'asc' ? 'active' : ''}`}
+          onClick={(e) => { e.stopPropagation(); handleSort(col, 'asc'); }}
+          title={`Sort ${label} ascending`}
+        >
+          <ChevronUp size={12} />
+        </button>
+        <button
+          className={`sort-arrow-btn ${sortColumn === col && sortDir === 'desc' ? 'active' : ''}`}
+          onClick={(e) => { e.stopPropagation(); handleSort(col, 'desc'); }}
+          title={`Sort ${label} descending`}
+        >
+          <ChevronDown size={12} />
+        </button>
+      </span>
+    </th>
+  );
 
   const lowCount = items.filter((i) => getStatus(i) === 'low').length;
   const outCount = items.filter((i) => getStatus(i) === 'out').length;
@@ -211,14 +294,14 @@ export function InventoryPage() {
           <table className="products-table inventory-table">
             <thead>
               <tr>
-                <th>Product</th>
-                <th>Variant</th>
-                <th>SKU</th>
-                <th>Stock</th>
-                <th>Min. Threshold</th>
-                <th>Price</th>
+                <SortHeader col="product" label="Product" />
+                <SortHeader col="variant" label="Variant" />
+                <SortHeader col="sku" label="SKU" />
+                <SortHeader col="stock" label="Stock" />
+                <SortHeader col="threshold" label="Min. Threshold" />
+                <SortHeader col="price" label="Price" />
                 <th>Continue Selling</th>
-                <th>Status</th>
+                <SortHeader col="status" label="Status" />
               </tr>
             </thead>
             <tbody>
@@ -230,7 +313,7 @@ export function InventoryPage() {
                       <span className="product-name">{item.product_name}</span>
                     </td>
                     <td>{item.variant_label || '—'}</td>
-                    <td className="product-sku">{item.variant_sku || item.product_sku || '—'}</td>
+                    <td>{item.variant_sku || item.product_sku || '—'}</td>
                     <td>
                       <span className={`stock-badge ${status}`}>
                         {item.stock_quantity}

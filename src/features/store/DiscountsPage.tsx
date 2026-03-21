@@ -1,23 +1,224 @@
+import { useState, useEffect } from 'react';
 import { PageShell } from '@/components/layout/PageShell';
 import { StoreTabBar } from './StoreTabBar';
-import { Percent } from 'lucide-react';
+import { useAlert } from '@/components/ui/AlertDialog';
+import * as api from '@/lib/api';
+import type { DiscountCode, DiscountCodeInsert } from '@/types/database';
+import { Plus, Trash2, X, Percent } from 'lucide-react';
+import './Discounts.css';
 
 export function DiscountsPage() {
+  const { showAlert } = useAlert();
+  const [codes, setCodes] = useState<DiscountCode[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+
+  // Form state
+  const [formCode, setFormCode] = useState('');
+  const [formType, setFormType] = useState<'percentage' | 'fixed'>('percentage');
+  const [formValue, setFormValue] = useState('');
+  const [formMinOrder, setFormMinOrder] = useState('');
+  const [formMaxUses, setFormMaxUses] = useState('');
+  const [formStartsAt, setFormStartsAt] = useState('');
+  const [formExpiresAt, setFormExpiresAt] = useState('');
+  const [editingId, setEditingId] = useState<string | null>(null);
+
+  useEffect(() => {
+    api.fetchDiscountCodes()
+      .then(setCodes)
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  }, []);
+
+  const resetForm = () => {
+    setFormCode('');
+    setFormType('percentage');
+    setFormValue('');
+    setFormMinOrder('');
+    setFormMaxUses('');
+    setFormStartsAt('');
+    setFormExpiresAt('');
+    setEditingId(null);
+    setShowForm(false);
+  };
+
+  const populateForm = (dc: DiscountCode) => {
+    setFormCode(dc.code);
+    setFormType(dc.discount_type);
+    setFormValue(String(dc.value));
+    setFormMinOrder(String(dc.min_order_amount || ''));
+    setFormMaxUses(dc.max_uses !== null ? String(dc.max_uses) : '');
+    setFormStartsAt(dc.starts_at ? dc.starts_at.substring(0, 16) : '');
+    setFormExpiresAt(dc.expires_at ? dc.expires_at.substring(0, 16) : '');
+    setEditingId(dc.id);
+    setShowForm(true);
+  };
+
+  const handleSave = async () => {
+    if (!formCode || !formValue) return;
+
+    const payload: any = {
+      code: formCode.toUpperCase(),
+      discount_type: formType,
+      value: Number(formValue),
+      min_order_amount: formMinOrder ? Number(formMinOrder) : 0,
+      max_uses: formMaxUses ? Number(formMaxUses) : null,
+      starts_at: formStartsAt || null,
+      expires_at: formExpiresAt || null,
+      is_active: true,
+    };
+
+    try {
+      if (editingId) {
+        const updated = await api.updateDiscountCode(editingId, payload);
+        setCodes((prev) => prev.map((c) => (c.id === editingId ? updated : c)));
+        showAlert({ title: 'Updated', message: 'Discount code updated.', variant: 'success' });
+      } else {
+        const created = await api.createDiscountCode(payload as DiscountCodeInsert);
+        setCodes((prev) => [created, ...prev]);
+        showAlert({ title: 'Created', message: 'Discount code created.', variant: 'success' });
+      }
+      resetForm();
+    } catch (err) {
+      console.error(err);
+      showAlert({ title: 'Error', message: 'Failed to save discount code.', variant: 'danger' });
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    try {
+      await api.deleteDiscountCode(id);
+      setCodes((prev) => prev.filter((c) => c.id !== id));
+      showAlert({ title: 'Deleted', message: 'Discount code deleted.', variant: 'success' });
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleToggle = async (dc: DiscountCode) => {
+    try {
+      const updated = await api.updateDiscountCode(dc.id, { is_active: !dc.is_active });
+      setCodes((prev) => prev.map((c) => (c.id === dc.id ? updated : c)));
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   return (
-    <PageShell
-      title="Online Store"
-      subtitle="Manage your ecommerce products, categories, and storefront."
-    >
+    <PageShell title="Online Store" subtitle="Manage discount codes for your store.">
       <StoreTabBar />
-      <div className="module-placeholder">
-        <div className="module-placeholder-icon">
-          <Percent size={48} />
-        </div>
-        <h3>Discount Codes</h3>
-        <p>
-          Discount codes and promotions management coming soon.
-        </p>
+
+      <div className="discounts-header">
+        <h2>Discount Codes</h2>
+        <button className="btn btn-primary" onClick={() => { resetForm(); setShowForm(true); }}>
+          <Plus size={16} /> New Discount
+        </button>
       </div>
+
+      {/* Create / Edit form */}
+      {showForm && (
+        <div className="discount-form-card">
+          <div className="discount-form-card-header">
+            <h3>{editingId ? 'Edit Discount Code' : 'New Discount Code'}</h3>
+            <button className="btn btn-ghost btn-icon-sm" onClick={resetForm}><X size={16} /></button>
+          </div>
+          <div className="discount-form-grid">
+            <div className="form-group">
+              <label className="form-label">Code</label>
+              <input className="form-input" value={formCode} onChange={(e) => setFormCode(e.target.value)} placeholder="SUMMER20" />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Type</label>
+              <select className="form-input" value={formType} onChange={(e) => setFormType(e.target.value as any)}>
+                <option value="percentage">Percentage (%)</option>
+                <option value="fixed">Fixed Amount (£)</option>
+              </select>
+            </div>
+            <div className="form-group">
+              <label className="form-label">Value</label>
+              <input className="form-input" type="number" value={formValue} onChange={(e) => setFormValue(e.target.value)} placeholder="10" min="0" step="0.01" />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Min Order Amount (£)</label>
+              <input className="form-input" type="number" value={formMinOrder} onChange={(e) => setFormMinOrder(e.target.value)} placeholder="0" min="0" step="0.01" />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Max Uses</label>
+              <input className="form-input" type="number" value={formMaxUses} onChange={(e) => setFormMaxUses(e.target.value)} placeholder="Unlimited" min="0" />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Starts At</label>
+              <input className="form-input" type="datetime-local" value={formStartsAt} onChange={(e) => setFormStartsAt(e.target.value)} />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Expires At</label>
+              <input className="form-input" type="datetime-local" value={formExpiresAt} onChange={(e) => setFormExpiresAt(e.target.value)} />
+            </div>
+          </div>
+          <div style={{ marginTop: '1rem', display: 'flex', gap: '0.5rem' }}>
+            <button className="btn btn-primary" onClick={handleSave}>
+              {editingId ? 'Update' : 'Create'} Discount
+            </button>
+            <button className="btn btn-secondary" onClick={resetForm}>Cancel</button>
+          </div>
+        </div>
+      )}
+
+      {/* List */}
+      {loading ? (
+        <div className="store-loading">Loading discount codes...</div>
+      ) : codes.length === 0 ? (
+        <div className="module-placeholder">
+          <div className="module-placeholder-icon"><Percent size={48} /></div>
+          <h3>No Discount Codes</h3>
+          <p>Create your first discount code to offer promotions.</p>
+        </div>
+      ) : (
+        <div className="discounts-table-wrap">
+          <table className="orders-table">
+            <thead>
+              <tr>
+                <th>Code</th>
+                <th>Type</th>
+                <th>Value</th>
+                <th>Min Order</th>
+                <th>Uses</th>
+                <th>Status</th>
+                <th>Expires</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {codes.map((dc) => (
+                <tr key={dc.id}>
+                  <td><strong>{dc.code}</strong></td>
+                  <td style={{ textTransform: 'capitalize' }}>{dc.discount_type}</td>
+                  <td>{dc.discount_type === 'percentage' ? `${dc.value}%` : `£${Number(dc.value).toFixed(2)}`}</td>
+                  <td>{dc.min_order_amount > 0 ? `£${Number(dc.min_order_amount).toFixed(2)}` : '—'}</td>
+                  <td>{dc.current_uses}{dc.max_uses !== null ? `/${dc.max_uses}` : ''}</td>
+                  <td>
+                    <button
+                      className={`btn btn-ghost btn-sm ${dc.is_active ? 'text-success' : 'text-muted'}`}
+                      onClick={() => handleToggle(dc)}
+                    >
+                      {dc.is_active ? 'Active' : 'Inactive'}
+                    </button>
+                  </td>
+                  <td>{dc.expires_at ? new Date(dc.expires_at).toLocaleDateString('en-GB') : '—'}</td>
+                  <td>
+                    <div style={{ display: 'flex', gap: '0.25rem' }}>
+                      <button className="btn btn-ghost btn-icon-sm" onClick={() => populateForm(dc)} title="Edit">✎</button>
+                      <button className="btn btn-ghost btn-icon-sm danger" onClick={() => handleDelete(dc.id)} title="Delete">
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </PageShell>
   );
 }

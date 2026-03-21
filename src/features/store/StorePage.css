@@ -176,6 +176,27 @@
 .products-table.variants-table th:nth-child(6),
 .products-table.variants-table td:nth-child(6) { width: 14%; }
 
+/* Inventory table column widths (8 columns: product, variant, sku, stock, threshold, price, continue, status) */
+.products-table.inventory-table {
+  table-layout: fixed;
+}
+.products-table.inventory-table th:nth-child(1),
+.products-table.inventory-table td:nth-child(1) { width: 20%; }
+.products-table.inventory-table th:nth-child(2),
+.products-table.inventory-table td:nth-child(2) { width: 12%; }
+.products-table.inventory-table th:nth-child(3),
+.products-table.inventory-table td:nth-child(3) { width: 12%; }
+.products-table.inventory-table th:nth-child(4),
+.products-table.inventory-table td:nth-child(4) { width: 9%; }
+.products-table.inventory-table th:nth-child(5),
+.products-table.inventory-table td:nth-child(5) { width: 9%; }
+.products-table.inventory-table th:nth-child(6),
+.products-table.inventory-table td:nth-child(6) { width: 10%; }
+.products-table.inventory-table th:nth-child(7),
+.products-table.inventory-table td:nth-child(7) { width: 14%; text-align: center; }
+.products-table.inventory-table th:nth-child(8),
+.products-table.inventory-table td:nth-child(8) { width: 14%; }
+
 .products-table th {
   text-align: left;
   padding: var(--space-3) var(--space-4);
@@ -187,6 +208,47 @@
   background: var(--color-bg-surface);
   border-bottom: 1px solid var(--color-border);
   white-space: nowrap;
+}
+
+/* ─── Sortable Column Headers ───────────────────────────── */
+
+.sortable-th {
+  cursor: default;
+  user-select: none;
+}
+
+.sort-arrows {
+  display: inline-flex;
+  flex-direction: column;
+  margin-left: var(--space-1);
+  vertical-align: middle;
+  gap: 0;
+  line-height: 0;
+}
+
+.sort-arrow-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  cursor: pointer;
+  color: var(--color-text-tertiary);
+  opacity: 0.4;
+  transition: opacity var(--transition-fast), color var(--transition-fast);
+  line-height: 0;
+}
+
+.sort-arrow-btn:hover {
+  opacity: 0.8;
+  color: var(--color-text-secondary);
+}
+
+.sort-arrow-btn.active {
+  opacity: 1;
+  color: var(--color-primary);
 }
 
 .products-table td {

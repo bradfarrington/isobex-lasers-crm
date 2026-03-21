@@ -1,0 +1,477 @@
+/* ============================================================
+   Store Builder — Admin UI Styles
+   ============================================================ */
+
+.builder-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.5rem;
+}
+
+.builder-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--color-text);
+  margin: 0;
+}
+
+.builder-layout {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  gap: 1.5rem;
+  min-height: 600px;
+}
+
+/* ─── Navigation ─────────────────────────── */
+
+.builder-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  background: var(--color-surface);
+  border-radius: 12px;
+  padding: 0.5rem;
+  border: 1px solid var(--color-border);
+  align-self: start;
+  position: sticky;
+  top: 1rem;
+}
+
+.builder-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 0.625rem 0.75rem;
+  border: none;
+  background: transparent;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  transition: all 0.15s;
+  text-align: left;
+  width: 100%;
+}
+
+.builder-nav-item:hover {
+  background: var(--color-hover);
+  color: var(--color-text);
+}
+
+.builder-nav-item.active {
+  background: var(--color-primary);
+  color: #fff;
+}
+
+.builder-nav-chevron {
+  margin-left: auto;
+  opacity: 0.5;
+}
+
+.builder-nav-item.active .builder-nav-chevron {
+  opacity: 1;
+}
+
+/* ─── Panel Container ────────────────────── */
+
+.builder-panel {
+  display: grid;
+  grid-template-columns: 1fr 360px;
+  gap: 1.5rem;
+  align-items: start;
+}
+
+.builder-panel-content {
+  background: var(--color-surface);
+  border-radius: 12px;
+  padding: 1.5rem;
+  border: 1px solid var(--color-border);
+}
+
+.builder-panel-content h3 {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--color-text);
+  margin: 0 0 1rem;
+}
+
+/* ─── Colour Fields ──────────────────────── */
+
+.color-field {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.color-field:last-child {
+  border-bottom: none;
+}
+
+.color-field .form-label {
+  margin-bottom: 0;
+  min-width: 120px;
+}
+
+.color-input-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.color-picker {
+  width: 36px;
+  height: 36px;
+  padding: 2px;
+  border: 2px solid var(--color-border);
+  border-radius: 8px;
+  cursor: pointer;
+  background: transparent;
+}
+
+.color-hex {
+  width: 100px !important;
+  font-family: monospace;
+  font-size: 0.8125rem;
+}
+
+/* ─── Typography Preview ─────────────────── */
+
+.typography-preview {
+  margin-top: 1rem;
+  padding: 1rem;
+  background: var(--color-background);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+}
+
+.typography-preview h4 {
+  margin: 0 0 0.5rem;
+  font-size: 1.25rem;
+}
+
+.typography-preview p {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--color-text-secondary);
+}
+
+/* ─── Nav / Footer Link Row ──────────────── */
+
+.nav-link-row {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+  align-items: center;
+}
+
+.nav-link-row .form-input {
+  flex: 1;
+}
+
+.toggle-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8125rem;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
+.toggle-label input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+}
+
+/* ─── Footer Column Block ────────────────── */
+
+.footer-column-block {
+  background: var(--color-background);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.footer-column-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.footer-column-header .form-input {
+  flex: 1;
+  font-weight: 600;
+}
+
+/* ─── Shipping ───────────────────────────── */
+
+.shipping-zone-block {
+  background: var(--color-background);
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  padding: 1rem;
+  margin-bottom: 1rem;
+}
+
+.shipping-zone-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.shipping-zone-header h4 {
+  margin: 0;
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+
+.shipping-rates-list {
+  margin-top: 1rem;
+}
+
+.shipping-rate-row {
+  border-bottom: 1px solid var(--color-border);
+  padding: 0.75rem 0;
+}
+
+.shipping-rate-row:last-of-type {
+  border-bottom: none;
+}
+
+.shipping-rate-fields {
+  display: grid;
+  grid-template-columns: 1.5fr 1fr 1fr 0.8fr 1.2fr auto;
+  gap: 0.5rem;
+  align-items: end;
+}
+
+.shipping-rate-fields .form-group {
+  margin-bottom: 0;
+}
+
+.shipping-rate-fields .form-label {
+  font-size: 0.6875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.25rem;
+}
+
+.est-days-row {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.est-days-row .form-input {
+  width: 50px;
+  text-align: center;
+}
+
+.est-days-row span {
+  color: var(--color-text-secondary);
+  font-size: 0.75rem;
+}
+
+.shipping-rate-actions {
+  display: flex;
+  align-items: flex-end;
+}
+
+.builder-empty-hint {
+  padding: 2rem;
+  text-align: center;
+  color: var(--color-text-secondary);
+  font-size: 0.875rem;
+}
+
+/* ─── Domain Instructions ────────────────── */
+
+.domain-instructions {
+  margin-top: 1rem;
+  padding: 1rem;
+  background: var(--color-background);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  font-size: 0.8125rem;
+  line-height: 1.6;
+}
+
+.domain-instructions h4 {
+  margin: 0 0 0.5rem;
+  font-size: 0.875rem;
+}
+
+.domain-instructions ol {
+  margin: 0.5rem 0;
+  padding-left: 1.25rem;
+}
+
+.dns-record {
+  margin: 0.75rem 0;
+  padding: 0.75rem;
+  background: var(--color-surface);
+  border-radius: 6px;
+  font-family: monospace;
+  font-size: 0.8125rem;
+  line-height: 1.8;
+}
+
+/* ─── Live Preview ───────────────────────── */
+
+.builder-preview {
+  position: sticky;
+  top: 1rem;
+}
+
+.preview-frame {
+  background: #fff;
+  border-radius: 12px;
+  border: 1px solid var(--color-border);
+  overflow: hidden;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
+}
+
+.preview-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1rem;
+  color: #fff;
+}
+
+.preview-logo {
+  font-weight: 700;
+  font-size: 0.9375rem;
+}
+
+.preview-nav {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.preview-nav-link {
+  font-size: 0.6875rem;
+  opacity: 0.85;
+}
+
+.preview-body {
+  padding: 0;
+  min-height: 250px;
+}
+
+.preview-hero {
+  padding: 2rem 1.5rem;
+  text-align: center;
+  background-size: cover;
+  background-position: center;
+  color: #fff;
+  position: relative;
+}
+
+.preview-hero::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+}
+
+.preview-hero h2,
+.preview-hero p,
+.preview-hero button {
+  position: relative;
+  z-index: 1;
+}
+
+.preview-hero h2 {
+  font-size: 1.125rem;
+  font-weight: 700;
+  margin: 0 0 0.25rem;
+}
+
+.preview-hero p {
+  font-size: 0.75rem;
+  margin: 0 0 0.75rem;
+  opacity: 0.9;
+}
+
+.preview-cta {
+  border: none;
+  padding: 0.5rem 1.25rem;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #fff;
+  cursor: pointer;
+}
+
+.preview-products {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.75rem;
+  padding: 1rem;
+}
+
+.preview-product-card {
+  border-radius: 8px;
+  padding: 0.5rem;
+  text-align: center;
+  font-size: 0.6875rem;
+  color: var(--color-text-secondary);
+}
+
+.preview-product-image {
+  width: 100%;
+  height: 50px;
+  background: var(--color-border);
+  border-radius: 6px;
+  margin-bottom: 0.375rem;
+}
+
+.preview-footer {
+  padding: 0.75rem 1rem;
+  font-size: 0.625rem;
+  text-align: center;
+  opacity: 0.8;
+}
+
+/* ─── Responsive ─────────────────────────── */
+
+@media (max-width: 1200px) {
+  .builder-panel {
+    grid-template-columns: 1fr;
+  }
+
+  .builder-preview {
+    display: none;
+  }
+}
+
+@media (max-width: 900px) {
+  .builder-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .builder-nav {
+    flex-direction: row;
+    overflow-x: auto;
+    position: static;
+  }
+
+  .builder-nav-item {
+    white-space: nowrap;
+  }
+
+  .builder-nav-chevron {
+    display: none;
+  }
+
+  .shipping-rate-fields {
+    grid-template-columns: 1fr 1fr;
+  }
+}

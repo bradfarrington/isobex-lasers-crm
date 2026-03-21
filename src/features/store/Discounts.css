@@ -1,0 +1,66 @@
+/* ============================================================
+   Discount Codes & Gift Cards — Shared Admin Styles
+   ============================================================ */
+
+.discounts-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.5rem;
+}
+
+.discounts-header h2 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.discounts-table-wrap {
+  overflow-x: auto;
+}
+
+/* ─── Form Card ─────────────────────────── */
+
+.discount-form-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  padding: 1.25rem;
+  margin-bottom: 1.5rem;
+}
+
+.discount-form-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+
+.discount-form-card-header h3 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.discount-form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 1rem;
+}
+
+/* Helper text styles */
+.text-success {
+  color: #22c55e !important;
+}
+
+.text-muted {
+  color: var(--color-text-secondary) !important;
+}
+
+.danger {
+  color: #ef4444 !important;
+}
+
+.danger:hover {
+  background: rgba(239, 68, 68, 0.08) !important;
+}

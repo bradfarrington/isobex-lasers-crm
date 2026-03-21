@@ -34,6 +34,28 @@ import type {
   ProductVariant,
   ProductVariantInsert,
   InventoryItem,
+  StoreConfig,
+  StoreConfigUpdate,
+  Order,
+  OrderInsert,
+  OrderItem,
+  OrderItemInsert,
+  DiscountCode,
+  DiscountCodeInsert,
+  DiscountCodeUpdate,
+  GiftCard,
+  GiftCardInsert,
+  GiftCardUpdate,
+  ShippingZone,
+  ShippingZoneInsert,
+  ShippingZoneUpdate,
+  ShippingRate,
+  ShippingRateInsert,
+  ShippingRateUpdate,
+  PageSeo,
+  PageSeoUpdate,
+  StorePage,
+  StorePageUpdate,
 } from '@/types/database';
 
 // ─── Contacts ────────────────────────────────────────────
@@ -1001,3 +1023,632 @@ export async function fetchInventorySummary(): Promise<InventoryItem[]> {
 
   return items;
 }
+
+// ─── Storefront: Fetch visible products for the shop ────────
+
+export async function fetchVisibleProducts(): Promise<Product[]> {
+  const { data, error } = await supabase
+    .from('products')
+    .select('*')
+    .eq('is_visible', true)
+    .order('created_at', { ascending: false });
+
+  if (error) throw error;
+  const products = data as Product[];
+
+  // Fetch variants for price range
+  const { data: variants, error: vErr } = await supabase
+    .from('product_variants')
+    .select('product_id, option_values, stock_quantity, price_override');
+  if (vErr) throw vErr;
+
+  const variantsByProduct = new Map<string, any[]>();
+  (variants || []).forEach((v: any) => {
+    const list = variantsByProduct.get(v.product_id) || [];
+    list.push(v);
+    variantsByProduct.set(v.product_id, list);
+  });
+
+  return products.map((p) => {
+    const pvariants = variantsByProduct.get(p.id);
+    if (pvariants && pvariants.length > 0) {
+      const prices = pvariants
+        .map((v: any) => v.price_override as number | null)
+        .filter((p): p is number => p != null && p > 0);
+      return {
+        ...p,
+        variant_count: pvariants.length,
+        variant_price_min: prices.length > 0 ? Math.min(...prices) : null,
+        variant_price_max: prices.length > 0 ? Math.max(...prices) : null,
+      };
+    }
+    return p;
+  });
+}
+
+export async function fetchProductBySlug(slugOrId: string): Promise<Product> {
+  // Try slug first
+  const { data: bySlug } = await supabase
+    .from('products')
+    .select('*')
+    .eq('slug', slugOrId)
+    .eq('is_visible', true)
+    .maybeSingle();
+
+  if (bySlug) return bySlug as Product;
+
+  // Fall back to ID
+  const { data: byId, error } = await supabase
+    .from('products')
+    .select('*')
+    .eq('id', slugOrId)
+    .eq('is_visible', true)
+    .single();
+
+  if (error) throw error;
+  return byId as Product;
+}
+
+export async function fetchCollectionBySlug(slugOrId: string): Promise<Collection> {
+  // Try slug first
+  const { data: bySlug } = await supabase
+    .from('collections')
+    .select('*')
+    .eq('slug', slugOrId)
+    .maybeSingle();
+
+  if (bySlug) return bySlug as Collection;
+
+  // Fall back to ID
+  const { data: byId, error } = await supabase
+    .from('collections')
+    .select('*')
+    .eq('id', slugOrId)
+    .single();
+
+  if (error) throw error;
+  return byId as Collection;
+}
+
+export async function fetchCollectionProductsBySlugOrId(slugOrId: string): Promise<Product[]> {
+  const collection = await fetchCollectionBySlug(slugOrId);
+  if (!collection) return [];
+  return fetchProductsByCollectionId(collection.id);
+}
+
+/**
+ * Batch-fetch the first image (thumbnail) for a list of product IDs.
+ * Returns a map of productId -> media_url.
+ */
+export async function fetchProductThumbnails(productIds: string[]): Promise<Record<string, string>> {
+  if (productIds.length === 0) return {};
+
+  const { data, error } = await supabase
+    .from('product_media')
+    .select('product_id, media_url, sort_order')
+    .in('product_id', productIds)
+    .in('media_type', ['image', 'video'])
+    .order('sort_order', { ascending: true });
+
+  if (error) throw error;
+
+  const result: Record<string, string> = {};
+  (data || []).forEach((m: any) => {
+    // Only keep the first image per product
+    if (!result[m.product_id]) {
+      result[m.product_id] = m.media_url;
+    }
+  });
+  return result;
+}
+
+export async function fetchProductsByCollectionId(collectionId: string): Promise<Product[]> {
+  const { data: assignments, error: aErr } = await supabase
+    .from('product_collection_assignments')
+    .select('product_id')
+    .eq('collection_id', collectionId);
+
+  if (aErr) throw aErr;
+  const ids = (assignments || []).map((a: { product_id: string }) => a.product_id);
+  if (ids.length === 0) return [];
+
+  const { data, error } = await supabase
+    .from('products')
+    .select('*')
+    .in('id', ids)
+    .eq('is_visible', true)
+    .order('name', { ascending: true });
+
+  if (error) throw error;
+  return data as Product[];
+}
+
+// ─── Store Config ───────────────────────────────────────────
+
+export async function fetchStoreConfig(): Promise<StoreConfig> {
+  const { data, error } = await supabase
+    .from('store_config')
+    .select('*')
+    .limit(1)
+    .single();
+
+  if (error) throw error;
+  return data as StoreConfig;
+}
+
+export async function updateStoreConfig(updates: StoreConfigUpdate): Promise<StoreConfig> {
+  // Get existing config id first
+  const config = await fetchStoreConfig();
+  const { data, error } = await supabase
+    .from('store_config')
+    .update(updates)
+    .eq('id', config.id)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as StoreConfig;
+}
+
+// ─── Orders ─────────────────────────────────────────────────
+
+export async function fetchOrders(): Promise<Order[]> {
+  const { data, error } = await supabase
+    .from('orders')
+    .select('*')
+    .order('created_at', { ascending: false });
+
+  if (error) throw error;
+  return data as Order[];
+}
+
+export async function fetchOrder(id: string): Promise<Order> {
+  const { data, error } = await supabase
+    .from('orders')
+    .select('*')
+    .eq('id', id)
+    .single();
+
+  if (error) throw error;
+  return data as Order;
+}
+
+export async function fetchOrderItems(orderId: string): Promise<OrderItem[]> {
+  const { data, error } = await supabase
+    .from('order_items')
+    .select('*')
+    .eq('order_id', orderId)
+    .order('created_at', { ascending: true });
+
+  if (error) throw error;
+  return data as OrderItem[];
+}
+
+export async function fetchOrdersByContact(contactId: string): Promise<Order[]> {
+  const { data, error } = await supabase
+    .from('orders')
+    .select('*')
+    .eq('contact_id', contactId)
+    .order('created_at', { ascending: false });
+
+  if (error) throw error;
+  return data as Order[];
+}
+
+export async function createOrder(order: OrderInsert): Promise<Order> {
+  const { data, error } = await supabase
+    .from('orders')
+    .insert(order)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as Order;
+}
+
+export async function createOrderItems(items: OrderItemInsert[]): Promise<OrderItem[]> {
+  const { data, error } = await supabase
+    .from('order_items')
+    .insert(items)
+    .select();
+
+  if (error) throw error;
+  return data as OrderItem[];
+}
+
+export async function updateOrderStatus(
+  id: string,
+  status: Order['status'],
+  paymentStatus?: Order['payment_status']
+): Promise<Order> {
+  const updates: Record<string, any> = { status };
+  if (paymentStatus !== undefined) updates.payment_status = paymentStatus;
+
+  const { data, error } = await supabase
+    .from('orders')
+    .update(updates)
+    .eq('id', id)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as Order;
+}
+
+// ─── Discount Codes ─────────────────────────────────────────
+
+export async function fetchDiscountCodes(): Promise<DiscountCode[]> {
+  const { data, error } = await supabase
+    .from('discount_codes')
+    .select('*')
+    .order('created_at', { ascending: false });
+
+  if (error) throw error;
+  return data as DiscountCode[];
+}
+
+export async function createDiscountCode(code: DiscountCodeInsert): Promise<DiscountCode> {
+  const { data, error } = await supabase
+    .from('discount_codes')
+    .insert(code)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as DiscountCode;
+}
+
+export async function updateDiscountCode(id: string, updates: DiscountCodeUpdate): Promise<DiscountCode> {
+  const { data, error } = await supabase
+    .from('discount_codes')
+    .update(updates)
+    .eq('id', id)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as DiscountCode;
+}
+
+export async function deleteDiscountCode(id: string): Promise<void> {
+  const { error } = await supabase.from('discount_codes').delete().eq('id', id);
+  if (error) throw error;
+}
+
+export async function validateDiscountCode(code: string, orderTotal: number): Promise<DiscountCode | null> {
+  const { data, error } = await supabase
+    .from('discount_codes')
+    .select('*')
+    .eq('code', code.toUpperCase())
+    .eq('is_active', true)
+    .single();
+
+  if (error || !data) return null;
+  const dc = data as DiscountCode;
+
+  // Check expiry
+  if (dc.expires_at && new Date(dc.expires_at) < new Date()) return null;
+  // Check start date
+  if (dc.starts_at && new Date(dc.starts_at) > new Date()) return null;
+  // Check usage limit
+  if (dc.max_uses !== null && dc.current_uses >= dc.max_uses) return null;
+  // Check min order
+  if (orderTotal < dc.min_order_amount) return null;
+
+  return dc;
+}
+
+export async function incrementDiscountCodeUsage(id: string): Promise<void> {
+  const { data } = await supabase
+    .from('discount_codes')
+    .select('current_uses')
+    .eq('id', id)
+    .single();
+
+  if (data) {
+    await supabase
+      .from('discount_codes')
+      .update({ current_uses: (data.current_uses || 0) + 1 })
+      .eq('id', id);
+  }
+}
+
+// ─── Gift Cards ─────────────────────────────────────────────
+
+export async function fetchGiftCards(): Promise<GiftCard[]> {
+  const { data, error } = await supabase
+    .from('gift_cards')
+    .select('*')
+    .order('created_at', { ascending: false });
+
+  if (error) throw error;
+  return data as GiftCard[];
+}
+
+export async function createGiftCard(card: GiftCardInsert): Promise<GiftCard> {
+  const { data, error } = await supabase
+    .from('gift_cards')
+    .insert(card)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as GiftCard;
+}
+
+export async function updateGiftCard(id: string, updates: GiftCardUpdate): Promise<GiftCard> {
+  const { data, error } = await supabase
+    .from('gift_cards')
+    .update(updates)
+    .eq('id', id)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as GiftCard;
+}
+
+export async function deleteGiftCard(id: string): Promise<void> {
+  const { error } = await supabase.from('gift_cards').delete().eq('id', id);
+  if (error) throw error;
+}
+
+export async function validateGiftCard(code: string): Promise<GiftCard | null> {
+  const { data, error } = await supabase
+    .from('gift_cards')
+    .select('*')
+    .eq('code', code.toUpperCase())
+    .eq('is_active', true)
+    .single();
+
+  if (error || !data) return null;
+  const gc = data as GiftCard;
+
+  if (gc.expires_at && new Date(gc.expires_at) < new Date()) return null;
+  if (gc.current_balance <= 0) return null;
+
+  return gc;
+}
+
+export async function deductGiftCardBalance(id: string, amount: number): Promise<void> {
+  const { data } = await supabase
+    .from('gift_cards')
+    .select('current_balance')
+    .eq('id', id)
+    .single();
+
+  if (data) {
+    const newBalance = Math.max(0, (data.current_balance || 0) - amount);
+    await supabase
+      .from('gift_cards')
+      .update({ current_balance: newBalance })
+      .eq('id', id);
+  }
+}
+
+// ─── Shipping Zones & Rates ─────────────────────────────────
+
+export async function fetchShippingZones(): Promise<ShippingZone[]> {
+  const { data, error } = await supabase
+    .from('shipping_zones')
+    .select('*')
+    .order('created_at', { ascending: true });
+
+  if (error) throw error;
+  return data as ShippingZone[];
+}
+
+export async function createShippingZone(zone: ShippingZoneInsert): Promise<ShippingZone> {
+  const { data, error } = await supabase
+    .from('shipping_zones')
+    .insert(zone)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as ShippingZone;
+}
+
+export async function updateShippingZone(id: string, updates: ShippingZoneUpdate): Promise<ShippingZone> {
+  const { data, error } = await supabase
+    .from('shipping_zones')
+    .update(updates)
+    .eq('id', id)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as ShippingZone;
+}
+
+export async function deleteShippingZone(id: string): Promise<void> {
+  const { error } = await supabase.from('shipping_zones').delete().eq('id', id);
+  if (error) throw error;
+}
+
+export async function fetchShippingRates(zoneId?: string): Promise<ShippingRate[]> {
+  let query = supabase
+    .from('shipping_rates')
+    .select('*')
+    .order('sort_order', { ascending: true });
+
+  if (zoneId) query = query.eq('zone_id', zoneId);
+
+  const { data, error } = await query;
+  if (error) throw error;
+  return data as ShippingRate[];
+}
+
+export async function createShippingRate(rate: ShippingRateInsert): Promise<ShippingRate> {
+  const { data, error } = await supabase
+    .from('shipping_rates')
+    .insert(rate)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as ShippingRate;
+}
+
+export async function updateShippingRate(id: string, updates: ShippingRateUpdate): Promise<ShippingRate> {
+  const { data, error } = await supabase
+    .from('shipping_rates')
+    .update(updates)
+    .eq('id', id)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as ShippingRate;
+}
+
+export async function deleteShippingRate(id: string): Promise<void> {
+  const { error } = await supabase.from('shipping_rates').delete().eq('id', id);
+  if (error) throw error;
+}
+
+export async function fetchShippingRatesForWeight(weightKg: number): Promise<ShippingRate[]> {
+  const { data, error } = await supabase
+    .from('shipping_rates')
+    .select('*')
+    .eq('is_active', true)
+    .lte('min_weight_kg', weightKg)
+    .gte('max_weight_kg', weightKg)
+    .order('price', { ascending: true });
+
+  if (error) throw error;
+  return data as ShippingRate[];
+}
+
+// ─── Page SEO ───────────────────────────────────────────────
+
+export async function fetchPageSeo(pageKey: string): Promise<PageSeo | null> {
+  const { data, error } = await supabase
+    .from('page_seo')
+    .select('*')
+    .eq('page_key', pageKey)
+    .single();
+
+  if (error) return null;
+  return data as PageSeo;
+}
+
+export async function fetchAllPageSeo(): Promise<PageSeo[]> {
+  const { data, error } = await supabase
+    .from('page_seo')
+    .select('*')
+    .order('page_key', { ascending: true });
+
+  if (error) throw error;
+  return data as PageSeo[];
+}
+
+export async function upsertPageSeo(pageKey: string, updates: PageSeoUpdate): Promise<PageSeo> {
+  // Try update first
+  const existing = await fetchPageSeo(pageKey);
+  if (existing) {
+    const { data, error } = await supabase
+      .from('page_seo')
+      .update(updates)
+      .eq('id', existing.id)
+      .select()
+      .single();
+    if (error) throw error;
+    return data as PageSeo;
+  }
+
+  // Insert
+  const { data, error } = await supabase
+    .from('page_seo')
+    .insert({ page_key: pageKey, ...updates })
+    .select()
+    .single();
+  if (error) throw error;
+  return data as PageSeo;
+}
+
+// ─── Slug Helper ────────────────────────────────────────────
+
+export function generateSlug(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '');
+}
+
+// ─── Contact lookup/creation for orders ─────────────────────
+
+export async function findOrCreateContact(
+  email: string,
+  name: string,
+  phone?: string
+): Promise<Contact> {
+  // Try to find existing contact by email
+  const { data: existing } = await supabase
+    .from('contacts')
+    .select('*, company:companies(*)')
+    .eq('email', email)
+    .limit(1);
+
+  if (existing && existing.length > 0) {
+    return existing[0] as Contact;
+  }
+
+  // Create new contact
+  const nameParts = name.trim().split(/\s+/);
+  const firstName = nameParts[0] || '';
+  const lastName = nameParts.slice(1).join(' ') || '';
+
+  const newContact = await createContact({
+    first_name: firstName,
+    last_name: lastName,
+    email,
+    phone: phone || null,
+    company_id: null,
+    notes: null,
+    contact_type: 'Customer',
+    source: 'Online Store',
+    message: null,
+    status: null,
+  });
+
+  return newContact;
+}
+
+// ─── Store Pages (Page Builder) ──────────────────────────────
+
+export async function fetchStorePages(): Promise<StorePage[]> {
+  const { data, error } = await supabase
+    .from('store_pages')
+    .select('*')
+    .order('page_key', { ascending: true });
+
+  if (error) throw error;
+  return data as StorePage[];
+}
+
+export async function fetchStorePage(pageKey: string): Promise<StorePage> {
+  const { data, error } = await supabase
+    .from('store_pages')
+    .select('*')
+    .eq('page_key', pageKey)
+    .single();
+
+  if (error) throw error;
+  return data as StorePage;
+}
+
+export async function updateStorePage(id: string, updates: StorePageUpdate): Promise<StorePage> {
+  const { data, error } = await supabase
+    .from('store_pages')
+    .update({ ...updates, updated_at: new Date().toISOString() })
+    .eq('id', id)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as StorePage;
+}
+

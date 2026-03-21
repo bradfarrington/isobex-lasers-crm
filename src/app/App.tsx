@@ -11,7 +11,10 @@ import { CollectionsPage } from '@/features/store/CollectionsPage';
 import { InventoryPage } from '@/features/store/InventoryPage';
 import { GiftCardsPage } from '@/features/store/GiftCardsPage';
 import { DiscountsPage } from '@/features/store/DiscountsPage';
+import { StoreBuilderPage } from '@/features/store/StoreBuilderPage';
+import { PageBuilderPage } from '@/features/store/PageBuilderPage';
 import { OrdersPage } from '@/features/orders/OrdersPage';
+import { OrderDetailPage } from '@/features/orders/OrderDetailPage';
 import { EmailMarketingPage } from '@/features/email-marketing/EmailMarketingPage';
 import { ReviewsPage } from '@/features/reviews/ReviewsPage';
 import { DocumentsPage } from '@/features/documents/DocumentsPage';
@@ -19,6 +22,14 @@ import { InstallationsPage } from '@/features/installations/InstallationsPage';
 import { SupportPage } from '@/features/support/SupportPage';
 import { ReportingPage } from '@/features/reporting/ReportingPage';
 import { SettingsPage } from '@/features/settings/SettingsPage';
+import { StorefrontLayout } from '@/features/storefront/StorefrontLayout';
+import { StorefrontHome } from '@/features/storefront/StorefrontHome';
+import { StorefrontProducts } from '@/features/storefront/StorefrontProducts';
+import { StorefrontCollections } from '@/features/storefront/StorefrontCollections';
+import { StorefrontCollectionDetail } from '@/features/storefront/StorefrontCollectionDetail';
+import { StorefrontProductDetail } from '@/features/storefront/StorefrontProductDetail';
+import { StorefrontCheckout } from '@/features/storefront/StorefrontCheckout';
+import { StorefrontThankYou } from '@/features/storefront/StorefrontThankYou';
 
 export function App() {
   return (
@@ -38,7 +49,9 @@ export function App() {
           <Route path="store/inventory" element={<InventoryPage />} />
           <Route path="store/gift-cards" element={<GiftCardsPage />} />
           <Route path="store/discounts" element={<DiscountsPage />} />
+          <Route path="store/builder" element={<StoreBuilderPage />} />
           <Route path="orders" element={<OrdersPage />} />
+          <Route path="orders/:id" element={<OrderDetailPage />} />
           <Route path="email-marketing" element={<EmailMarketingPage />} />
           <Route path="reviews" element={<ReviewsPage />} />
           <Route path="documents" element={<DocumentsPage />} />
@@ -46,6 +59,20 @@ export function App() {
           <Route path="support" element={<SupportPage />} />
           <Route path="reporting" element={<ReportingPage />} />
           <Route path="settings" element={<SettingsPage />} />
+        </Route>
+
+        {/* Page Builder — Full-width, no CRM chrome */}
+        <Route path="store/pages" element={<PageBuilderPage />} />
+
+        {/* Public Storefront — no CRM chrome */}
+        <Route path="shop" element={<StorefrontLayout />}>
+          <Route index element={<StorefrontHome />} />
+          <Route path="products" element={<StorefrontProducts />} />
+          <Route path="products/:slug" element={<StorefrontProductDetail />} />
+          <Route path="collections" element={<StorefrontCollections />} />
+          <Route path="collections/:slug" element={<StorefrontCollectionDetail />} />
+          <Route path="checkout" element={<StorefrontCheckout />} />
+          <Route path="thank-you/:orderId" element={<StorefrontThankYou />} />
         </Route>
       </Routes>
     </BrowserRouter>
