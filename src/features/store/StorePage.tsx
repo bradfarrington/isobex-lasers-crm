@@ -88,8 +88,8 @@ export function StorePage() {
             bVal = b.pack_quantity ?? 1;
             break;
           case 'price':
-            aVal = a.price;
-            bVal = b.price;
+            aVal = a.variant_price_min ?? a.price;
+            bVal = b.variant_price_min ?? b.price;
             break;
           case 'stock': {
             const aHas = a.variant_count && a.variant_count > 0;
@@ -255,11 +255,21 @@ export function StorePage() {
                       )}
                     </td>
                     <td className="product-price-cell">
-                      <span className="product-price">{formatPrice(product.price)}</span>
-                      {product.compare_at_price && product.compare_at_price > product.price && (
-                        <span className="product-compare-price">
-                          {formatPrice(product.compare_at_price)}
+                      {hasVariants && product.variant_price_min != null ? (
+                        <span className="product-price">
+                          {product.variant_price_min === product.variant_price_max
+                            ? formatPrice(product.variant_price_min)
+                            : `${formatPrice(product.variant_price_min)} – ${formatPrice(product.variant_price_max!)}`}
                         </span>
+                      ) : (
+                        <>
+                          <span className="product-price">{formatPrice(product.price)}</span>
+                          {product.compare_at_price && product.compare_at_price > product.price && (
+                            <span className="product-compare-price">
+                              {formatPrice(product.compare_at_price)}
+                            </span>
+                          )}
+                        </>
                       )}
                     </td>
                     <td>

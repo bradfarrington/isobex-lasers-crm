@@ -179,6 +179,8 @@ export interface Product {
   variant_count?: number;
   total_variant_stock?: number;
   variant_stock_details?: { label: string; stock: number }[];
+  variant_price_min?: number | null;
+  variant_price_max?: number | null;
 }
 
 export type ProductInsert = Omit<Product, 'id' | 'created_at' | 'updated_at' | 'labels' | 'collections' | 'media' | 'variants'>;

@@ -563,10 +563,10 @@ export async function fetchProducts(): Promise<Product[]> {
   if (error) throw error;
   const products = data as Product[];
 
-  // Fetch all variants in one query to compute stock aggregates
+  // Fetch all variants in one query to compute stock and price aggregates
   const { data: variants, error: vErr } = await supabase
     .from('product_variants')
-    .select('product_id, option_values, stock_quantity');
+    .select('product_id, option_values, stock_quantity, price_override');
 
   if (vErr) throw vErr;
 
@@ -578,7 +578,7 @@ export async function fetchProducts(): Promise<Product[]> {
     variantsByProduct.set(v.product_id, list);
   });
 
-  // Attach variant stock metadata to each product
+  // Attach variant stock + price metadata to each product
   return products.map((p) => {
     const pvariants = variantsByProduct.get(p.id);
     if (pvariants && pvariants.length > 0) {
@@ -587,11 +587,21 @@ export async function fetchProducts(): Promise<Product[]> {
         stock: v.stock_quantity ?? 0,
       }));
       const total = details.reduce((sum: number, d: { stock: number }) => sum + d.stock, 0);
+
+      // Compute variant price range
+      const prices = pvariants
+        .map((v: any) => v.price_override as number | null)
+        .filter((p): p is number => p != null && p > 0);
+      const priceMin = prices.length > 0 ? Math.min(...prices) : null;
+      const priceMax = prices.length > 0 ? Math.max(...prices) : null;
+
       return {
         ...p,
         variant_count: pvariants.length,
         total_variant_stock: total,
         variant_stock_details: details,
+        variant_price_min: priceMin,
+        variant_price_max: priceMax,
       };
     }
     return p;
@@ -644,6 +654,30 @@ export async function fetchProductMedia(productId: string): Promise<ProductMedia
     .from('product_media')
     .select('*')
     .eq('product_id', productId)
+    .order('sort_order', { ascending: true });
+
+  if (error) throw error;
+  return data as ProductMedia[];
+}
+
+export async function fetchProductImages(productId: string): Promise<ProductMedia[]> {
+  const { data, error } = await supabase
+    .from('product_media')
+    .select('*')
+    .eq('product_id', productId)
+    .in('media_type', ['image', 'video'])
+    .order('sort_order', { ascending: true });
+
+  if (error) throw error;
+  return data as ProductMedia[];
+}
+
+export async function fetchProductDocuments(productId: string): Promise<ProductMedia[]> {
+  const { data, error } = await supabase
+    .from('product_media')
+    .select('*')
+    .eq('product_id', productId)
+    .eq('media_type', 'document')
     .order('sort_order', { ascending: true });
 
   if (error) throw error;

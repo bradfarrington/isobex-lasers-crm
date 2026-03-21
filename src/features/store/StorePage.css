@@ -931,6 +931,80 @@
   background: var(--color-primary-subtle);
 }
 
+/* ─── Media Cards Grid (images + documents side by side) ── */
+
+.media-cards-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-4);
+}
+
+@media (max-width: 768px) {
+  .media-cards-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ─── Documents List ─────────────────────────────────────── */
+
+.documents-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin-bottom: var(--space-4);
+}
+
+.document-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  transition: border-color var(--transition-fast);
+}
+
+.document-row:hover {
+  border-color: var(--color-border-strong);
+}
+
+.document-row-icon {
+  color: var(--color-text-tertiary);
+  flex-shrink: 0;
+}
+
+.document-row-name {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-primary);
+  text-decoration: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.document-row-name:hover {
+  text-decoration: underline;
+}
+
+.btn-icon-sm {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  flex-shrink: 0;
+  border-radius: var(--radius-md);
+  color: var(--color-text-tertiary);
+}
+
+.btn-icon-sm:hover {
+  color: var(--color-danger);
+}
+
 /* ─── Options & Variants ─────────────────────────────────── */
 
 .option-group {

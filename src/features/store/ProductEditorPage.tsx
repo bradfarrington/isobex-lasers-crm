@@ -20,6 +20,7 @@ import {
   Upload,
   GripVertical,
   Check,
+  FileText,
 } from 'lucide-react';
 import './StorePage.css';
 
@@ -62,7 +63,8 @@ export function ProductEditorPage() {
   const [allCollections, setAllCollections] = useState<Collection[]>([]);
 
   // ─── Media ──────────────────────────────────
-  const [media, setMedia] = useState<ProductMediaType[]>([]);
+  const [images, setImages] = useState<ProductMediaType[]>([]);
+  const [documents, setDocuments] = useState<ProductMediaType[]>([]);
 
   // ─── Options & Variants ────────────────────
   const [optionGroups, setOptionGroups] = useState<OptionGroupDraft[]>([]);
@@ -81,12 +83,13 @@ export function ProductEditorPage() {
     if (!id) return;
     setLoading(true);
     try {
-      const [product, labelIds, collectionIds, mediaItems, options, existingVariants, collections] =
+      const [product, labelIds, collectionIds, imageItems, docItems, options, existingVariants, collections] =
         await Promise.all([
           api.fetchProduct(id),
           api.fetchProductLabelIds(id),
           api.fetchProductCollectionIds(id),
-          api.fetchProductMedia(id),
+          api.fetchProductImages(id),
+          api.fetchProductDocuments(id),
           api.fetchProductOptions(id),
           api.fetchProductVariants(id),
           api.fetchCollections(),
@@ -106,7 +109,8 @@ export function ProductEditorPage() {
       setSelectedLabelIds(labelIds);
       setSelectedCollectionIds(collectionIds);
       setAllCollections(collections);
-      setMedia(mediaItems);
+      setImages(imageItems);
+      setDocuments(docItems);
 
       // Convert options to draft format
       const drafts: OptionGroupDraft[] = options.map((g) => ({
@@ -233,54 +237,95 @@ export function ProductEditorPage() {
     );
   };
 
-  // ─── Media upload ─────────────────────────
-  const handleMediaUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  // ─── Image upload ─────────────────────────
+  const uploadToStorage = async (
+    file: File,
+    bucketName: string
+  ): Promise<string> => {
+    const { supabase } = await import('@/lib/supabase');
+    const safeName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
+    const storagePath = `products/${id}/${Date.now()}-${safeName}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from(bucketName)
+      .upload(storagePath, file);
+
+    if (uploadError) throw uploadError;
+
+    const { data: urlData } = supabase.storage
+      .from(bucketName)
+      .getPublicUrl(storagePath);
+
+    return urlData.publicUrl;
+  };
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || !id) return;
 
     for (const file of Array.from(files)) {
       try {
-        const { supabase } = await import('@/lib/supabase');
-        const storagePath = `products/${id}/${Date.now()}-${file.name}`;
-        const { error: uploadError } = await supabase.storage
-          .from('media-storage')
-          .upload(storagePath, file, { upsert: true });
-
-        if (uploadError) throw uploadError;
-
-        const { data: urlData } = supabase.storage
-          .from('media-storage')
-          .getPublicUrl(storagePath);
-
-        const mediaType = file.type.startsWith('video/')
-          ? 'video'
-          : file.type.startsWith('image/')
-          ? 'image'
-          : 'document';
+        const publicUrl = await uploadToStorage(file, 'product-images');
+        const mediaType = file.type.startsWith('video/') ? 'video' : 'image';
 
         const newMedia = await api.addProductMedia({
           product_id: id,
-          media_url: urlData.publicUrl,
-          media_type: mediaType as 'image' | 'video' | 'document',
+          media_url: publicUrl,
+          media_type: mediaType as 'image' | 'video',
           file_name: file.name,
-          sort_order: media.length,
+          sort_order: images.length,
         });
 
-        setMedia((prev) => [...prev, newMedia]);
+        setImages((prev) => [...prev, newMedia]);
       } catch (err) {
-        console.error('Media upload failed:', err);
+        console.error('Image upload failed:', err);
       }
     }
 
     e.target.value = '';
   };
 
-  const handleRemoveMedia = async (mediaId: string) => {
+  // ─── Document upload ──────────────────────
+  const handleDocumentUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || !id) return;
+
+    for (const file of Array.from(files)) {
+      try {
+        const publicUrl = await uploadToStorage(file, 'product-documents');
+
+        const newMedia = await api.addProductMedia({
+          product_id: id,
+          media_url: publicUrl,
+          media_type: 'document',
+          file_name: file.name,
+          sort_order: documents.length,
+        });
+
+        setDocuments((prev) => [...prev, newMedia]);
+      } catch (err) {
+        console.error('Document upload failed:', err);
+      }
+    }
+
+    e.target.value = '';
+  };
+
+  const handleRemoveImage = async (mediaId: string) => {
     try {
       await api.deleteProductMedia(mediaId);
-      setMedia((prev) => prev.filter((m) => m.id !== mediaId));
+      setImages((prev) => prev.filter((m) => m.id !== mediaId));
     } catch (err) {
-      console.error('Failed to remove media:', err);
+      console.error('Failed to remove image:', err);
+    }
+  };
+
+  const handleRemoveDocument = async (mediaId: string) => {
+    try {
+      await api.deleteProductMedia(mediaId);
+      setDocuments((prev) => prev.filter((m) => m.id !== mediaId));
+    } catch (err) {
+      console.error('Failed to remove document:', err);
     }
   };
 
@@ -533,24 +578,26 @@ export function ProductEditorPage() {
             </div>
           )}
 
-          {/* Media */}
+          <div className="media-cards-grid">
+          {/* Product Images */}
           <div className="editor-card">
-            <h3 className="editor-card-title">Media</h3>
-            {media.length > 0 && (
+            <h3 className="editor-card-title">Product Images</h3>
+            <p className="form-hint">Images shown on your storefront. The first image is the hero.</p>
+            {images.length > 0 && (
               <div className="media-gallery">
-                {media.map((m, idx) => (
+                {images.map((m, idx) => (
                   <div key={m.id} className="media-item">
-                    {m.media_type === 'image' ? (
-                      <img src={m.media_url} alt={m.file_name || `Image ${idx + 1}`} />
-                    ) : (
+                    {m.media_type === 'video' ? (
                       <div className="media-file-icon">
                         <Image size={24} />
-                        <span>{m.file_name || m.media_type}</span>
+                        <span>{m.file_name || 'Video'}</span>
                       </div>
+                    ) : (
+                      <img src={m.media_url} alt={m.file_name || `Image ${idx + 1}`} />
                     )}
                     <button
                       className="media-remove-btn"
-                      onClick={() => handleRemoveMedia(m.id)}
+                      onClick={() => handleRemoveImage(m.id)}
                     >
                       <X size={14} />
                     </button>
@@ -562,18 +609,63 @@ export function ProductEditorPage() {
             {!isNew ? (
               <label className="media-upload-btn">
                 <Upload size={16} />
-                <span>Upload Media</span>
+                <span>Upload Images</span>
                 <input
                   type="file"
                   multiple
-                  accept="image/*,video/*,.pdf,.doc,.docx"
-                  onChange={handleMediaUpload}
+                  accept="image/*,video/*"
+                  onChange={handleImageUpload}
                   style={{ display: 'none' }}
                 />
               </label>
             ) : (
-              <p className="form-hint">Save the product first, then you can upload media.</p>
+              <p className="form-hint">Save the product first, then you can upload images.</p>
             )}
+          </div>
+
+          {/* Related Documents */}
+          <div className="editor-card">
+            <h3 className="editor-card-title">Related Documents</h3>
+            <p className="form-hint">Spec sheets, manuals, certificates — downloadable by customers.</p>
+            {documents.length > 0 && (
+              <div className="documents-list">
+                {documents.map((doc) => (
+                  <div key={doc.id} className="document-row">
+                    <FileText size={18} className="document-row-icon" />
+                    <a
+                      href={doc.media_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="document-row-name"
+                    >
+                      {doc.file_name || 'Untitled document'}
+                    </a>
+                    <button
+                      className="btn btn-ghost btn-icon-sm"
+                      onClick={() => handleRemoveDocument(doc.id)}
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            {!isNew ? (
+              <label className="media-upload-btn">
+                <Upload size={16} />
+                <span>Upload Documents</span>
+                <input
+                  type="file"
+                  multiple
+                  accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.txt"
+                  onChange={handleDocumentUpload}
+                  style={{ display: 'none' }}
+                />
+              </label>
+            ) : (
+              <p className="form-hint">Save the product first, then you can upload documents.</p>
+            )}
+          </div>
           </div>
 
           {/* Options & Variants */}
