@@ -393,6 +393,8 @@ export interface OrderItem {
   total_price: number;
   unit_weight_kg: number;
   created_at: string;
+  // Enriched from linked product (not stored in DB)
+  pack_quantity?: number;
 }
 
 export type OrderItemInsert = Omit<OrderItem, 'id' | 'created_at'>;

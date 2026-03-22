@@ -1221,7 +1221,56 @@ export async function fetchOrderItems(orderId: string): Promise<OrderItem[]> {
     .order('created_at', { ascending: true });
 
   if (error) throw error;
-  return data as OrderItem[];
+  const items = data as OrderItem[];
+
+  // Enrich items from linked products
+  const productIds = [...new Set(items.map((i) => i.product_id).filter(Boolean))] as string[];
+  if (productIds.length === 0) return items;
+
+  // Batch-fetch product thumbnails
+  const thumbnails = await fetchProductThumbnails(productIds);
+
+  // Batch-fetch products (name, pack_quantity, sku)
+  const { data: products } = await supabase
+    .from('products')
+    .select('id, name, pack_quantity, sku')
+    .in('id', productIds);
+  const productMap = new Map((products || []).map((p: any) => [p.id, p]));
+
+  // Batch-fetch variants referenced by items
+  const variantIds = [...new Set(items.map((i) => i.variant_id).filter(Boolean))] as string[];
+  let variantMap = new Map<string, any>();
+  if (variantIds.length > 0) {
+    const { data: variants } = await supabase
+      .from('product_variants')
+      .select('id, option_values, sku')
+      .in('id', variantIds);
+    variantMap = new Map((variants || []).map((v: any) => [v.id, v]));
+  }
+
+  // Merge enriched data into each item
+  return items.map((item) => {
+    if (!item.product_id) return item;
+
+    const product = productMap.get(item.product_id);
+    if (!product) return item;
+
+    const variant = item.variant_id ? variantMap.get(item.variant_id) : null;
+
+    // Build variant label from option_values if available
+    const variantLabel = variant
+      ? (variant.option_values || []).map((ov: any) => ov.value).join(' / ')
+      : item.variant_label;
+
+    return {
+      ...item,
+      product_name: product.name,
+      product_image_url: thumbnails[item.product_id] || item.product_image_url,
+      sku: variant?.sku || product.sku || item.sku,
+      variant_label: variantLabel,
+      pack_quantity: product.pack_quantity ?? 1,
+    };
+  });
 }
 
 export async function fetchOrdersByContact(contactId: string): Promise<Order[]> {

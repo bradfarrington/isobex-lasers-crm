@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { PageShell } from '@/components/layout/PageShell';
 import * as api from '@/lib/api';
 import type { Order } from '@/types/database';
 import './Orders.css';
-import { PackageCheck, Eye, Search } from 'lucide-react';
+import { PackageCheck, Search } from 'lucide-react';
 
 const STATUS_COLORS: Record<string, string> = {
   pending: '#f59e0b',
@@ -24,6 +24,7 @@ const PAYMENT_COLORS: Record<string, string> = {
 };
 
 export function OrdersPage() {
+  const navigate = useNavigate();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -104,12 +105,11 @@ export function OrdersPage() {
                 <th>Status</th>
                 <th>Payment</th>
                 <th>Total</th>
-                <th></th>
               </tr>
             </thead>
             <tbody>
               {filteredOrders.map((order) => (
-                <tr key={order.id}>
+                <tr key={order.id} className="orders-table-row" onClick={() => navigate(`/orders/${order.id}`)}>
                   <td className="orders-col-number">
                     <strong>#{order.order_number}</strong>
                   </td>
@@ -136,11 +136,6 @@ export function OrdersPage() {
                   </td>
                   <td className="orders-col-total">
                     <strong>£{Number(order.total).toFixed(2)}</strong>
-                  </td>
-                  <td>
-                    <Link to={`/orders/${order.id}`} className="btn btn-ghost btn-icon-sm" title="View order">
-                      <Eye size={16} />
-                    </Link>
                   </td>
                 </tr>
               ))}

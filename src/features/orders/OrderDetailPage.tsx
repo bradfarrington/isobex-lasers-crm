@@ -249,7 +249,12 @@ export function OrderDetailPage() {
                     <div className="order-item-img placeholder" />
                   )}
                   <div className="order-item-info">
-                    <div className="order-item-name">{item.product_name}</div>
+                    <div className="order-item-name">
+                      {item.product_name}
+                      {item.pack_quantity && item.pack_quantity > 1 && (
+                        <span className="order-item-pack-badge">Pack of {item.pack_quantity}</span>
+                      )}
+                    </div>
                     {item.variant_label && <div className="order-item-variant">Size: {item.variant_label}</div>}
                     {item.sku && <div className="order-item-sku">SKU: {item.sku}</div>}
                   </div>
