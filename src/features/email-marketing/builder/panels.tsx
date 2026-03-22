@@ -200,9 +200,10 @@ export function BlockPreview({ block, isPreview = false, isMobile = false, onCol
       return <div style={{ color: data.color||tc, fontSize: '15px', lineHeight: 1.7, padding: pad, fontFamily: font, background: data.bgColor || 'transparent' }} dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(cleanHtml(resolve(data.content)) || '<p>Text block</p>') }} />;
     case 'image': {
       if (!data.src) return !isPreview ? <div className="eb-placeholder"><ImageIcon size={24} /><br/>Click to add an image</div> : null;
+      const imgMargin = data.align === 'left' ? '0 auto 0 0' : data.align === 'right' ? '0 0 0 auto' : '0 auto';
       return (
         <div style={{ textAlign: (data.align||'center') as any, padding: pad }}>
-          <img src={data.src} alt={data.alt||''} style={{ maxWidth: `${data.width||100}%`, borderRadius: `${data.borderRadius||0}px`, display: 'block', margin: '0 auto' }} />
+          <img src={data.src} alt={data.alt||''} style={{ maxWidth: `${data.width||100}%`, borderRadius: `${data.borderRadius||0}px`, display: 'block', margin: imgMargin }} />
         </div>
       );
     }

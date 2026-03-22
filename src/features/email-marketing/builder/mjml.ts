@@ -97,22 +97,32 @@ export function blockToMjml(block: BlockData, gs: Record<string, any> = {}, pres
       const fs = data.fontSize || 18;
       const target = new Date(data.endDate);
       const formatted = target.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-      const digitStyle = `font-size:${fs}px;font-weight:800;color:${ctc};background:rgba(0,0,0,0.15);border-radius:6px;padding:8px 14px;display:inline-block;min-width:40px;text-align:center;`;
-      const sepStyle = `font-size:${fs}px;font-weight:800;color:${ctc};padding:0 4px;`;
 
-      // Static countdown shows the target date (emails can't run JS for live countdown)
+      // Compute time remaining at the moment of email generation
+      const diff = Math.max(0, target.getTime() - Date.now());
+      const dd = String(Math.floor(diff / 86400000)).padStart(2, '0');
+      const hh = String(Math.floor((diff % 86400000) / 3600000)).padStart(2, '0');
+      const mm = String(Math.floor((diff % 3600000) / 60000)).padStart(2, '0');
+      const ss = String(Math.floor((diff % 60000) / 1000)).padStart(2, '0');
+
+      const digitStyle = `font-size:${fs}px;font-weight:800;color:${ctc};background:rgba(0,0,0,0.15);border-radius:6px;padding:8px 14px;display:inline-block;min-width:40px;text-align:center;`;
+      const labelStyle = `font-size:10px;color:${ctc};opacity:0.7;margin-top:4px;text-transform:uppercase;letter-spacing:0.06em;font-weight:600;`;
+      const sepStyle = `font-size:${fs}px;font-weight:800;color:${ctc};padding:0 4px;vertical-align:top;line-height:42px;`;
+      const cellStyle = `display:inline-block;text-align:center;`;
+
+      // Snapshot countdown — shows time remaining when the email was generated
       return `<mj-section padding="${ps}" background-color="${bg}" border-radius="8px">
         <mj-column width="100%">
           ${data.label ? `<mj-text align="center" color="${ctc}" font-size="13px" font-weight="600" padding="0 0 8px" css-class="countdown-label">${data.label}</mj-text>` : ''}
           <mj-text align="center" padding="0" font-family="${font}">
             <div style="text-align:center;">
-              <span style="${digitStyle}">––</span>
+              <div style="${cellStyle}"><div style="${digitStyle}">${dd}</div><div style="${labelStyle}">DAYS</div></div>
               <span style="${sepStyle}">:</span>
-              <span style="${digitStyle}">––</span>
+              <div style="${cellStyle}"><div style="${digitStyle}">${hh}</div><div style="${labelStyle}">HOURS</div></div>
               <span style="${sepStyle}">:</span>
-              <span style="${digitStyle}">––</span>
+              <div style="${cellStyle}"><div style="${digitStyle}">${mm}</div><div style="${labelStyle}">MINS</div></div>
               <span style="${sepStyle}">:</span>
-              <span style="${digitStyle}">––</span>
+              <div style="${cellStyle}"><div style="${digitStyle}">${ss}</div><div style="${labelStyle}">SECS</div></div>
             </div>
             <div style="text-align:center;margin-top:8px;font-size:12px;color:${ctc};opacity:0.8;">${formatted}</div>
           </mj-text>

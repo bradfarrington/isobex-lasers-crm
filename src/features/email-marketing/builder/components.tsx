@@ -168,7 +168,16 @@ export function ImageUploadButton({ onUploaded }: { onUploaded: (url: string) =>
     try {
       const ext = file.name.split('.').pop();
       const path = `${Date.now()}-${crypto.randomUUID()}.${ext}`;
-      const { error } = await supabase.storage.from('email-images').upload(path, file, { upsert: true });
+      let { error } = await supabase.storage.from('email-images').upload(path, file, { upsert: true });
+
+      if (error) {
+        // Bucket may not exist — try to create it and retry
+        console.warn('Email image upload failed, attempting to create bucket:', error.message);
+        await supabase.storage.createBucket('email-images', { public: true, fileSizeLimit: 10485760 });
+        const retry = await supabase.storage.from('email-images').upload(path, file, { upsert: true });
+        error = retry.error;
+      }
+
       if (error) throw error;
       const { data } = supabase.storage.from('email-images').getPublicUrl(path);
       onUploaded(data.publicUrl);

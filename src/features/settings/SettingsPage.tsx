@@ -1,12 +1,65 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ColorPicker } from '@/components/ui/ColorPicker';
 import { PageShell } from '@/components/layout/PageShell';
 import { useData } from '@/context/DataContext';
+import { supabase } from '@/lib/supabase';
 import * as api from '@/lib/api';
 import type { LookupItem } from '@/types/database';
 import { useAlert } from '@/components/ui/AlertDialog';
-import { Plus, Pencil, Trash2, X, Check } from 'lucide-react';
+import {
+  Plus, Pencil, Trash2, X, Check, Mail, Save, Send, Loader2,
+  CheckCircle2, Info, ListFilter,
+} from 'lucide-react';
 import './SettingsPage.css';
+
+/* ═══════════════════════════════════════════
+   Settings Page — Tabbed Layout
+   ═══════════════════════════════════════════ */
+
+const TABS = [
+  { id: 'lookups', label: 'Lookups', icon: ListFilter },
+  { id: 'email', label: 'Email / SMTP', icon: Mail },
+];
+
+export function SettingsPage() {
+  const [activeTab, setActiveTab] = useState('lookups');
+
+  return (
+    <PageShell
+      title="Settings"
+      subtitle="Configure dropdown lists, email and system preferences."
+    >
+      <div className="settings-shell">
+        {/* Sidebar navigation */}
+        <nav className="settings-sidebar">
+          {TABS.map((tab) => {
+            const Icon = tab.icon;
+            return (
+              <button
+                key={tab.id}
+                className={`settings-sidebar-item ${activeTab === tab.id ? 'active' : ''}`}
+                onClick={() => setActiveTab(tab.id)}
+              >
+                <Icon size={18} />
+                <span>{tab.label}</span>
+              </button>
+            );
+          })}
+        </nav>
+
+        {/* Panel content */}
+        <div className="settings-panel" key={activeTab}>
+          {activeTab === 'lookups' && <LookupsPanel />}
+          {activeTab === 'email' && <SmtpPanel />}
+        </div>
+      </div>
+    </PageShell>
+  );
+}
+
+/* ═══════════════════════════════════════════
+   Lookups Panel (existing lookup cards)
+   ═══════════════════════════════════════════ */
 
 type LookupTable = 'lead_sources' | 'lead_statuses' | 'company_statuses' | 'product_labels' | 'compatibility_types';
 type CollectionKey = 'leadSources' | 'leadStatuses' | 'companyStatuses' | 'productLabels' | 'compatibilityTypes';
@@ -17,6 +70,57 @@ interface LookupCardProps {
   collection: CollectionKey;
   items: LookupItem[];
   hasColor?: boolean;
+}
+
+function LookupsPanel() {
+  const { state } = useData();
+
+  return (
+    <>
+      <div className="settings-panel-head">
+        <h3>Lookups</h3>
+        <p className="settings-panel-desc">
+          Manage dropdown lists used across the CRM — lead sources, statuses, labels and more.
+        </p>
+      </div>
+
+      <div className="settings-grid">
+        <LookupCard
+          title="Lead Sources"
+          table="lead_sources"
+          collection="leadSources"
+          items={state.leadSources}
+        />
+        <LookupCard
+          title="Lead Statuses"
+          table="lead_statuses"
+          collection="leadStatuses"
+          items={state.leadStatuses}
+          hasColor
+        />
+        <LookupCard
+          title="Company Statuses"
+          table="company_statuses"
+          collection="companyStatuses"
+          items={state.companyStatuses}
+          hasColor
+        />
+        <LookupCard
+          title="Product Labels"
+          table="product_labels"
+          collection="productLabels"
+          items={state.productLabels}
+          hasColor
+        />
+        <LookupCard
+          title="Compatibility Types"
+          table="compatibility_types"
+          collection="compatibilityTypes"
+          items={state.compatibilityTypes}
+        />
+      </div>
+    </>
+  );
 }
 
 function LookupCard({ title, table, collection, items, hasColor }: LookupCardProps) {
@@ -209,49 +313,363 @@ function LookupCard({ title, table, collection, items, hasColor }: LookupCardPro
   );
 }
 
-export function SettingsPage() {
-  const { state } = useData();
+/* ═══════════════════════════════════════════
+   Email / SMTP Panel
+   ═══════════════════════════════════════════ */
+
+interface SmtpSettings {
+  id: string;
+  smtp_host: string;
+  smtp_port: number;
+  smtp_user: string;
+  smtp_pass: string;
+  smtp_from_name: string;
+  smtp_reply_to: string;
+  smtp_secure: boolean;
+  smtp_configured: boolean;
+}
+
+function SmtpPanel() {
+  const { showAlert } = useAlert();
+  const [form, setForm] = useState({
+    smtp_host: '',
+    smtp_port: 587,
+    smtp_user: '',
+    smtp_pass: '',
+    smtp_from_name: '',
+    smtp_reply_to: '',
+    smtp_secure: true,
+  });
+  const [settingsId, setSettingsId] = useState<string | null>(null);
+  const [isConfigured, setIsConfigured] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [dirty, setDirty] = useState(false);
+  const [showTestModal, setShowTestModal] = useState(false);
+
+  // Fetch SMTP settings on mount
+  useEffect(() => {
+    (async () => {
+      try {
+        const { data, error } = await supabase
+          .from('smtp_settings')
+          .select('*')
+          .limit(1)
+          .single();
+
+        if (!error && data) {
+          const s = data as SmtpSettings;
+          setSettingsId(s.id);
+          setIsConfigured(s.smtp_configured);
+          setForm({
+            smtp_host: s.smtp_host || '',
+            smtp_port: s.smtp_port || 587,
+            smtp_user: s.smtp_user || '',
+            smtp_pass: s.smtp_pass || '',
+            smtp_from_name: s.smtp_from_name || '',
+            smtp_reply_to: s.smtp_reply_to || '',
+            smtp_secure: s.smtp_secure ?? true,
+          });
+        }
+      } catch (err) {
+        console.error('Failed to fetch SMTP settings:', err);
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
+
+  const handleChange = (field: string, value: string | number | boolean) => {
+    setForm((prev) => ({ ...prev, [field]: value }));
+    setDirty(true);
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const configured = !!(form.smtp_host && form.smtp_user && form.smtp_pass);
+      const payload = {
+        ...form,
+        smtp_port: Number(form.smtp_port) || 587,
+        smtp_configured: configured,
+        updated_at: new Date().toISOString(),
+      };
+
+      if (settingsId) {
+        // Update existing row
+        const { error } = await supabase
+          .from('smtp_settings')
+          .update(payload)
+          .eq('id', settingsId);
+        if (error) throw error;
+      } else {
+        // No row exists yet — insert one
+        const { data, error } = await supabase
+          .from('smtp_settings')
+          .insert(payload)
+          .select()
+          .single();
+        if (error) throw error;
+        if (data) setSettingsId(data.id);
+      }
+
+      setIsConfigured(configured);
+      setDirty(false);
+      showAlert({ title: 'Saved', message: 'SMTP settings saved successfully.', variant: 'success' });
+    } catch (err: unknown) {
+      const msg = err && typeof err === 'object' && 'message' in err
+        ? (err as { message: string }).message
+        : 'Failed to save SMTP settings';
+      showAlert({ title: 'Error', message: msg, variant: 'danger' });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Test email is available when the form has the required fields filled in (even before saving)
+  const canTest = isConfigured || !!(form.smtp_host && form.smtp_user && form.smtp_pass);
+
+  if (loading) {
+    return (
+      <>
+        <div className="settings-panel-head">
+          <h3>Email / SMTP</h3>
+          <p className="settings-panel-desc">Loading email settings…</p>
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'center', padding: 'var(--space-12)' }}>
+          <div className="loading-spinner" />
+        </div>
+      </>
+    );
+  }
 
   return (
-    <PageShell
-      title="Settings"
-      subtitle="Configure dropdown lists and system preferences."
-    >
-      <div className="settings-grid">
-        <LookupCard
-          title="Lead Sources"
-          table="lead_sources"
-          collection="leadSources"
-          items={state.leadSources}
-        />
-        <LookupCard
-          title="Lead Statuses"
-          table="lead_statuses"
-          collection="leadStatuses"
-          items={state.leadStatuses}
-          hasColor
-        />
-        <LookupCard
-          title="Company Statuses"
-          table="company_statuses"
-          collection="companyStatuses"
-          items={state.companyStatuses}
-          hasColor
-        />
-        <LookupCard
-          title="Product Labels"
-          table="product_labels"
-          collection="productLabels"
-          items={state.productLabels}
-          hasColor
-        />
-        <LookupCard
-          title="Compatibility Types"
-          table="compatibility_types"
-          collection="compatibilityTypes"
-          items={state.compatibilityTypes}
-        />
+    <>
+      <div className="settings-panel-head">
+        <h3>Email / SMTP</h3>
+        <p className="settings-panel-desc">
+          Configure your email settings to send marketing campaigns, order confirmations and invoices.
+        </p>
       </div>
-    </PageShell>
+
+      {/* Status card */}
+      <div className={`settings-integration-card ${isConfigured ? 'connected' : ''}`}>
+        <div className="settings-integration-icon">
+          <Mail size={24} />
+        </div>
+        <div className="settings-integration-info">
+          <h4>SMTP Server</h4>
+          <p>Connect your email provider to send transactional and marketing emails.</p>
+        </div>
+        <div className="settings-integration-action">
+          {isConfigured
+            ? <span className="badge badge-confirmed"><CheckCircle2 size={12} /> Configured</span>
+            : <span className="badge badge-warning">Not Configured</span>}
+        </div>
+      </div>
+
+      {/* Server Configuration */}
+      <div className="settings-section">
+        <div className="settings-section-title">Server Configuration</div>
+        <div className="smtp-field-row">
+          <div className="smtp-field">
+            <label className="smtp-field-label">SMTP Host</label>
+            <input
+              className="smtp-field-input"
+              value={form.smtp_host}
+              onChange={(e) => handleChange('smtp_host', e.target.value)}
+              placeholder="smtp.example.com"
+            />
+          </div>
+          <div className="smtp-field">
+            <label className="smtp-field-label">Port</label>
+            <input
+              className="smtp-field-input"
+              type="number"
+              value={form.smtp_port}
+              onChange={(e) => handleChange('smtp_port', e.target.value)}
+              placeholder="587"
+            />
+          </div>
+        </div>
+        <div className="smtp-field">
+          <label className="smtp-checkbox-label">
+            <input
+              type="checkbox"
+              checked={form.smtp_secure}
+              onChange={(e) => handleChange('smtp_secure', e.target.checked)}
+            />
+            Use TLS / SSL
+          </label>
+        </div>
+      </div>
+
+      {/* Authentication */}
+      <div className="settings-section">
+        <div className="settings-section-title">Authentication</div>
+        <div className="smtp-field-row">
+          <div className="smtp-field">
+            <label className="smtp-field-label">Username</label>
+            <input
+              className="smtp-field-input"
+              value={form.smtp_user}
+              onChange={(e) => handleChange('smtp_user', e.target.value)}
+              placeholder="noreply@yourdomain.com"
+            />
+          </div>
+          <div className="smtp-field">
+            <label className="smtp-field-label">Password</label>
+            <input
+              className="smtp-field-input"
+              type="password"
+              value={form.smtp_pass}
+              onChange={(e) => handleChange('smtp_pass', e.target.value)}
+              placeholder="••••••••"
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Sender Details */}
+      <div className="settings-section">
+        <div className="settings-section-title">Sender Details</div>
+        <div className="smtp-field-row">
+          <div className="smtp-field">
+            <label className="smtp-field-label">From Name</label>
+            <input
+              className="smtp-field-input"
+              value={form.smtp_from_name}
+              onChange={(e) => handleChange('smtp_from_name', e.target.value)}
+              placeholder="Isobex Lasers"
+            />
+          </div>
+          <div className="smtp-field">
+            <label className="smtp-field-label">Reply-to Email</label>
+            <input
+              className="smtp-field-input"
+              value={form.smtp_reply_to}
+              onChange={(e) => handleChange('smtp_reply_to', e.target.value)}
+              placeholder="hello@isobexlasers.com"
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Info box */}
+      <div className="smtp-info-box">
+        <Info size={14} />
+        <span>
+          Once configured, the CRM will use these settings to send emails from the email marketing
+          builder, order confirmations and invoices. You can test your settings with the button below.
+        </span>
+      </div>
+
+      {/* Actions */}
+      <div className="settings-form-actions">
+        <button
+          className="btn-outline"
+          onClick={() => setShowTestModal(true)}
+          disabled={!canTest}
+        >
+          <Send size={16} /> Send Test Email
+        </button>
+        <button
+          className="btn-brand"
+          onClick={handleSave}
+          disabled={saving || !dirty}
+        >
+          {saving
+            ? <><Loader2 size={16} className="spin" /> Saving…</>
+            : <><Save size={16} /> Save Changes</>}
+        </button>
+      </div>
+
+      {/* Test Email Modal */}
+      {showTestModal && (
+        <TestEmailModal
+          defaultEmail={form.smtp_reply_to}
+          onClose={() => setShowTestModal(false)}
+        />
+      )}
+    </>
+  );
+}
+
+/* ═══════════════════════════════════════════
+   Test Email Modal
+   ═══════════════════════════════════════════ */
+
+function TestEmailModal({ defaultEmail, onClose }: { defaultEmail: string; onClose: () => void }) {
+  const { showAlert } = useAlert();
+  const [toEmail, setToEmail] = useState(defaultEmail);
+  const [sending, setSending] = useState(false);
+
+  const handleSend = async () => {
+    if (!toEmail.trim()) {
+      showAlert({ title: 'Missing Email', message: 'Please enter a recipient email address.', variant: 'warning' });
+      return;
+    }
+    setSending(true);
+    try {
+      const res = await supabase.functions.invoke('send-email', {
+        body: { action: 'test', to: toEmail.trim() },
+      });
+      if (res.error) {
+        let detail = 'Failed to send test email';
+        try {
+          const body = res.data || (res.error as { context?: { json: () => Promise<{ error?: string }> } })?.context?.json?.();
+          if (body && typeof body === 'object' && 'error' in body) detail = (body as { error: string }).error;
+        } catch { /* ignore */ }
+        throw new Error(detail);
+      }
+      if (res.data?.error) throw new Error(res.data.error);
+      showAlert({ title: 'Success', message: `Test email sent to ${toEmail.trim()}!`, variant: 'success' });
+      onClose();
+    } catch (err: unknown) {
+      const msg = err && typeof err === 'object' && 'message' in err
+        ? (err as { message: string }).message
+        : 'Failed to send test email';
+      showAlert({ title: 'Error', message: msg, variant: 'danger' });
+    } finally {
+      setSending(false);
+    }
+  };
+
+  return (
+    <div className="modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="modal" style={{ maxWidth: 440 }}>
+        <div className="modal-header">
+          <h2><Send size={20} /> Send Test Email</h2>
+          <button className="modal-close" onClick={onClose}>
+            <X size={18} />
+          </button>
+        </div>
+        <div className="modal-body">
+          <p style={{ margin: '0 0 var(--space-4)', color: 'var(--color-text-secondary)', fontSize: 14 }}>
+            Send a test email to verify your SMTP settings are working correctly.
+          </p>
+          <div className="form-group">
+            <label>Send to</label>
+            <input
+              className="form-input"
+              type="email"
+              value={toEmail}
+              onChange={(e) => setToEmail(e.target.value)}
+              placeholder="you@example.com"
+              autoFocus
+              onKeyDown={(e) => { if (e.key === 'Enter' && !sending) handleSend(); }}
+            />
+          </div>
+        </div>
+        <div className="modal-footer">
+          <button className="btn-secondary" onClick={onClose} disabled={sending}>Cancel</button>
+          <button className="btn-brand" onClick={handleSend} disabled={sending || !toEmail.trim()}>
+            {sending
+              ? <><Loader2 size={16} className="spin" /> Sending…</>
+              : <><Send size={16} /> Send Test</>}
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }

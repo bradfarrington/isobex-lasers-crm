@@ -1,0 +1,171 @@
+// deno-lint-ignore-file
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.1';
+
+const corsHeaders = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
+
+function jsonRes(body: Record<string, unknown>, status = 200) {
+    return new Response(JSON.stringify(body), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status,
+    });
+}
+
+Deno.serve(async (req: Request) => {
+    if (req.method === 'OPTIONS') {
+        return new Response('ok', { headers: corsHeaders });
+    }
+
+    try {
+        const body = await req.json();
+        const { action } = body;
+
+        const supabase = createClient(
+            Deno.env.get('SUPABASE_URL')!,
+            Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+        );
+
+        // Read SMTP config from smtp_settings singleton
+        const { data: settings, error: settingsErr } = await supabase
+            .from('smtp_settings')
+            .select('*')
+            .order('updated_at', { ascending: false })
+            .limit(1)
+            .single();
+
+        if (settingsErr || !settings) {
+            return jsonRes({ error: 'SMTP settings not found. Go to Settings → Email / SMTP to configure.' }, 400);
+        }
+
+        if (!settings.smtp_configured || !settings.smtp_host || !settings.smtp_user || !settings.smtp_pass) {
+            return jsonRes({ error: 'SMTP is not configured. Go to Settings → Email / SMTP to set it up.' }, 400);
+        }
+
+        // Dynamically import denomailer (avoids top-level import crash)
+        const { SMTPClient } = await import('https://deno.land/x/denomailer@1.6.0/mod.ts');
+
+        const client = new SMTPClient({
+            connection: {
+                hostname: settings.smtp_host,
+                port: Number(settings.smtp_port) || 587,
+                tls: settings.smtp_secure !== false,
+                auth: {
+                    username: settings.smtp_user,
+                    password: settings.smtp_pass,
+                },
+            },
+        });
+
+        const fromAddress = `${settings.smtp_from_name || 'Isobex Lasers'} <${settings.smtp_user}>`;
+        const replyTo = settings.smtp_reply_to || undefined;
+
+        // Helper: encode HTML as base64 mime to avoid encoding artifacts
+        function htmlMime(html: string) {
+            const encoded = btoa(unescape(encodeURIComponent(html.trim())));
+            const wrapped = encoded.replace(/.{1,76}/g, '$&\r\n');
+            return [{ mimeType: 'text/html; charset="utf-8"', content: wrapped, transferEncoding: 'base64' }];
+        }
+
+        // ─── Action: test ────────────────────────────
+        if (action === 'test') {
+            const recipient = body.to || settings.smtp_reply_to;
+            if (!recipient) {
+                return jsonRes({ error: 'No recipient email address provided' }, 400);
+            }
+
+            const testHtml = '<div style="font-family:Helvetica,Arial,sans-serif;padding:30px;max-width:500px;margin:auto;"><h2 style="color:#dc2626;">✓ SMTP Test Successful</h2><p>Your email settings are configured correctly.</p><p style="color:#888;font-size:13px;">Sent from Isobex Lasers CRM</p></div>';
+            await client.send({
+                from: fromAddress,
+                to: recipient,
+                subject: 'Test Email — Isobex Lasers CRM',
+                mimeContent: htmlMime(testHtml),
+            });
+
+            await client.close();
+            return jsonRes({ ok: true });
+        }
+
+        // ─── Action: test_builder ────────────────────
+        if (action === 'test_builder') {
+            const { html, subject, toEmail } = body;
+            if (!toEmail) return jsonRes({ error: 'Recipient email (toEmail) is required' }, 400);
+            if (!html) return jsonRes({ error: 'Email HTML content is required' }, 400);
+
+            await client.send({
+                from: fromAddress,
+                to: toEmail,
+                subject: subject || 'Test Email',
+                mimeContent: htmlMime(html),
+                replyTo,
+            });
+
+            await client.close();
+            return jsonRes({ ok: true, sentTo: toEmail });
+        }
+
+        // ─── Action: send_order_confirmation ─────────
+        if (action === 'send_order_confirmation') {
+            const { orderId } = body;
+            if (!orderId) return jsonRes({ error: 'orderId is required' }, 400);
+
+            const { data: order, error: orderErr } = await supabase
+                .from('orders')
+                .select('*, contact:contacts(first_name, last_name, email)')
+                .eq('id', orderId)
+                .single();
+
+            if (orderErr || !order) return jsonRes({ error: 'Order not found' }, 400);
+            const clientEmail = order.contact?.email;
+            if (!clientEmail) return jsonRes({ error: 'Customer has no email address' }, 400);
+
+            const clientName = `${order.contact?.first_name || ''} ${order.contact?.last_name || ''}`.trim() || 'Customer';
+            const orderNumber = order.order_number || order.id.slice(0, 8).toUpperCase();
+            const total = Number(order.total || 0).toFixed(2);
+
+            const emailHtml = `<!DOCTYPE html><html><head><meta charset="utf-8"></head><body style="font-family:Helvetica,Arial,sans-serif;margin:0;padding:0;background:#f4f4f4;"><div style="max-width:600px;margin:0 auto;background:#ffffff;"><div style="background:#1a1a1a;padding:30px 20px;text-align:center;"><h1 style="color:#ffffff;margin:0;font-size:24px;">${settings.smtp_from_name || 'Isobex Lasers'}</h1></div><div style="padding:30px 20px;"><h2 style="margin-top:0;color:#dc2626;">Order Confirmed ✓</h2><p>Hi ${clientName},</p><p>Thank you for your order. Here are the details:</p><div style="background:#f9fafb;border-radius:8px;padding:20px;margin:20px 0;"><p style="color:#888;font-size:13px;text-transform:uppercase;letter-spacing:0.5px;margin:0 0 4px;">Order Number</p><p style="color:#dc2626;font-weight:bold;margin:0 0 16px;">#${orderNumber}</p><p style="color:#888;font-size:13px;text-transform:uppercase;letter-spacing:0.5px;margin:0 0 4px;">Total</p><p style="color:#dc2626;font-weight:bold;margin:0;">£${total}</p></div><p style="font-size:13px;color:#888;">If you have any questions about your order, please don't hesitate to get in touch.</p></div><div style="text-align:center;padding:20px;background:#f4f4f4;"><p style="font-size:12px;color:#aaa;margin:0;">${settings.smtp_from_name || 'Isobex Lasers'}</p></div></div></body></html>`;
+
+            await client.send({ from: fromAddress, to: clientEmail, subject: `Order Confirmation — #${orderNumber}`, mimeContent: htmlMime(emailHtml), replyTo });
+            await client.close();
+            return jsonRes({ ok: true, sentTo: clientEmail });
+        }
+
+        // ─── Action: send_invoice ────────────────────
+        if (action === 'send_invoice') {
+            const { orderId } = body;
+            if (!orderId) return jsonRes({ error: 'orderId is required' }, 400);
+
+            const { data: order, error: orderErr } = await supabase
+                .from('orders')
+                .select('*, contact:contacts(first_name, last_name, email), items:order_items(product_name, quantity, unit_price)')
+                .eq('id', orderId)
+                .single();
+
+            if (orderErr || !order) return jsonRes({ error: 'Order not found' }, 400);
+            const clientEmail = order.contact?.email;
+            if (!clientEmail) return jsonRes({ error: 'Customer has no email address' }, 400);
+
+            const clientName = `${order.contact?.first_name || ''} ${order.contact?.last_name || ''}`.trim() || 'Customer';
+            const orderNumber = order.order_number || order.id.slice(0, 8).toUpperCase();
+            const total = Number(order.total || 0).toFixed(2);
+
+            const itemRows = (order.items || []).map((item: { product_name: string; quantity: number; unit_price: number }) =>
+                `<tr><td style="padding:8px 12px;border-bottom:1px solid #eee;">${item.product_name}</td><td style="padding:8px 12px;border-bottom:1px solid #eee;text-align:center;">${item.quantity}</td><td style="padding:8px 12px;border-bottom:1px solid #eee;text-align:right;">£${Number(item.unit_price || 0).toFixed(2)}</td></tr>`
+            ).join('');
+
+            const emailHtml = `<!DOCTYPE html><html><head><meta charset="utf-8"></head><body style="font-family:Helvetica,Arial,sans-serif;margin:0;padding:0;background:#f4f4f4;"><div style="max-width:600px;margin:0 auto;background:#ffffff;"><div style="background:#1a1a1a;padding:30px 20px;text-align:center;"><h1 style="color:#ffffff;margin:0;font-size:24px;">${settings.smtp_from_name || 'Isobex Lasers'}</h1></div><div style="padding:30px 20px;"><h2 style="margin-top:0;color:#1a1a1a;">Invoice</h2><p>Hi ${clientName},</p><p>Please find your invoice below for order <strong>#${orderNumber}</strong>.</p><table style="width:100%;border-collapse:collapse;margin:20px 0;"><thead><tr style="background:#f9fafb;"><th style="padding:8px 12px;text-align:left;font-size:13px;color:#888;text-transform:uppercase;">Item</th><th style="padding:8px 12px;text-align:center;font-size:13px;color:#888;text-transform:uppercase;">Qty</th><th style="padding:8px 12px;text-align:right;font-size:13px;color:#888;text-transform:uppercase;">Price</th></tr></thead><tbody>${itemRows}</tbody><tfoot><tr><td colspan="2" style="padding:12px;text-align:right;font-weight:bold;">Total</td><td style="padding:12px;text-align:right;font-weight:bold;color:#dc2626;">£${total}</td></tr></tfoot></table><p style="font-size:13px;color:#888;">Thank you for your business.</p></div><div style="text-align:center;padding:20px;background:#f4f4f4;"><p style="font-size:12px;color:#aaa;margin:0;">${settings.smtp_from_name || 'Isobex Lasers'}</p></div></div></body></html>`;
+
+            await client.send({ from: fromAddress, to: clientEmail, subject: `Invoice — Order #${orderNumber}`, mimeContent: htmlMime(emailHtml), replyTo });
+            await client.close();
+            return jsonRes({ ok: true, sentTo: clientEmail });
+        }
+
+        return jsonRes({ error: `Unknown action: ${action}` }, 400);
+
+    } catch (err) {
+        const errMsg = err instanceof Error ? err.message : String(err);
+        console.error('send-email error:', errMsg, err);
+        return jsonRes({ error: errMsg || 'Internal server error' }, 500);
+    }
+});

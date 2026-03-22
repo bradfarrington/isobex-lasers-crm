@@ -455,8 +455,28 @@ export function EmailBuilderPage() {
             <div className="eb-test-modal-footer">
               <button className="btn-secondary" onClick={() => setShowTestModal(false)}>Cancel</button>
               <button className="btn-secondary" style={{ background: 'var(--color-primary)', color: '#fff', borderColor: 'var(--color-primary)' }}
-                onClick={() => { alert(`Test email to "${testEmail}" would be sent via your email service.\n\nThis requires a backend email-sending function (e.g. Supabase Edge Function).`); setShowTestModal(false); }}>
-                <Send size={14} /> Send Test
+                disabled={!testEmail.trim() || saving}
+                onClick={async () => {
+                  setSaving(true);
+                  try {
+                    const cachedBlocks = await cacheProductData(blocks);
+                    const html = generateEmailHtml(cachedBlocks, settings, true);
+                    const res = await supabase.functions.invoke('send-email', {
+                      body: { action: 'test_builder', html, subject: settings.subject || templateName, toEmail: testEmail.trim() },
+                    });
+                    if (res.error) {
+                      let detail = 'Failed to send test email';
+                      try { const body = res.data; if (body?.error) detail = body.error; } catch { /* ignore */ }
+                      throw new Error(detail);
+                    }
+                    if (res.data?.error) throw new Error(res.data.error);
+                    alert(`Test email sent to ${testEmail.trim()}!`);
+                    setShowTestModal(false);
+                  } catch (err: any) {
+                    alert(err.message || 'Failed to send test email. Make sure SMTP is configured in Settings → Email / SMTP.');
+                  } finally { setSaving(false); }
+                }}>
+                {saving ? <><Loader2 size={14} className="eb-spin" /> Sending…</> : <><Send size={14} /> Send Test</>}
               </button>
             </div>
           </div>
