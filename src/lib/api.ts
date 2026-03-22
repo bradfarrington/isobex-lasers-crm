@@ -176,7 +176,7 @@ export async function fetchDashboardStats(): Promise<DashboardStats> {
 
 // ─── Configurable Lookups ────────────────────────────────
 
-type LookupTable = 'lead_sources' | 'lead_statuses' | 'company_statuses' | 'product_labels';
+type LookupTable = 'lead_sources' | 'lead_statuses' | 'company_statuses' | 'product_labels' | 'compatibility_types';
 
 export async function fetchLookup(table: LookupTable): Promise<LookupItem[]> {
   const { data, error } = await supabase
@@ -926,6 +926,54 @@ export async function assignProductLabels(
   const rows = labelIds.map((labelId) => ({ product_id: productId, label_id: labelId }));
   const { error } = await supabase.from('product_label_assignments').insert(rows);
   if (error) throw error;
+}
+
+// ─── Online Store: Product ↔ Compatibility assignments ──────
+
+export async function fetchProductCompatibilityIds(productId: string): Promise<string[]> {
+  const { data, error } = await supabase
+    .from('product_compatibility_assignments')
+    .select('compatibility_type_id')
+    .eq('product_id', productId);
+
+  if (error) throw error;
+  return (data || []).map((r: { compatibility_type_id: string }) => r.compatibility_type_id);
+}
+
+export async function assignProductCompatibilities(
+  productId: string,
+  typeIds: string[]
+): Promise<void> {
+  await supabase
+    .from('product_compatibility_assignments')
+    .delete()
+    .eq('product_id', productId);
+
+  if (typeIds.length === 0) return;
+
+  const rows = typeIds.map((typeId) => ({ product_id: productId, compatibility_type_id: typeId }));
+  const { error } = await supabase.from('product_compatibility_assignments').insert(rows);
+  if (error) throw error;
+}
+
+export async function fetchProductCompatibilities(productId: string): Promise<LookupItem[]> {
+  const { data, error } = await supabase
+    .from('product_compatibility_assignments')
+    .select('compatibility_type_id')
+    .eq('product_id', productId);
+
+  if (error) throw error;
+  const ids = (data || []).map((r: { compatibility_type_id: string }) => r.compatibility_type_id);
+  if (ids.length === 0) return [];
+
+  const { data: types, error: tErr } = await supabase
+    .from('compatibility_types')
+    .select('*')
+    .in('id', ids)
+    .order('sort_order', { ascending: true });
+
+  if (tErr) throw tErr;
+  return types as LookupItem[];
 }
 
 // ─── Online Store: Product ↔ Collection assignments ─────────

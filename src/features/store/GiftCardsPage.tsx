@@ -3,9 +3,32 @@ import { PageShell } from '@/components/layout/PageShell';
 import { StoreTabBar } from './StoreTabBar';
 import { useAlert } from '@/components/ui/AlertDialog';
 import * as api from '@/lib/api';
-import type { GiftCard, GiftCardInsert } from '@/types/database';
+import type { GiftCard, GiftCardInsert, GiftCardDesignTemplate } from '@/types/database';
 import { Plus, Trash2, X, Gift } from 'lucide-react';
+import { GiftCardDesign, DESIGN_OPTIONS, getDesignLabel } from './GiftCardDesign';
 import './Discounts.css';
+import './GiftCardDesign.css';
+
+type ExpiryOption = '6' | '12' | '24';
+const EXPIRY_OPTIONS: { value: ExpiryOption; label: string }[] = [
+  { value: '6', label: '6 Months' },
+  { value: '12', label: '12 Months' },
+  { value: '24', label: '24 Months' },
+];
+
+function expiryMonthsToDate(months: ExpiryOption): string {
+  const d = new Date();
+  d.setMonth(d.getMonth() + Number(months));
+  return d.toISOString();
+}
+
+function dateToExpiryMonths(dateStr: string | null): ExpiryOption {
+  if (!dateStr) return '12';
+  const diff = (new Date(dateStr).getTime() - Date.now()) / (1000 * 60 * 60 * 24 * 30);
+  if (diff <= 8) return '6';
+  if (diff <= 18) return '12';
+  return '24';
+}
 
 function generateCode(): string {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
@@ -33,7 +56,8 @@ export function GiftCardsPage() {
   const [formRecipientEmail, setFormRecipientEmail] = useState('');
   const [formRecipientName, setFormRecipientName] = useState('');
   const [formMessage, setFormMessage] = useState('');
-  const [formExpiresAt, setFormExpiresAt] = useState('');
+  const [formExpiryMonths, setFormExpiryMonths] = useState<ExpiryOption>('12');
+  const [formDesign, setFormDesign] = useState<GiftCardDesignTemplate>('classic');
   const [editingId, setEditingId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -50,7 +74,8 @@ export function GiftCardsPage() {
     setFormRecipientEmail('');
     setFormRecipientName('');
     setFormMessage('');
-    setFormExpiresAt('');
+    setFormExpiryMonths('12');
+    setFormDesign('classic');
     setEditingId(null);
     setShowForm(false);
   };
@@ -68,7 +93,8 @@ export function GiftCardsPage() {
     setFormRecipientEmail(gc.recipient_email || '');
     setFormRecipientName(gc.recipient_name || '');
     setFormMessage(gc.message || '');
-    setFormExpiresAt(gc.expires_at ? gc.expires_at.substring(0, 16) : '');
+    setFormExpiryMonths(dateToExpiryMonths(gc.expires_at));
+    setFormDesign((gc.design_template as GiftCardDesignTemplate) || 'classic');
     setEditingId(gc.id);
     setShowForm(true);
   };
@@ -87,7 +113,8 @@ export function GiftCardsPage() {
           recipient_email: formRecipientEmail || null,
           recipient_name: formRecipientName || null,
           message: formMessage || null,
-          expires_at: formExpiresAt || null,
+          expires_at: expiryMonthsToDate(formExpiryMonths),
+          design_template: formDesign,
         });
         setCards((prev) => prev.map((c) => (c.id === editingId ? updated : c)));
         showAlert({ title: 'Updated', message: 'Gift card updated.', variant: 'success' });
@@ -100,7 +127,8 @@ export function GiftCardsPage() {
           recipient_email: formRecipientEmail || null,
           recipient_name: formRecipientName || null,
           message: formMessage || null,
-          expires_at: formExpiresAt || null,
+          expires_at: expiryMonthsToDate(formExpiryMonths),
+          design_template: formDesign,
           is_active: true,
         } as GiftCardInsert);
         setCards((prev) => [created, ...prev]);
@@ -150,41 +178,95 @@ export function GiftCardsPage() {
             <h3>{editingId ? 'Edit Gift Card' : 'New Gift Card'}</h3>
             <button className="btn btn-ghost btn-icon-sm" onClick={resetForm}><X size={16} /></button>
           </div>
-          <div className="discount-form-grid">
-            <div className="form-group">
-              <label className="form-label">Code</label>
-              <input className="form-input" value={formCode} onChange={(e) => setFormCode(e.target.value)} placeholder="XXXX-XXXX-XXXX-XXXX" />
+
+          <div className="gc-form-layout">
+            {/* Left: Form fields */}
+            <div>
+              {/* Design picker */}
+              <div className="form-group" style={{ marginBottom: '1.25rem' }}>
+                <label className="form-label">Card Design</label>
+                <div className="gc-design-picker">
+                  {DESIGN_OPTIONS.map((d) => (
+                    <button
+                      key={d}
+                      type="button"
+                      className={`gc-design-picker-option ${formDesign === d ? 'active' : ''}`}
+                      onClick={() => setFormDesign(d)}
+                    >
+                      <GiftCardDesign
+                        design={d}
+                        balance={Number(formBalance) || 50}
+                        code={formCode}
+                        recipientName={formRecipientName}
+                        compact
+                      />
+                      <span className="gc-design-picker-label">{getDesignLabel(d)}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="discount-form-grid">
+                <div className="form-group">
+                  <label className="form-label">Code</label>
+                  <input className="form-input" value={formCode} onChange={(e) => setFormCode(e.target.value)} placeholder="XXXX-XXXX-XXXX-XXXX" />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Balance (£)</label>
+                  <input className="form-input" type="number" value={formBalance} onChange={(e) => setFormBalance(e.target.value)} placeholder="50.00" min="0" step="0.01" />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Purchaser Email</label>
+                  <input className="form-input" type="email" value={formPurchaserEmail} onChange={(e) => setFormPurchaserEmail(e.target.value)} placeholder="Optional" />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Recipient Email</label>
+                  <input className="form-input" type="email" value={formRecipientEmail} onChange={(e) => setFormRecipientEmail(e.target.value)} placeholder="Optional" />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Recipient Name</label>
+                  <input className="form-input" value={formRecipientName} onChange={(e) => setFormRecipientName(e.target.value)} placeholder="Optional" />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Expires In</label>
+                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    {EXPIRY_OPTIONS.map((opt) => (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        className={`btn ${formExpiryMonths === opt.value ? 'btn-primary' : 'btn-secondary'}`}
+                        onClick={() => setFormExpiryMonths(opt.value)}
+                        style={{ flex: 1 }}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="form-group" style={{ gridColumn: '1 / -1' }}>
+                  <label className="form-label">Personal Message</label>
+                  <textarea className="form-input form-textarea" value={formMessage} onChange={(e) => setFormMessage(e.target.value)} placeholder="Optional gift message..." rows={2} />
+                </div>
+              </div>
+              <div style={{ marginTop: '1rem', display: 'flex', gap: '0.5rem' }}>
+                <button className="btn btn-primary" onClick={handleSave}>
+                  {editingId ? 'Update' : 'Create'} Gift Card
+                </button>
+                <button className="btn btn-secondary" onClick={resetForm}>Cancel</button>
+              </div>
             </div>
-            <div className="form-group">
-              <label className="form-label">Balance (£)</label>
-              <input className="form-input" type="number" value={formBalance} onChange={(e) => setFormBalance(e.target.value)} placeholder="50.00" min="0" step="0.01" />
+
+            {/* Right: Live preview */}
+            <div className="gc-form-preview">
+              <span className="gc-form-preview-label">Live Preview</span>
+              <GiftCardDesign
+                design={formDesign}
+                balance={Number(formBalance) || 0}
+                code={formCode}
+                recipientName={formRecipientName}
+                message={formMessage}
+              />
             </div>
-            <div className="form-group">
-              <label className="form-label">Purchaser Email</label>
-              <input className="form-input" type="email" value={formPurchaserEmail} onChange={(e) => setFormPurchaserEmail(e.target.value)} placeholder="Optional" />
-            </div>
-            <div className="form-group">
-              <label className="form-label">Recipient Email</label>
-              <input className="form-input" type="email" value={formRecipientEmail} onChange={(e) => setFormRecipientEmail(e.target.value)} placeholder="Optional" />
-            </div>
-            <div className="form-group">
-              <label className="form-label">Recipient Name</label>
-              <input className="form-input" value={formRecipientName} onChange={(e) => setFormRecipientName(e.target.value)} placeholder="Optional" />
-            </div>
-            <div className="form-group">
-              <label className="form-label">Expires At</label>
-              <input className="form-input" type="datetime-local" value={formExpiresAt} onChange={(e) => setFormExpiresAt(e.target.value)} />
-            </div>
-            <div className="form-group" style={{ gridColumn: '1 / -1' }}>
-              <label className="form-label">Personal Message</label>
-              <textarea className="form-input form-textarea" value={formMessage} onChange={(e) => setFormMessage(e.target.value)} placeholder="Optional gift message..." rows={2} />
-            </div>
-          </div>
-          <div style={{ marginTop: '1rem', display: 'flex', gap: '0.5rem' }}>
-            <button className="btn btn-primary" onClick={handleSave}>
-              {editingId ? 'Update' : 'Create'} Gift Card
-            </button>
-            <button className="btn btn-secondary" onClick={resetForm}>Cancel</button>
           </div>
         </div>
       )}
@@ -203,6 +285,7 @@ export function GiftCardsPage() {
           <table className="orders-table">
             <thead>
               <tr>
+                <th>Design</th>
                 <th>Code</th>
                 <th>Initial</th>
                 <th>Balance</th>
@@ -215,6 +298,17 @@ export function GiftCardsPage() {
             <tbody>
               {cards.map((gc) => (
                 <tr key={gc.id}>
+                  <td>
+                    <div className="gc-table-preview">
+                      <GiftCardDesign
+                        design={(gc.design_template as GiftCardDesignTemplate) || 'classic'}
+                        balance={Number(gc.current_balance)}
+                        code={gc.code}
+                        recipientName={gc.recipient_name || undefined}
+                        compact
+                      />
+                    </div>
+                  </td>
                   <td><strong style={{ fontFamily: 'monospace' }}>{gc.code}</strong></td>
                   <td>£{Number(gc.initial_balance).toFixed(2)}</td>
                   <td>

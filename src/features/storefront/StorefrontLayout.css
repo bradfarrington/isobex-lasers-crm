@@ -753,6 +753,30 @@
   line-height: 1.7;
 }
 
+.sf-compat-tags {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.sf-compat-label {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--sf-text-secondary);
+}
+
+.sf-compat-badge {
+  display: inline-block;
+  padding: 0.25rem 0.625rem;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  background: rgba(37, 99, 235, 0.08);
+  color: var(--sf-primary);
+  border: 1px solid rgba(37, 99, 235, 0.15);
+}
+
 .sf-variant-selector {
   display: flex;
   flex-direction: column;

@@ -175,6 +175,7 @@ export interface Product {
   // Joined
   labels?: LookupItem[];
   collections?: Collection[];
+  compatibilities?: LookupItem[];
   media?: ProductMedia[];
   variants?: ProductVariant[];
   // Computed (product list)
@@ -403,6 +404,7 @@ export type OrderItemInsert = Omit<OrderItem, 'id' | 'created_at'>;
 // ─── Discount Codes ─────────────────────────────────────────
 
 export type DiscountType = 'percentage' | 'fixed';
+export type DiscountAppliesTo = 'all' | 'specific';
 
 export interface DiscountCode {
   id: string;
@@ -414,6 +416,8 @@ export interface DiscountCode {
   current_uses: number;
   starts_at: string | null;
   expires_at: string | null;
+  applies_to: DiscountAppliesTo;
+  product_ids: string[];
   is_active: boolean;
   created_at: string;
   updated_at: string;
@@ -434,10 +438,13 @@ export interface GiftCard {
   recipient_name: string | null;
   message: string | null;
   expires_at: string | null;
+  design_template: string;
   is_active: boolean;
   created_at: string;
   updated_at: string;
 }
+
+export type GiftCardDesignTemplate = 'classic' | 'industrial' | 'festive' | 'minimal';
 
 export type GiftCardInsert = Omit<GiftCard, 'id' | 'created_at' | 'updated_at'>;
 export type GiftCardUpdate = Partial<GiftCardInsert>;

@@ -3,7 +3,7 @@ import { useParams } from 'react-router-dom';
 import { useStoreConfig } from './useStoreConfig';
 import { useCart } from './useCart';
 import * as api from '@/lib/api';
-import type { Product, ProductMedia, ProductOptionGroup, ProductVariant } from '@/types/database';
+import type { Product, ProductMedia, ProductOptionGroup, ProductVariant, LookupItem } from '@/types/database';
 
 export function StorefrontProductDetail() {
   const { slug } = useParams<{ slug: string }>();
@@ -14,6 +14,7 @@ export function StorefrontProductDetail() {
   const [images, setImages] = useState<ProductMedia[]>([]);
   const [options, setOptions] = useState<ProductOptionGroup[]>([]);
   const [variants, setVariants] = useState<ProductVariant[]>([]);
+  const [compatibilities, setCompatibilities] = useState<LookupItem[]>([]);
   const [loading, setLoading] = useState(true);
 
   const [selectedImage, setSelectedImage] = useState(0);
@@ -28,14 +29,16 @@ export function StorefrontProductDetail() {
         const p = await api.fetchProductBySlug(slug);
         setProduct(p);
 
-        const [imgs, opts, vars] = await Promise.all([
+        const [imgs, opts, vars, compat] = await Promise.all([
           api.fetchProductImages(p.id),
           api.fetchProductOptions(p.id),
           api.fetchProductVariants(p.id),
+          api.fetchProductCompatibilities(p.id),
         ]);
         setImages(imgs);
         setOptions(opts);
         setVariants(vars);
+        setCompatibilities(compat);
 
         // Pre-select first option value
         const defaults: Record<string, string> = {};
@@ -135,6 +138,15 @@ export function StorefrontProductDetail() {
 
         {product.description && (
           <div className="sf-product-description">{product.description}</div>
+        )}
+
+        {compatibilities.length > 0 && (
+          <div className="sf-compat-tags">
+            <span className="sf-compat-label">Compatible with:</span>
+            {compatibilities.map((c) => (
+              <span key={c.id} className="sf-compat-badge">{c.name}</span>
+            ))}
+          </div>
         )}
 
         {/* Variant selectors */}

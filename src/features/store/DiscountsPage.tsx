@@ -1,10 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { PageShell } from '@/components/layout/PageShell';
 import { StoreTabBar } from './StoreTabBar';
+import { DatePicker } from '@/components/ui/DatePicker';
 import { useAlert } from '@/components/ui/AlertDialog';
 import * as api from '@/lib/api';
-import type { DiscountCode, DiscountCodeInsert } from '@/types/database';
-import { Plus, Trash2, X, Percent } from 'lucide-react';
+import type { DiscountCode, DiscountCodeInsert, DiscountAppliesTo, Product } from '@/types/database';
+import { Plus, Trash2, X, Percent, Search, Check } from 'lucide-react';
 import './Discounts.css';
 
 export function DiscountsPage() {
@@ -12,6 +13,10 @@ export function DiscountsPage() {
   const [codes, setCodes] = useState<DiscountCode[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+
+  // Product list for the picker
+  const [products, setProducts] = useState<Product[]>([]);
+  const [productsLoaded, setProductsLoaded] = useState(false);
 
   // Form state
   const [formCode, setFormCode] = useState('');
@@ -21,7 +26,14 @@ export function DiscountsPage() {
   const [formMaxUses, setFormMaxUses] = useState('');
   const [formStartsAt, setFormStartsAt] = useState('');
   const [formExpiresAt, setFormExpiresAt] = useState('');
+  const [formAppliesTo, setFormAppliesTo] = useState<DiscountAppliesTo>('all');
+  const [formProductIds, setFormProductIds] = useState<string[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
+
+  // Product picker dropdown
+  const [productSearch, setProductSearch] = useState('');
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const pickerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     api.fetchDiscountCodes()
@@ -29,6 +41,30 @@ export function DiscountsPage() {
       .catch(console.error)
       .finally(() => setLoading(false));
   }, []);
+
+  // Fetch products when form is opened
+  useEffect(() => {
+    if (showForm && !productsLoaded) {
+      api.fetchProducts()
+        .then((p) => {
+          setProducts(p);
+          setProductsLoaded(true);
+        })
+        .catch(console.error);
+    }
+  }, [showForm, productsLoaded]);
+
+  // Close product picker on outside click
+  useEffect(() => {
+    if (!pickerOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (pickerRef.current && !pickerRef.current.contains(e.target as Node)) {
+        setPickerOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [pickerOpen]);
 
   const resetForm = () => {
     setFormCode('');
@@ -38,8 +74,12 @@ export function DiscountsPage() {
     setFormMaxUses('');
     setFormStartsAt('');
     setFormExpiresAt('');
+    setFormAppliesTo('all');
+    setFormProductIds([]);
     setEditingId(null);
     setShowForm(false);
+    setProductSearch('');
+    setPickerOpen(false);
   };
 
   const populateForm = (dc: DiscountCode) => {
@@ -48,8 +88,10 @@ export function DiscountsPage() {
     setFormValue(String(dc.value));
     setFormMinOrder(String(dc.min_order_amount || ''));
     setFormMaxUses(dc.max_uses !== null ? String(dc.max_uses) : '');
-    setFormStartsAt(dc.starts_at ? dc.starts_at.substring(0, 16) : '');
-    setFormExpiresAt(dc.expires_at ? dc.expires_at.substring(0, 16) : '');
+    setFormStartsAt(dc.starts_at ? dc.starts_at.substring(0, 10) : '');
+    setFormExpiresAt(dc.expires_at ? dc.expires_at.substring(0, 10) : '');
+    setFormAppliesTo(dc.applies_to || 'all');
+    setFormProductIds(dc.product_ids || []);
     setEditingId(dc.id);
     setShowForm(true);
   };
@@ -65,6 +107,8 @@ export function DiscountsPage() {
       max_uses: formMaxUses ? Number(formMaxUses) : null,
       starts_at: formStartsAt || null,
       expires_at: formExpiresAt || null,
+      applies_to: formAppliesTo,
+      product_ids: formAppliesTo === 'all' ? [] : formProductIds,
       is_active: true,
     };
 
@@ -102,6 +146,38 @@ export function DiscountsPage() {
     } catch (err) {
       console.error(err);
     }
+  };
+
+  const toggleProduct = (id: string) => {
+    setFormProductIds((prev) =>
+      prev.includes(id) ? prev.filter((p) => p !== id) : [...prev, id]
+    );
+  };
+
+  const filteredProducts = products.filter((p) =>
+    p.name.toLowerCase().includes(productSearch.toLowerCase())
+  );
+
+  const selectedProductNames = formProductIds
+    .map((id) => products.find((p) => p.id === id))
+    .filter(Boolean) as Product[];
+
+  // Format price for product picker (show variant range when applicable)
+  const formatProductPrice = (p: Product) => {
+    if (p.variant_price_min != null && p.variant_price_max != null) {
+      if (p.variant_price_min === p.variant_price_max) {
+        return `£${p.variant_price_min.toFixed(2)}`;
+      }
+      return `£${p.variant_price_min.toFixed(2)} – £${p.variant_price_max.toFixed(2)}`;
+    }
+    return `£${Number(p.price).toFixed(2)}`;
+  };
+
+  // Build scope label for table
+  const getScopeLabel = (dc: DiscountCode) => {
+    if (!dc.applies_to || dc.applies_to === 'all') return 'All products';
+    const count = (dc.product_ids || []).length;
+    return `${count} product${count !== 1 ? 's' : ''}`;
   };
 
   return (
@@ -148,13 +224,106 @@ export function DiscountsPage() {
             </div>
             <div className="form-group">
               <label className="form-label">Starts At</label>
-              <input className="form-input" type="datetime-local" value={formStartsAt} onChange={(e) => setFormStartsAt(e.target.value)} />
+              <DatePicker value={formStartsAt} onChange={setFormStartsAt} placeholder="Select start date…" />
             </div>
             <div className="form-group">
               <label className="form-label">Expires At</label>
-              <input className="form-input" type="datetime-local" value={formExpiresAt} onChange={(e) => setFormExpiresAt(e.target.value)} />
+              <DatePicker value={formExpiresAt} onChange={setFormExpiresAt} placeholder="Select expiry date…" />
             </div>
           </div>
+
+          {/* Applies To section */}
+          <div className="discount-applies-section">
+            <label className="form-label">Applies To</label>
+            <div className="discount-applies-radios">
+              <label className={`discount-radio-label ${formAppliesTo === 'all' ? 'active' : ''}`}>
+                <input
+                  type="radio"
+                  name="appliesTo"
+                  value="all"
+                  checked={formAppliesTo === 'all'}
+                  onChange={() => setFormAppliesTo('all')}
+                />
+                <span className="discount-radio-dot" />
+                All Products
+              </label>
+              <label className={`discount-radio-label ${formAppliesTo === 'specific' ? 'active' : ''}`}>
+                <input
+                  type="radio"
+                  name="appliesTo"
+                  value="specific"
+                  checked={formAppliesTo === 'specific'}
+                  onChange={() => setFormAppliesTo('specific')}
+                />
+                <span className="discount-radio-dot" />
+                Specific Products
+              </label>
+            </div>
+
+            {formAppliesTo === 'specific' && (
+              <div className="discount-product-picker" ref={pickerRef}>
+                {/* Selected chips */}
+                {selectedProductNames.length > 0 && (
+                  <div className="discount-product-chips">
+                    {selectedProductNames.map((p) => (
+                      <span key={p.id} className="discount-product-chip">
+                        {p.name}
+                        <button
+                          type="button"
+                          className="discount-product-chip-remove"
+                          onClick={() => toggleProduct(p.id)}
+                        >
+                          <X size={12} />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+
+                {/* Search input */}
+                <div className="discount-product-search-wrap">
+                  <Search size={14} className="discount-product-search-icon" />
+                  <input
+                    className="discount-product-search"
+                    placeholder="Search products…"
+                    value={productSearch}
+                    onChange={(e) => setProductSearch(e.target.value)}
+                    onFocus={() => setPickerOpen(true)}
+                  />
+                </div>
+
+                {/* Dropdown list */}
+                {pickerOpen && (
+                  <div className="discount-product-dropdown">
+                    {filteredProducts.length === 0 ? (
+                      <div className="discount-product-dropdown-empty">No products found</div>
+                    ) : (
+                      filteredProducts.map((p) => {
+                        const isSelected = formProductIds.includes(p.id);
+                        return (
+                          <button
+                            key={p.id}
+                            type="button"
+                            className={`discount-product-option ${isSelected ? 'selected' : ''}`}
+                            onClick={() => toggleProduct(p.id)}
+                          >
+                            <span className={`discount-product-checkbox ${isSelected ? 'checked' : ''}`}>
+                              {isSelected && <Check size={12} />}
+                            </span>
+                            <span className="discount-product-option-name">{p.name}</span>
+                            <span className="discount-product-option-price">
+                              {formatProductPrice(p)}
+                            </span>
+                          </button>
+                        );
+                      })
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
           <div style={{ marginTop: '1rem', display: 'flex', gap: '0.5rem' }}>
             <button className="btn btn-primary" onClick={handleSave}>
               {editingId ? 'Update' : 'Create'} Discount
@@ -181,6 +350,7 @@ export function DiscountsPage() {
                 <th>Code</th>
                 <th>Type</th>
                 <th>Value</th>
+                <th>Applies To</th>
                 <th>Min Order</th>
                 <th>Uses</th>
                 <th>Status</th>
@@ -194,6 +364,7 @@ export function DiscountsPage() {
                   <td><strong>{dc.code}</strong></td>
                   <td style={{ textTransform: 'capitalize' }}>{dc.discount_type}</td>
                   <td>{dc.discount_type === 'percentage' ? `${dc.value}%` : `£${Number(dc.value).toFixed(2)}`}</td>
+                  <td>{getScopeLabel(dc)}</td>
                   <td>{dc.min_order_amount > 0 ? `£${Number(dc.min_order_amount).toFixed(2)}` : '—'}</td>
                   <td>{dc.current_uses}{dc.max_uses !== null ? `/${dc.max_uses}` : ''}</td>
                   <td>

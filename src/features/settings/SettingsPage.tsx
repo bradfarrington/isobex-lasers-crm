@@ -8,8 +8,8 @@ import { useAlert } from '@/components/ui/AlertDialog';
 import { Plus, Pencil, Trash2, X, Check } from 'lucide-react';
 import './SettingsPage.css';
 
-type LookupTable = 'lead_sources' | 'lead_statuses' | 'company_statuses' | 'product_labels';
-type CollectionKey = 'leadSources' | 'leadStatuses' | 'companyStatuses' | 'productLabels';
+type LookupTable = 'lead_sources' | 'lead_statuses' | 'company_statuses' | 'product_labels' | 'compatibility_types';
+type CollectionKey = 'leadSources' | 'leadStatuses' | 'companyStatuses' | 'productLabels' | 'compatibilityTypes';
 
 interface LookupCardProps {
   title: string;
@@ -244,6 +244,12 @@ export function SettingsPage() {
           collection="productLabels"
           items={state.productLabels}
           hasColor
+        />
+        <LookupCard
+          title="Compatibility Types"
+          table="compatibility_types"
+          collection="compatibilityTypes"
+          items={state.compatibilityTypes}
         />
       </div>
     </PageShell>

@@ -60,6 +60,7 @@ export function ProductEditorPage() {
   // ─── Associations ───────────────────────────
   const [selectedLabelIds, setSelectedLabelIds] = useState<string[]>([]);
   const [selectedCollectionIds, setSelectedCollectionIds] = useState<string[]>([]);
+  const [selectedCompatibilityIds, setSelectedCompatibilityIds] = useState<string[]>([]);
   const [allCollections, setAllCollections] = useState<Collection[]>([]);
 
   // ─── Media ──────────────────────────────────
@@ -83,11 +84,12 @@ export function ProductEditorPage() {
     if (!id) return;
     setLoading(true);
     try {
-      const [product, labelIds, collectionIds, imageItems, docItems, options, existingVariants, collections] =
+      const [product, labelIds, collectionIds, compatibilityIds, imageItems, docItems, options, existingVariants, collections] =
         await Promise.all([
           api.fetchProduct(id),
           api.fetchProductLabelIds(id),
           api.fetchProductCollectionIds(id),
+          api.fetchProductCompatibilityIds(id),
           api.fetchProductImages(id),
           api.fetchProductDocuments(id),
           api.fetchProductOptions(id),
@@ -108,6 +110,7 @@ export function ProductEditorPage() {
       setPackQuantity(String(product.pack_quantity ?? 1));
       setSelectedLabelIds(labelIds);
       setSelectedCollectionIds(collectionIds);
+      setSelectedCompatibilityIds(compatibilityIds);
       setAllCollections(collections);
       setImages(imageItems);
       setDocuments(docItems);
@@ -415,6 +418,7 @@ export function ProductEditorPage() {
       await Promise.all([
         api.assignProductLabels(productId!, selectedLabelIds),
         api.assignProductCollections(productId!, selectedCollectionIds),
+        api.assignProductCompatibilities(productId!, selectedCompatibilityIds),
       ]);
 
       // Save options & variants
@@ -992,6 +996,33 @@ export function ProductEditorPage() {
                       }}
                     />
                     <span>{col.name}</span>
+                  </label>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Compatible With */}
+          <div className="editor-card">
+            <h3 className="editor-card-title">Compatible With</h3>
+            {state.compatibilityTypes.length === 0 ? (
+              <p className="form-hint">No compatibility types yet. Add them in Settings.</p>
+            ) : (
+              <div className="checkbox-list">
+                {state.compatibilityTypes.map((ct) => (
+                  <label key={ct.id} className="checkbox-row">
+                    <input
+                      type="checkbox"
+                      checked={selectedCompatibilityIds.includes(ct.id)}
+                      onChange={() => {
+                        setSelectedCompatibilityIds((prev) =>
+                          prev.includes(ct.id)
+                            ? prev.filter((id) => id !== ct.id)
+                            : [...prev, ct.id]
+                        );
+                      }}
+                    />
+                    <span>{ct.name}</span>
                   </label>
                 ))}
               </div>
