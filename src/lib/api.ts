@@ -1338,11 +1338,16 @@ export async function updateOrderStatus(
 export async function updateOrderTracking(
   id: string,
   trackingNumber: string | null,
-  trackingUrl: string | null
+  trackingUrl: string | null,
+  shippingCarrier: string | null
 ): Promise<Order> {
   const { data, error } = await supabase
     .from('orders')
-    .update({ tracking_number: trackingNumber, tracking_url: trackingUrl })
+    .update({
+      tracking_number: trackingNumber,
+      tracking_url: trackingUrl,
+      shipping_carrier: shippingCarrier,
+    })
     .eq('id', id)
     .select()
     .single();

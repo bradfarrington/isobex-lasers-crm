@@ -368,6 +368,7 @@ export interface Order {
   payment_status: PaymentStatus;
   tracking_number: string | null;
   tracking_url: string | null;
+  shipping_carrier: string | null;
   notes: string | null;
   created_at: string;
   updated_at: string;

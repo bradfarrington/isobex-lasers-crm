@@ -19,6 +19,7 @@ export function OrderDetailPage() {
   const [loading, setLoading] = useState(true);
   const [trackingNumber, setTrackingNumber] = useState('');
   const [trackingUrl, setTrackingUrl] = useState('');
+  const [shippingCarrier, setShippingCarrier] = useState('');
   const [trackingSaving, setTrackingSaving] = useState(false);
 
   const packingSlipRef = useRef<HTMLDivElement>(null);
@@ -34,6 +35,7 @@ export function OrderDetailPage() {
         setItems(i);
         setTrackingNumber(o.tracking_number || '');
         setTrackingUrl(o.tracking_url || '');
+        setShippingCarrier(o.shipping_carrier || '');
       })
       .catch(console.error)
       .finally(() => setLoading(false));
@@ -68,7 +70,8 @@ export function OrderDetailPage() {
       const updated = await api.updateOrderTracking(
         order.id,
         trackingNumber.trim() || null,
-        trackingUrl.trim() || null
+        trackingUrl.trim() || null,
+        shippingCarrier.trim() || null
       );
       setOrder(updated);
       showAlert({ title: 'Saved', message: 'Tracking information updated.', variant: 'success' });
@@ -218,7 +221,8 @@ export function OrderDetailPage() {
   const shippingAddr = order.shipping_address as any;
   const hasTrackingChanges =
     (trackingNumber.trim() || '') !== (order.tracking_number || '') ||
-    (trackingUrl.trim() || '') !== (order.tracking_url || '');
+    (trackingUrl.trim() || '') !== (order.tracking_url || '') ||
+    (shippingCarrier.trim() || '') !== (order.shipping_carrier || '');
 
   return (
     <PageShell title={`Order #${order.order_number}`} subtitle={formatDate(order.created_at)}>
@@ -338,7 +342,29 @@ export function OrderDetailPage() {
           <div className="order-section">
             <div className="order-section-header">
               <Package size={18} />
-              <h3>Tracking</h3>
+              <h3>Shipping & Tracking</h3>
+            </div>
+            <div className="form-group">
+              <label className="form-label">Carrier</label>
+              <input
+                type="text"
+                className="form-input"
+                placeholder="e.g. Royal Mail, DPD, Evri"
+                value={shippingCarrier}
+                onChange={(e) => setShippingCarrier(e.target.value)}
+                list="carrier-suggestions"
+              />
+              <datalist id="carrier-suggestions">
+                <option value="Royal Mail" />
+                <option value="DPD" />
+                <option value="Evri" />
+                <option value="DHL" />
+                <option value="UPS" />
+                <option value="FedEx" />
+                <option value="Parcelforce" />
+                <option value="Yodel" />
+                <option value="Amazon Logistics" />
+              </datalist>
             </div>
             <div className="form-group">
               <label className="form-label">Tracking Number</label>
