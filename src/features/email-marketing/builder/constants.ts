@@ -1,6 +1,6 @@
 import {
   Type, AlignLeft, Image, MousePointerClick, Minus, Square,
-  Columns2, Tag,
+  Columns2, Tag, Code, Share2, Play, Timer, ShoppingBag,
 } from 'lucide-react';
 
 export const BRAND = '#dc2626';
@@ -88,12 +88,23 @@ export interface BlockDef {
   icon: any;
 }
 
+export const SOCIAL_PLATFORMS = [
+  { key: 'facebook', label: 'Facebook', color: '#1877F2' },
+  { key: 'instagram', label: 'Instagram', color: '#E4405F' },
+  { key: 'x', label: 'X (Twitter)', color: '#000000' },
+  { key: 'youtube', label: 'YouTube', color: '#FF0000' },
+  { key: 'linkedin', label: 'LinkedIn', color: '#0A66C2' },
+  { key: 'tiktok', label: 'TikTok', color: '#000000' },
+];
+
 export const BLOCK_GROUPS: { label: string; blocks: BlockDef[] }[] = [
   { label: 'Content', blocks: [
     { type: 'heading', label: 'Heading', icon: Type },
     { type: 'text', label: 'Text', icon: AlignLeft },
     { type: 'image', label: 'Image', icon: Image },
     { type: 'button', label: 'Button', icon: MousePointerClick },
+    { type: 'video', label: 'Video', icon: Play },
+    { type: 'social', label: 'Social Links', icon: Share2 },
   ]},
   { label: 'Layout', blocks: [
     { type: 'divider', label: 'Divider', icon: Minus },
@@ -102,6 +113,11 @@ export const BLOCK_GROUPS: { label: string; blocks: BlockDef[] }[] = [
   ]},
   { label: 'Dynamic', blocks: [
     { type: 'merge_tag', label: 'Merge Tag', icon: Tag },
+    { type: 'countdown', label: 'Countdown', icon: Timer },
+    { type: 'product', label: 'Product', icon: ShoppingBag },
+  ]},
+  { label: 'Advanced', blocks: [
+    { type: 'html', label: 'Custom HTML', icon: Code },
   ]},
 ];
 
@@ -111,14 +127,19 @@ export const BLOCK_TYPE_MAP = Object.fromEntries(
 
 export function makeBlock(type: string): BlockData {
   const defaults: Record<string, any> = {
-    heading: { content: '<p>Your Heading Here</p>', level: 'h2', color: '', fontFamily: '', padding: { top: 0, right: 0, bottom: 0, left: 0 } },
-    text: { content: '<p>Write your email content here.</p>', color: '', fontFamily: '', padding: { top: 0, right: 0, bottom: 0, left: 0 } },
+    heading: { content: '<p>Your Heading Here</p>', level: 'h2', color: '', bgColor: '', fontFamily: '', padding: { top: 0, right: 0, bottom: 0, left: 0 } },
+    text: { content: '<p>Write your email content here.</p>', color: '', bgColor: '', fontFamily: '', padding: { top: 0, right: 0, bottom: 0, left: 0 } },
     image: { src: '', alt: '', width: '100', align: 'center', link: '', borderRadius: '0', padding: { top: 0, right: 0, bottom: 0, left: 0 } },
     button: { text: 'Learn More', link: '#', align: 'center', bgColor: BRAND, textColor: '#ffffff', borderRadius: '8', fullWidth: false, fontSize: '15', fontWeight: '600', paddingV: '12', paddingH: '32', fontFamily: '', padding: { top: 8, right: 0, bottom: 8, left: 0 } },
     divider: { style: 'solid', color: '#e5e7eb', thickness: '1', width: '100', marginTop: '8', marginBottom: '8', padding: { top: 0, right: 0, bottom: 0, left: 0 } },
     spacer: { height: '32', bgColor: '', padding: { top: 0, right: 0, bottom: 0, left: 0 } },
     columns: { layout: '50-50', columns: [{ blocks: [] }, { blocks: [] }], gap: '16', verticalAlign: 'top', padding: { top: 0, right: 0, bottom: 0, left: 0 } },
     merge_tag: { tag: '{{contact_name}}', fallback: '', fontSize: '15', fontWeight: '400', color: '', padding: { top: 0, right: 0, bottom: 0, left: 0 } },
+    social: { platforms: { facebook: '', instagram: '', x: '', youtube: '', linkedin: '', tiktok: '' }, iconSize: '32', align: 'center', spacing: '12', iconStyle: 'filled', padding: { top: 8, right: 0, bottom: 8, left: 0 } },
+    html: { content: '', padding: { top: 0, right: 0, bottom: 0, left: 0 } },
+    video: { videoUrl: '', thumbnailUrl: '', alt: 'Video thumbnail', width: '100', align: 'center', borderRadius: '0', padding: { top: 0, right: 0, bottom: 0, left: 0 } },
+    countdown: { endDate: '', label: 'Offer ends', bgColor: BRAND, textColor: '#ffffff', fontSize: '18', padding: { top: 12, right: 0, bottom: 12, left: 0 } },
+    product: { productId: '', showImage: true, showPrice: true, showDescription: false, buttonText: 'Shop Now', buttonColor: BRAND, padding: { top: 8, right: 0, bottom: 8, left: 0 } },
   };
   return { id: crypto.randomUUID(), type, data: JSON.parse(JSON.stringify(defaults[type] || {})) };
 }

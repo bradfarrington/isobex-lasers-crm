@@ -1,5 +1,5 @@
 import mjml2html from 'mjml-browser';
-import { BRAND, replaceMergeTags, loadGoogleFont } from './constants';
+import { BRAND, SOCIAL_PLATFORMS, replaceMergeTags, loadGoogleFont } from './constants';
 import type { BlockData } from './constants';
 
 function inlineQuillStyles(html: string, linkColor: string): string {
@@ -13,6 +13,21 @@ function inlineQuillStyles(html: string, linkColor: string): string {
     .replace(/<a /g, `<a style="color:${lc};text-decoration:underline" `);
 }
 
+function extractYoutubeId(url: string): string {
+  const m = url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|v\/))([\w-]{11})/);
+  return m ? m[1] : '';
+}
+
+/* Social icon image URLs (using Simple Icons CDN for email compatibility) */
+const SOCIAL_ICON_URLS: Record<string, string> = {
+  facebook: 'https://cdn.simpleicons.org/facebook/1877F2',
+  instagram: 'https://cdn.simpleicons.org/instagram/E4405F',
+  x: 'https://cdn.simpleicons.org/x/000000',
+  youtube: 'https://cdn.simpleicons.org/youtube/FF0000',
+  linkedin: 'https://cdn.simpleicons.org/linkedin/0A66C2',
+  tiktok: 'https://cdn.simpleicons.org/tiktok/000000',
+};
+
 export function blockToMjml(block: BlockData, gs: Record<string, any> = {}, preserveTags = false): string {
   const { type, data } = block;
   const font = data.fontFamily || gs.fontFamily || "'Inter', sans-serif";
@@ -25,10 +40,13 @@ export function blockToMjml(block: BlockData, gs: Record<string, any> = {}, pres
   switch (type) {
     case 'heading': {
       const sz = data.level === 'h1' ? '28px' : data.level === 'h3' ? '18px' : '22px';
-      return `<mj-text color="${data.color||tc}" padding="${ps}" font-size="${sz}" font-weight="700" line-height="1.3" font-family="${font}">${inlineQuillStyles(replaceMergeTags(data.content, preserveTags), lc)}</mj-text>`;
+      const cbg = data.bgColor ? ` container-background-color="${data.bgColor}"` : '';
+      return `<mj-text color="${data.color||tc}" padding="${ps}" font-size="${sz}" font-weight="700" line-height="1.3" font-family="${font}"${cbg}>${inlineQuillStyles(replaceMergeTags(data.content, preserveTags), lc)}</mj-text>`;
     }
-    case 'text':
-      return `<mj-text color="${data.color||tc}" font-size="15px" line-height="1.7" padding="${ps}" font-family="${font}">${inlineQuillStyles(replaceMergeTags(data.content, preserveTags), lc)}</mj-text>`;
+    case 'text': {
+      const cbg = data.bgColor ? ` container-background-color="${data.bgColor}"` : '';
+      return `<mj-text color="${data.color||tc}" font-size="15px" line-height="1.7" padding="${ps}" font-family="${font}"${cbg}>${inlineQuillStyles(replaceMergeTags(data.content, preserveTags), lc)}</mj-text>`;
+    }
     case 'image': {
       if (!data.src) return '';
       const iw = data.width ? Math.round((Number(data.width)/100)*w) : w;
@@ -43,13 +61,115 @@ export function blockToMjml(block: BlockData, gs: Record<string, any> = {}, pres
       return `<mj-spacer height="${data.height||32}px" />`;
     case 'merge_tag':
       return `<mj-text padding="${ps}" font-size="${data.fontSize||15}px" font-weight="${data.fontWeight||400}" color="${data.color||tc}" font-family="${font}">${replaceMergeTags(data.tag||'', preserveTags)}</mj-text>`;
+
+    /* ── Social Links ── */
+    case 'social': {
+      const platforms = data.platforms || {};
+      const iconSz = Number(data.iconSize || 32) + 'px';
+      const active = SOCIAL_PLATFORMS.filter(plat => platforms[plat.key]);
+      if (active.length === 0) return '';
+      const els = active.map(plat =>
+        `<mj-social-element name="${plat.key === 'x' ? 'x-noshare' : plat.key}" href="${platforms[plat.key]}" icon-size="${iconSz}" background-color="transparent" src="${SOCIAL_ICON_URLS[plat.key] || ''}" alt="${plat.label}"></mj-social-element>`
+      ).join('');
+      return `<mj-social font-size="0" icon-size="${iconSz}" mode="horizontal" padding="${ps}" align="${data.align||'center'}" inner-padding="${Math.round(Number(data.spacing||12)/2)}px">${els}</mj-social>`;
+    }
+
+    /* ── Custom HTML ── */
+    case 'html':
+      if (!data.content) return '';
+      return `<mj-raw>${data.content}</mj-raw>`;
+
+    /* ── Video ── */
+    case 'video': {
+      const thumb = data.thumbnailUrl || (data.videoUrl?.includes('youtube') ? `https://img.youtube.com/vi/${extractYoutubeId(data.videoUrl)}/maxresdefault.jpg` : '');
+      if (!thumb) return '';
+      const vw = data.width ? Math.round((Number(data.width)/100)*w) : w;
+      const r = data.borderRadius ? `border-radius="${data.borderRadius}px"` : '';
+      // Video as linked thumbnail image — since emails can't embed video
+      return `<mj-image src="${thumb}" alt="${data.alt||'Play video'}" width="${vw}px" align="${data.align||'center'}" padding="${ps}" ${r} href="${data.videoUrl||'#'}" />`;
+    }
+
+    /* ── Countdown ── */
+    case 'countdown': {
+      if (!data.endDate) return '';
+      const bg = data.bgColor || BRAND;
+      const ctc = data.textColor || '#ffffff';
+      const fs = data.fontSize || 18;
+      const target = new Date(data.endDate);
+      const formatted = target.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+      const digitStyle = `font-size:${fs}px;font-weight:800;color:${ctc};background:rgba(0,0,0,0.15);border-radius:6px;padding:8px 14px;display:inline-block;min-width:40px;text-align:center;`;
+      const sepStyle = `font-size:${fs}px;font-weight:800;color:${ctc};padding:0 4px;`;
+
+      // Static countdown shows the target date (emails can't run JS for live countdown)
+      return `<mj-section padding="${ps}" background-color="${bg}" border-radius="8px">
+        <mj-column width="100%">
+          ${data.label ? `<mj-text align="center" color="${ctc}" font-size="13px" font-weight="600" padding="0 0 8px" css-class="countdown-label">${data.label}</mj-text>` : ''}
+          <mj-text align="center" padding="0" font-family="${font}">
+            <div style="text-align:center;">
+              <span style="${digitStyle}">––</span>
+              <span style="${sepStyle}">:</span>
+              <span style="${digitStyle}">––</span>
+              <span style="${sepStyle}">:</span>
+              <span style="${digitStyle}">––</span>
+              <span style="${sepStyle}">:</span>
+              <span style="${digitStyle}">––</span>
+            </div>
+            <div style="text-align:center;margin-top:8px;font-size:12px;color:${ctc};opacity:0.8;">${formatted}</div>
+          </mj-text>
+        </mj-column>
+      </mj-section>`;
+    }
+
+    /* ── Product ── */
+    case 'product': {
+      const cachedProducts: any[] = data._cachedProducts || [];
+      // Backwards compat: if single product cached fields exist, wrap in array
+      if (cachedProducts.length === 0 && data._cachedName) {
+        cachedProducts.push({ name: data._cachedName, price: data._cachedPrice, image: data._cachedImage, description: data._cachedDescription, slug: data._cachedSlug });
+      }
+      if (cachedProducts.length === 0) return '';
+
+      const btnText = data.buttonText || 'Shop Now';
+      const btnColor = data.buttonColor || BRAND;
+      const isGrid = cachedProducts.length > 1;
+      const colWidth = isGrid ? '50%' : '100%';
+
+      const renderProductCol = (prod: any) => {
+        const slug = prod.slug ? `/shop/products/${prod.slug}` : '#';
+        const price = prod.price ? `£${Number(prod.price).toFixed(2)}` : '';
+        let inner = '';
+        if (data.showImage !== false && prod.image) {
+          inner += `<mj-image src="${prod.image}" alt="${prod.name}" width="${isGrid ? Math.round(w/2 - 20) : w}px" padding="0" href="${slug}" />`;
+        }
+        inner += `<mj-text font-size="${isGrid ? '15px' : '18px'}" font-weight="700" color="${tc}" padding="12px 16px 4px" font-family="${font}">${prod.name}</mj-text>`;
+        if (data.showPrice !== false && price) {
+          inner += `<mj-text font-size="${isGrid ? '14px' : '16px'}" font-weight="600" color="${BRAND}" padding="0 16px 8px" font-family="${font}">${price}</mj-text>`;
+        }
+        if (data.showDescription && prod.description) {
+          const maxLen = isGrid ? 60 : 120;
+          inner += `<mj-text font-size="13px" color="#6b7280" line-height="1.5" padding="0 16px 12px" font-family="${font}">${prod.description.slice(0, maxLen)}${prod.description.length > maxLen ? '…' : ''}</mj-text>`;
+        }
+        inner += `<mj-button href="${slug}" background-color="${btnColor}" color="#ffffff" border-radius="6px" font-size="${isGrid ? '13px' : '14px'}" font-weight="600" padding="8px 16px 16px" font-family="${font}">${btnText}</mj-button>`;
+        return `<mj-column width="${colWidth}" padding="4px" border="1px solid #e5e7eb" border-radius="8px">${inner}</mj-column>`;
+      };
+
+      // Render in pairs for grid, single for one product
+      const sections: string[] = [];
+      for (let i = 0; i < cachedProducts.length; i += isGrid ? 2 : 1) {
+        const cols = cachedProducts.slice(i, i + (isGrid ? 2 : 1)).map(renderProductCol).join('');
+        sections.push(`<mj-section padding="${ps}">${cols}</mj-section>`);
+      }
+      return sections.join('');
+    }
+
     case 'columns': {
       const parts = (data.layout||'50-50').split('-').map(Number);
       const cols = data.columns || [];
       const html = cols.map((col: any, i: number) => {
         const pct = parts[i] || 50;
         const inner = (col.blocks||[]).map((sb: BlockData) => blockToMjml(sb, gs, preserveTags)).join('');
-        return `<mj-column width="${pct}%" padding="12px" vertical-align="${data.verticalAlign||'top'}">${inner||'<mj-text>&nbsp;</mj-text>'}</mj-column>`;
+        const colBg = col.bgColor ? ` background-color="${col.bgColor}"` : '';
+        return `<mj-column width="${pct}%" padding="12px" vertical-align="${data.verticalAlign||'top'}"${colBg}>${inner||'<mj-text>&nbsp;</mj-text>'}</mj-column>`;
       }).join('');
       return `<mj-section padding="${ps}">${html}</mj-section>`;
     }
@@ -75,12 +195,12 @@ export function generateEmailHtml(blocks: BlockData[], settings: Record<string, 
   const blocksMjml = blocks.map(b => {
     const piece = blockToMjml(b, settings, preserveTags);
     if (!piece) return '';
-    if (b.type === 'columns') return piece;
+    if (b.type === 'columns' || b.type === 'countdown' || b.type === 'product') return piece;
     return `<mj-section padding="8px 0"><mj-column width="100%">${piece}</mj-column></mj-section>`;
   }).join('');
 
   const logoMjml = settings.logoUrl ? `<mj-section padding="24px 0"><mj-column width="100%"><mj-image src="${settings.logoUrl}" alt="Logo" width="160px" align="center" padding="0" /></mj-column></mj-section>` : '';
-  const footerMjml = settings.footerText ? `<mj-section padding="0"><mj-column width="100%"><mj-divider border-width="1px" border-color="#e5e7eb" width="100%" padding="0" /></mj-column></mj-section><mj-section padding="16px 24px"><mj-column width="100%"><mj-text align="center" font-size="12px" line-height="1.6" color="#9ca3af" font-family="${font}">${replaceMergeTags(settings.footerText, preserveTags)}</mj-text></mj-column></mj-section>` : '';
+  const footerMjml = settings.footerText ? `<mj-section padding="0"><mj-column width="100%"><mj-divider border-width="1px" border-color="#e5e7eb" width="100%" padding="0" /></mj-column></mj-section><mj-section padding="16px 24px"><mj-column width="100%"><mj-text align="center" font-size="12px" line-height="1.6" color="#9ca3af" font-family="${font}">${inlineQuillStyles(replaceMergeTags(settings.footerText, preserveTags), lc)}</mj-text></mj-column></mj-section>` : '';
   const previewMjml = settings.previewText ? `<mj-preview>${settings.previewText}</mj-preview>` : '';
 
   const mjml = `<mjml><mj-head><mj-title>${settings.subject||''}</mj-title>${previewMjml}${fontTag}<mj-attributes><mj-all font-family="${font}" /><mj-text font-size="15px" color="${tc}" line-height="1.7" /></mj-attributes><mj-style>a{color:${lc};text-decoration:underline}p{margin:0}p:empty,p br:only-child{min-height:1em;display:block}h1,h2,h3{margin:0 0 4px;font-weight:700}</mj-style></mj-head><mj-body background-color="${bodyBg}" width="${w}px"><mj-wrapper background-color="${contentBg}" padding="24px 20px" border-radius="8px">${logoMjml}${blocksMjml||'<mj-section padding="24px 0"><mj-column width="100%"><mj-text align="center" color="#9ca3af" padding="48px 0">No content blocks</mj-text></mj-column></mj-section>'}${footerMjml}</mj-wrapper></mj-body></mjml>`;

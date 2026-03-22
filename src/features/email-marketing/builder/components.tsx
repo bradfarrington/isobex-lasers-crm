@@ -1,23 +1,96 @@
 import { useState, useEffect, useRef } from 'react';
-import { Upload, X, ChevronDown, ChevronRight, Tag, Search } from 'lucide-react';
+import { Upload, X, ChevronDown, ChevronRight, Tag } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { GOOGLE_FONTS, MERGE_TAGS, BRAND, loadGoogleFont } from './constants';
 
-/* ── Colour field with hex input + reset ── */
+/* ── Curated colour palette for email design ── */
+const COLOUR_SWATCHES = [
+  /* Neutrals */
+  '#ffffff', '#f3f4f6', '#d1d5db', '#9ca3af', '#6b7280', '#4b5563', '#374151', '#1f2937', '#111827', '#000000',
+  /* Reds */
+  '#fee2e2', '#fca5a5', '#f87171', '#ef4444', '#dc2626', '#b91c1c',
+  /* Oranges */
+  '#ffedd5', '#fdba74', '#fb923c', '#f97316', '#ea580c', '#c2410c',
+  /* Yellows */
+  '#fef9c3', '#fde047', '#facc15', '#eab308', '#ca8a04', '#a16207',
+  /* Greens */
+  '#dcfce7', '#86efac', '#4ade80', '#22c55e', '#16a34a', '#15803d',
+  /* Blues */
+  '#dbeafe', '#93c5fd', '#60a5fa', '#3b82f6', '#2563eb', '#1d4ed8',
+  /* Purples */
+  '#f3e8ff', '#d8b4fe', '#a78bfa', '#8b5cf6', '#7c3aed', '#6d28d9',
+  /* Pinks */
+  '#fce7f3', '#f9a8d4', '#f472b6', '#ec4899', '#db2777', '#be185d',
+];
+
 export function ColorField({ label, value, onChange, defaultValue = '' }: {
   label: string; value: string; onChange: (v: string) => void; defaultValue?: string;
 }) {
   const display = value || defaultValue || '#000000';
+  const [open, setOpen] = useState(false);
+  const [hexInput, setHexInput] = useState(value || '');
+  const ref = useRef<HTMLDivElement>(null);
+
+  // Sync hex input when value changes externally
+  useEffect(() => { setHexInput(value || ''); }, [value]);
+
+  // Close on outside click
+  useEffect(() => {
+    if (!open) return;
+    const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
+    document.addEventListener('mousedown', h);
+    return () => document.removeEventListener('mousedown', h);
+  }, [open]);
+
+  const handleHexChange = (hex: string) => {
+    setHexInput(hex);
+    // Only emit valid hex colours
+    if (/^#[0-9a-fA-F]{6}$/.test(hex) || /^#[0-9a-fA-F]{3}$/.test(hex)) {
+      onChange(hex);
+    }
+  };
+
+  const handleHexBlur = () => {
+    if (hexInput && !/^#/.test(hexInput)) {
+      const withHash = '#' + hexInput;
+      if (/^#[0-9a-fA-F]{3,6}$/.test(withHash)) {
+        onChange(withHash);
+        setHexInput(withHash);
+      }
+    }
+  };
+
   return (
-    <div className="form-group">
+    <div className="form-group" style={{ position: 'relative' }} ref={ref}>
       <label>{label}</label>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <input type="color" value={display} onChange={e => onChange(e.target.value)}
-          style={{ width: 36, height: 36, border: 'none', padding: 0, cursor: 'pointer', borderRadius: 'var(--radius-sm)' }} />
-        <input className="form-input" value={value || ''} onChange={e => onChange(e.target.value)}
+        <button type="button" onClick={() => setOpen(!open)}
+          className="eb-color-swatch-btn"
+          style={{ background: display }} />
+        <input className="form-input" value={hexInput} onChange={e => handleHexChange(e.target.value)}
+          onBlur={handleHexBlur}
           placeholder="Default" style={{ fontSize: 13, fontFamily: 'monospace', flex: 1 }} />
-        {value && <button type="button" className="row-action-btn" onClick={() => onChange('')} title="Reset"><X size={12} /></button>}
+        {value && <button type="button" className="row-action-btn" onClick={() => { onChange(''); setHexInput(''); }} title="Reset"><X size={12} /></button>}
       </div>
+
+      {open && (
+        <div className="eb-color-dropdown">
+          <div className="eb-color-grid">
+            {COLOUR_SWATCHES.map(c => (
+              <button key={c} type="button"
+                className={`eb-color-cell${display.toLowerCase() === c.toLowerCase() ? ' active' : ''}`}
+                style={{ background: c }}
+                title={c}
+                onClick={() => { onChange(c); setHexInput(c); setOpen(false); }} />
+            ))}
+          </div>
+          <div className="eb-color-hex-row">
+            <div className="eb-color-preview" style={{ background: display }} />
+            <input className="form-input" value={hexInput} onChange={e => handleHexChange(e.target.value)} onBlur={handleHexBlur}
+              placeholder="#000000" style={{ fontSize: 12, fontFamily: 'monospace', flex: 1 }} />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

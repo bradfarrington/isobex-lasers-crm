@@ -3,7 +3,7 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import 'react-quill-new/dist/quill.snow.css';
 import {
   ArrowLeft, Save, Eye, Check, GripVertical, Trash2, Plus,
-  Copy, Send, X, Loader2, Settings, Calendar,
+  Copy, Send, X, Loader2, Settings, Calendar, Undo2, Redo2, Clipboard,
 } from 'lucide-react';
 import {
   fetchEmailTemplate,
@@ -14,9 +14,70 @@ import {
 import { BLOCK_GROUPS, BRAND, makeBlock } from './builder/constants';
 import type { BlockData } from './builder/constants';
 import { generateEmailHtml } from './builder/mjml';
+import { supabase } from '@/lib/supabase';
 import { BlockEditPanel } from './builder/BlockEditPanel';
 import { BlockPreview, PreviewMode, GlobalSettingsPanel } from './builder/panels';
 import './EmailBuilder.css';
+
+/* ── Cache product data before save so MJML can render product blocks ── */
+async function cacheProductData(blocks: BlockData[]): Promise<BlockData[]> {
+  const productBlocks = blocks.filter(b => b.type === 'product');
+  if (productBlocks.length === 0) return blocks;
+
+  // Collect all product IDs across all product blocks
+  const allIds = new Set<string>();
+  for (const b of productBlocks) {
+    const source = b.data.source || 'products';
+    if (source === 'products' && b.data.productIds) b.data.productIds.forEach((id: string) => allIds.add(id));
+    if (source === 'collection' && b.data.collectionId) {
+      const { data: assignments } = await supabase.from('product_collection_assignments').select('product_id').eq('collection_id', b.data.collectionId);
+      (assignments || []).forEach((a: any) => allIds.add(a.product_id));
+    }
+  }
+
+  if (allIds.size === 0) return blocks;
+  const idArr = [...allIds];
+
+  // Fetch products + thumbnails + variant prices
+  const { data: prods } = await supabase.from('products').select('id, name, price, compare_at_price, description, slug').in('id', idArr);
+  const prodMap = new Map((prods || []).map((p: any) => [p.id, p]));
+
+  const { data: variants } = await supabase.from('product_variants').select('product_id, price_override').in('product_id', idArr);
+  const variantPrices = new Map<string, number>();
+  (variants || []).forEach((v: any) => {
+    if (v.price_override != null && v.price_override > 0) {
+      const cur = variantPrices.get(v.product_id);
+      if (cur == null || v.price_override < cur) variantPrices.set(v.product_id, v.price_override);
+    }
+  });
+
+  const { data: media } = await supabase.from('product_media').select('product_id, media_url, sort_order').in('product_id', idArr).in('media_type', ['image']).order('sort_order');
+  const thumbMap: Record<string, string> = {};
+  (media || []).forEach((m: any) => { if (!thumbMap[m.product_id]) thumbMap[m.product_id] = m.media_url; });
+
+  // Attach cached data to each product block
+  return blocks.map(b => {
+    if (b.type !== 'product') return b;
+    const source = b.data.source || 'products';
+    let ids: string[] = [];
+    if (source === 'products' && b.data.productIds) ids = b.data.productIds;
+    else if (source === 'collection') {
+      ids = idArr.filter(id => prodMap.has(id));
+    }
+
+    const cached = ids.map(id => {
+      const p = prodMap.get(id);
+      if (!p) return null;
+      // Use variant pricing as fallback
+      const variantMin = variantPrices.get(id);
+      const displayPrice = (variantMin != null && variantMin > 0) ? variantMin : p.price;
+      return { name: p.name, price: displayPrice, description: p.description, slug: p.slug, image: thumbMap[id] || '' };
+    }).filter(Boolean);
+
+    return { ...b, data: { ...b.data, _cachedProducts: cached } };
+  });
+}
+
 
 export function EmailBuilderPage() {
   const navigate = useNavigate();
@@ -26,7 +87,78 @@ export function EmailBuilderPage() {
   const isCampaignMode = !!campaignId;
 
   const [templateName, setTemplateName] = useState(isCampaignMode ? 'Campaign Email' : 'Untitled Template');
-  const [blocks, setBlocks] = useState<BlockData[]>([]);
+
+  // ── Undo/Redo history ──
+  const [blocks, setBlocksRaw] = useState<BlockData[]>([]);
+  const historyRef = useRef<{ past: BlockData[][]; future: BlockData[][] }>({ past: [], future: [] });
+  const skipHistoryRef = useRef(false);
+
+  const setBlocks = useCallback((updater: BlockData[] | ((prev: BlockData[]) => BlockData[])) => {
+    setBlocksRaw(prev => {
+      const next = typeof updater === 'function' ? updater(prev) : updater;
+      if (!skipHistoryRef.current) {
+        historyRef.current.past = [...historyRef.current.past.slice(-49), prev];
+        historyRef.current.future = [];
+      }
+      skipHistoryRef.current = false;
+      return next;
+    });
+  }, []);
+
+  const canUndo = historyRef.current.past.length > 0;
+  const canRedo = historyRef.current.future.length > 0;
+
+  const undo = useCallback(() => {
+    const h = historyRef.current;
+    if (h.past.length === 0) return;
+    setBlocksRaw(prev => {
+      h.future = [prev, ...h.future];
+      const restored = h.past[h.past.length - 1];
+      h.past = h.past.slice(0, -1);
+      return restored;
+    });
+  }, []);
+
+  const redo = useCallback(() => {
+    const h = historyRef.current;
+    if (h.future.length === 0) return;
+    setBlocksRaw(prev => {
+      h.past = [...h.past, prev];
+      const restored = h.future[0];
+      h.future = h.future.slice(1);
+      return restored;
+    });
+  }, []);
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      const isInput = (e.target as HTMLElement)?.tagName === 'INPUT' || (e.target as HTMLElement)?.tagName === 'TEXTAREA' || (e.target as HTMLElement)?.getAttribute?.('contenteditable');
+      if (isInput) return;
+      if ((e.metaKey || e.ctrlKey) && e.key === 'z' && !e.shiftKey) { e.preventDefault(); undo(); }
+      if ((e.metaKey || e.ctrlKey) && e.key === 'z' && e.shiftKey) { e.preventDefault(); redo(); }
+      if ((e.metaKey || e.ctrlKey) && e.key === 'y') { e.preventDefault(); redo(); }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [undo, redo]);
+
+  // Block clipboard (copy/paste)
+  const copyBlock = useCallback((id: string) => {
+    const block = blocks.find(b => b.id === id);
+    if (block) localStorage.setItem('eb-clipboard', JSON.stringify(block));
+  }, [blocks]);
+
+  const pasteBlock = useCallback(() => {
+    try {
+      const raw = localStorage.getItem('eb-clipboard');
+      if (!raw) return;
+      const block = JSON.parse(raw);
+      block.id = crypto.randomUUID();
+      setBlocks(prev => [...prev, block]);
+      setSelectedId(block.id);
+    } catch { /* ignore invalid clipboard */ }
+  }, [setBlocks]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedSubBlock, setSelectedSubBlock] = useState<{ parentId: string; colIdx: number; blockId: string } | null>(null);
   const [showSettings, setShowSettings] = useState(false);
@@ -65,6 +197,7 @@ export function EmailBuilderPage() {
       fetchEmailTemplate(routeId).then(t => {
         setExistingId(t.id);
         setTemplateName(t.name || 'Untitled');
+        skipHistoryRef.current = true;
         setBlocks(t.blocks ? (typeof t.blocks === 'string' ? JSON.parse(t.blocks) : t.blocks) : []);
         if (t.settings) {
           const s = typeof t.settings === 'string' ? JSON.parse(t.settings) : t.settings;
@@ -152,11 +285,13 @@ export function EmailBuilderPage() {
   async function handleSave() {
     setSaving(true);
     try {
-      const mjmlSource = generateEmailHtml(blocks, settings, true);
+      // Cache product data for product blocks before generating MJML
+      const blocksToSave = await cacheProductData(blocks);
+      const mjmlSource = generateEmailHtml(blocksToSave, settings, true);
       if (isCampaignMode) {
-        await updateEmailCampaign(campaignId!, { name: templateName, subject: settings.subject || templateName, blocks, settings, html_content: mjmlSource });
+        await updateEmailCampaign(campaignId!, { name: templateName, subject: settings.subject || templateName, blocks: blocksToSave, settings, html_content: mjmlSource });
       } else {
-        const payload = { name: templateName, subject: settings.subject || templateName, blocks, settings, mjml_source: mjmlSource, active: true };
+        const payload = { name: templateName, subject: settings.subject || templateName, blocks: blocksToSave, settings, mjml_source: mjmlSource, active: true };
         if (existingId) {
           await updateEmailTemplate(existingId, payload);
         } else {
@@ -183,6 +318,13 @@ export function EmailBuilderPage() {
         <div className="eb-topbar-sep" />
         <input className="eb-topbar-title" value={templateName} onChange={e => setTemplateName(e.target.value)} placeholder={isCampaignMode ? 'Campaign email name…' : 'Template name…'} />
         <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ display: 'flex', gap: 2, marginRight: 4 }}>
+            <button className="row-action-btn" onClick={undo} disabled={!canUndo} title="Undo (Ctrl+Z)" style={{ opacity: canUndo ? 1 : 0.3 }}><Undo2 size={15} /></button>
+            <button className="row-action-btn" onClick={redo} disabled={!canRedo} title="Redo (Ctrl+Shift+Z)" style={{ opacity: canRedo ? 1 : 0.3 }}><Redo2 size={15} /></button>
+          </div>
+          {localStorage.getItem('eb-clipboard') && (
+            <button className="btn-secondary" onClick={pasteBlock} title="Paste copied block"><Clipboard size={14} /> Paste</button>
+          )}
           <button className="btn-secondary" onClick={() => setShowTestModal(true)} title="Send test"><Send size={14} /> Send Test</button>
           <button className={`btn-secondary${justSaved ? '' : ''}`} onClick={handleSave} disabled={saving}
             style={justSaved ? { background: 'var(--color-success)', color: '#fff', borderColor: 'var(--color-success)' } : { background: 'var(--color-primary)', color: '#fff', borderColor: 'var(--color-primary)' }}>
@@ -254,6 +396,7 @@ export function EmailBuilderPage() {
                               onDragOver={e => handleBlockDragOver(e, idx)} onDrop={e => handleBlockDrop(e, idx)}>
                               <div className="eb-block-handle"><GripVertical size={14} /></div>
                               <div className="eb-block-actions">
+                                <button className="row-action-btn" onClick={e => { e.stopPropagation(); copyBlock(block.id); }} title="Copy"><Clipboard size={12} /></button>
                                 <button className="row-action-btn" onClick={e => { e.stopPropagation(); duplicateBlock(block.id); }} title="Duplicate"><Copy size={12} /></button>
                                 <button className="row-action-btn danger" onClick={e => { e.stopPropagation(); deleteBlock(block.id); }} title="Delete"><Trash2 size={12} /></button>
                               </div>

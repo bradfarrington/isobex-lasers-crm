@@ -1,9 +1,11 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import ReactQuill from 'react-quill-new';
-import { ArrowLeft, Trash2, Image as ImageIcon, X, Tag } from 'lucide-react';
-import { BLOCK_TYPE_MAP, QUILL_FULL, QUILL_HEADING, QUILL_FORMATS, MERGE_TAGS, BRAND, tagLabel } from './constants';
+import { ArrowLeft, Trash2, X, Tag, Search } from 'lucide-react';
+import { BLOCK_TYPE_MAP, QUILL_FULL, QUILL_HEADING, QUILL_FORMATS, MERGE_TAGS, BRAND, SOCIAL_PLATFORMS } from './constants';
 import type { BlockData } from './constants';
 import { ColorField, AlignField, FontPicker, ImageUploadButton, MergeTagInsert, BlockSpacing } from './components';
+import { supabase } from '@/lib/supabase';
+import { DateTimePicker } from '@/components/ui/DatePicker';
 
 interface Props {
   block: BlockData;
@@ -61,6 +63,7 @@ export function BlockEditPanel({ block, onUpdate, onDelete, onBack }: Props) {
           </div>
           <FontPicker value={block.data.fontFamily || ''} onChange={v => patch('fontFamily', v)} />
           <ColorField label="Text Colour" value={block.data.color} onChange={v => patch('color', v)} defaultValue="#1f2937" />
+          <ColorField label="Background Colour" value={block.data.bgColor || ''} onChange={v => patch('bgColor', v)} />
         </>)}
 
         {/* ── Text ── */}
@@ -71,6 +74,7 @@ export function BlockEditPanel({ block, onUpdate, onDelete, onBack }: Props) {
           <MergeTagInsert onInsert={insertTag} />
           <FontPicker value={block.data.fontFamily || ''} onChange={v => patch('fontFamily', v)} />
           <ColorField label="Text Colour" value={block.data.color} onChange={v => patch('color', v)} defaultValue="#1f2937" />
+          <ColorField label="Background Colour" value={block.data.bgColor || ''} onChange={v => patch('bgColor', v)} />
         </>)}
 
         {/* ── Image ── */}
@@ -158,6 +162,14 @@ export function BlockEditPanel({ block, onUpdate, onDelete, onBack }: Props) {
             </select>
           </div>
           <div className="form-group"><label>Gap ({block.data.gap || 16}px)</label><input type="range" min="0" max="40" step="2" value={block.data.gap || 16} onChange={e => patch('gap', e.target.value)} style={{ width: '100%' }} /></div>
+          <div className="eb-divider" /><div className="eb-section-label">Column Backgrounds</div>
+          {(block.data.columns || []).map((col: any, ci: number) => (
+            <ColorField key={ci} label={`Column ${ci + 1}`} value={col.bgColor || ''} onChange={v => {
+              const cols = [...(block.data.columns || [])];
+              cols[ci] = { ...cols[ci], bgColor: v };
+              onUpdate({ data: { ...block.data, columns: cols } });
+            }} />
+          ))}
         </>)}
 
         {/* ── Merge Tag ── */}
@@ -172,8 +184,210 @@ export function BlockEditPanel({ block, onUpdate, onDelete, onBack }: Props) {
           <ColorField label="Colour" value={block.data.color} onChange={v => patch('color', v)} />
         </>)}
 
+        {/* ── Social Links ── */}
+        {block.type === 'social' && (<>
+          <div className="eb-section-label">Platform URLs</div>
+          {SOCIAL_PLATFORMS.map(p => (
+            <div className="form-group" key={p.key}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span style={{ width: 10, height: 10, borderRadius: '50%', background: p.color, display: 'inline-block', flexShrink: 0 }} />
+                {p.label}
+              </label>
+              <input className="form-input" value={(block.data.platforms || {})[p.key] || ''}
+                onChange={e => patch('platforms', { ...block.data.platforms, [p.key]: e.target.value })}
+                placeholder={`https://${p.key}.com/…`} />
+            </div>
+          ))}
+          <div className="eb-divider" /><div className="eb-section-label">Appearance</div>
+          <div className="form-group"><label>Icon Size ({block.data.iconSize || 32}px)</label>
+            <input type="range" min="20" max="56" step="2" value={block.data.iconSize || 32} onChange={e => patch('iconSize', e.target.value)} style={{ width: '100%' }} />
+          </div>
+          <div className="form-group"><label>Spacing ({block.data.spacing || 12}px)</label>
+            <input type="range" min="4" max="32" step="2" value={block.data.spacing || 12} onChange={e => patch('spacing', e.target.value)} style={{ width: '100%' }} />
+          </div>
+          <AlignField value={block.data.align} onChange={v => patch('align', v)} />
+        </>)}
+
+        {/* ── Custom HTML ── */}
+        {block.type === 'html' && (<>
+          <div className="form-group"><label>HTML Code</label>
+            <textarea className="form-textarea" value={block.data.content || ''} onChange={e => patch('content', e.target.value)}
+              rows={10} style={{ fontFamily: 'monospace', fontSize: 12, lineHeight: 1.5 }}
+              placeholder="<div style='...'>Your custom HTML</div>" />
+          </div>
+          <p style={{ fontSize: 11, color: 'var(--color-text-tertiary)', lineHeight: 1.4, margin: 0 }}>Use inline styles for email compatibility. External CSS won't work in most email clients.</p>
+        </>)}
+
+        {/* ── Video ── */}
+        {block.type === 'video' && (<>
+          <div className="form-group"><label>Video URL</label>
+            <input className="form-input" value={block.data.videoUrl || ''} onChange={e => patch('videoUrl', e.target.value)} placeholder="https://youtube.com/watch?v=…" />
+          </div>
+          <div className="form-group"><label>Thumbnail</label>
+            {block.data.thumbnailUrl && <div style={{ marginBottom: 8, borderRadius: 'var(--radius-md)', overflow: 'hidden', border: '1px solid var(--color-border)' }}><img src={block.data.thumbnailUrl} alt="" style={{ width: '100%', display: 'block' }} /></div>}
+            <div style={{ display: 'flex', gap: 8 }}>
+              <ImageUploadButton onUploaded={url => patch('thumbnailUrl', url)} />
+              {block.data.thumbnailUrl && <button type="button" className="row-action-btn" onClick={() => patch('thumbnailUrl', '')}><X size={13} /></button>}
+            </div>
+          </div>
+          {!block.data.thumbnailUrl && <div className="form-group"><label>Or paste thumbnail URL</label><input className="form-input" value={block.data.thumbnailUrl || ''} onChange={e => patch('thumbnailUrl', e.target.value)} placeholder="https://…" /></div>}
+          <div className="form-group"><label>Alt Text</label><input className="form-input" value={block.data.alt || ''} onChange={e => patch('alt', e.target.value)} placeholder="Describe the video…" /></div>
+          <div className="form-group"><label>Width ({block.data.width || 100}%)</label><input type="range" min="20" max="100" step="5" value={block.data.width || 100} onChange={e => patch('width', e.target.value)} style={{ width: '100%' }} /></div>
+          <AlignField value={block.data.align} onChange={v => patch('align', v)} />
+          <div className="form-group"><label>Border Radius ({block.data.borderRadius || 0}px)</label><input type="range" min="0" max="40" value={block.data.borderRadius || 0} onChange={e => patch('borderRadius', e.target.value)} style={{ width: '100%' }} /></div>
+        </>)}
+
+        {/* ── Countdown ── */}
+        {block.type === 'countdown' && (<>
+          <div className="form-group"><label>End Date & Time</label>
+            <DateTimePicker value={block.data.endDate || ''} onChange={v => patch('endDate', v)} placeholder="Select end date…" />
+          </div>
+          <div className="form-group"><label>Label Text</label><input className="form-input" value={block.data.label || ''} onChange={e => patch('label', e.target.value)} placeholder="Offer ends" /></div>
+          <div className="form-group"><label>Font Size</label><input className="form-input" type="number" value={block.data.fontSize || 18} onChange={e => patch('fontSize', e.target.value)} min={12} max={48} /></div>
+          <ColorField label="Background" value={block.data.bgColor} onChange={v => patch('bgColor', v)} defaultValue={BRAND} />
+          <ColorField label="Text Colour" value={block.data.textColor} onChange={v => patch('textColor', v)} defaultValue="#ffffff" />
+        </>)}
+
+        {/* ── Product ── */}
+        {block.type === 'product' && (<ProductBlockEditor block={block} patch={patch} onUpdate={onUpdate} />)}
+
         <BlockSpacing padding={block.data.padding} onChange={patchPad} />
       </div>
+    </>
+  );
+}
+
+function ProductBlockEditor({ block, patch, onUpdate }: {
+  block: BlockData; patch: (k: string, v: any) => void; onUpdate: (p: Record<string, any>) => void;
+}) {
+  const source = block.data.source || 'products'; // 'products' | 'collection'
+  const selectedIds: string[] = block.data.productIds || [];
+  const getPrice = (p: any) => {
+    if (p.variant_price_min != null && p.variant_price_min > 0) return `£${Number(p.variant_price_min).toFixed(2)}`;
+    return `£${Number(p.price || 0).toFixed(2)}`;
+  };
+
+  const [allProducts, setAllProducts] = useState<any[]>([]);
+  const [collections, setCollections] = useState<any[]>([]);
+  const [filter, setFilter] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  // Load all products + collections on mount
+  useEffect(() => {
+    setLoading(true);
+    (async () => {
+      // Fetch products (no variant fields on this table)
+      const { data: prods } = await supabase.from('products').select('id, name, price, slug').order('name').limit(200);
+      const products = prods || [];
+
+      // Fetch variant min prices
+      const { data: variants } = await supabase.from('product_variants').select('product_id, price_override');
+      const variantPrices = new Map<string, number>();
+      (variants || []).forEach((v: any) => {
+        if (v.price_override != null && v.price_override > 0) {
+          const cur = variantPrices.get(v.product_id);
+          if (cur == null || v.price_override < cur) variantPrices.set(v.product_id, v.price_override);
+        }
+      });
+
+      // Enrich products with variant pricing
+      const enriched = products.map(p => ({
+        ...p,
+        variant_price_min: variantPrices.get(p.id) ?? null,
+      }));
+      setAllProducts(enriched);
+      setLoading(false);
+    })();
+    supabase.from('collections').select('id, name').order('sort_order')
+      .then(({ data }) => { if (data) setCollections(data); });
+  }, []);
+
+  const toggleProduct = (id: string) => {
+    if (selectedIds.includes(id)) {
+      patch('productIds', selectedIds.filter(x => x !== id));
+    } else {
+      patch('productIds', [...selectedIds, id]);
+    }
+  };
+
+  const filtered = filter.trim()
+    ? allProducts.filter(p => p.name.toLowerCase().includes(filter.toLowerCase()))
+    : allProducts;
+
+  return (
+    <>
+      {/* Source toggle */}
+      <div className="form-group">
+        <label>Source</label>
+        <div className="eb-align-toggle">
+          <button type="button" className={`eb-align-btn${source === 'products' ? ' active' : ''}`}
+            onClick={() => onUpdate({ data: { ...block.data, source: 'products', collectionId: '' } })}
+            style={{ fontSize: 12 }}>Products</button>
+          <button type="button" className={`eb-align-btn${source === 'collection' ? ' active' : ''}`}
+            onClick={() => onUpdate({ data: { ...block.data, source: 'collection', productIds: [] } })}
+            style={{ fontSize: 12 }}>Collection</button>
+        </div>
+      </div>
+
+      {/* Products mode — checklist */}
+      {source === 'products' && (
+        <div className="form-group">
+          <label>Products{selectedIds.length > 0 ? ` (${selectedIds.length} selected)` : ''}</label>
+          <div style={{ position: 'relative', marginBottom: 6 }}>
+            <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-tertiary)', pointerEvents: 'none' }} />
+            <input className="form-input" value={filter} onChange={e => setFilter(e.target.value)}
+              placeholder="Filter products…" style={{ paddingLeft: 32 }} />
+          </div>
+          <div style={{
+            maxHeight: 240, overflowY: 'auto', border: '1px solid var(--color-border)',
+            borderRadius: 'var(--radius-md)', background: 'var(--color-bg-surface)',
+          }}>
+            {loading && <div style={{ padding: 12, fontSize: 12, color: 'var(--color-text-tertiary)', textAlign: 'center' }}>Loading products…</div>}
+            {!loading && filtered.length === 0 && <div style={{ padding: 12, fontSize: 12, color: 'var(--color-text-tertiary)', textAlign: 'center' }}>No products found</div>}
+            {filtered.map(p => {
+              const checked = selectedIds.includes(p.id);
+              return (
+                <label key={p.id} style={{
+                  display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px',
+                  cursor: 'pointer', borderBottom: '1px solid var(--color-border)',
+                  background: checked ? 'var(--color-primary-subtle)' : 'transparent',
+                  transition: 'background 0.1s',
+                }} onMouseEnter={e => { if (!checked) (e.currentTarget as HTMLElement).style.background = 'var(--color-bg-hover)'; }}
+                   onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = checked ? 'var(--color-primary-subtle)' : 'transparent'; }}>
+                  <input type="checkbox" checked={checked} onChange={() => toggleProduct(p.id)}
+                    style={{ accentColor: 'var(--color-primary)', width: 15, height: 15, flexShrink: 0 }} />
+                  <span style={{ flex: 1, fontSize: 13, fontWeight: checked ? 600 : 400, color: 'var(--color-text-primary)' }}>{p.name}</span>
+                  <span style={{ fontSize: 11, color: 'var(--color-text-tertiary)', flexShrink: 0 }}>{getPrice(p)}</span>
+                </label>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Collection mode */}
+      {source === 'collection' && (
+        <div className="form-group">
+          <label>Collection</label>
+          <select className="form-input" value={block.data.collectionId || ''} onChange={e => patch('collectionId', e.target.value)}>
+            <option value="">Select a collection…</option>
+            {collections.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
+        </div>
+      )}
+
+      <div className="eb-divider" /><div className="eb-section-label">Display Options</div>
+      <label className="eb-toggle" onClick={() => patch('showImage', !block.data.showImage)}>
+        <span>Show Image</span><div className={`toggle-track${block.data.showImage !== false ? ' on' : ''}`}><div className="toggle-thumb" /></div>
+      </label>
+      <label className="eb-toggle" onClick={() => patch('showPrice', !block.data.showPrice)}>
+        <span>Show Price</span><div className={`toggle-track${block.data.showPrice !== false ? ' on' : ''}`}><div className="toggle-thumb" /></div>
+      </label>
+      <label className="eb-toggle" onClick={() => patch('showDescription', !block.data.showDescription)}>
+        <span>Show Description</span><div className={`toggle-track${block.data.showDescription ? ' on' : ''}`}><div className="toggle-thumb" /></div>
+      </label>
+      <div className="form-group"><label>Button Text</label><input className="form-input" value={block.data.buttonText || ''} onChange={e => patch('buttonText', e.target.value)} placeholder="Shop Now" /></div>
+      <ColorField label="Button Colour" value={block.data.buttonColor} onChange={v => patch('buttonColor', v)} defaultValue={BRAND} />
     </>
   );
 }
