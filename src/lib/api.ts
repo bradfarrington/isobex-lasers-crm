@@ -10,6 +10,9 @@ import type {
   LookupInsert,
   ContactDocument,
   DocumentFolder,
+  DocumentCategory,
+  DocumentCategoryInsert,
+  CrmDocument,
   Pipeline,
   PipelineInsert,
   PipelineUpdate,
@@ -56,6 +59,14 @@ import type {
   PageSeoUpdate,
   StorePage,
   StorePageUpdate,
+  EmailTemplate,
+  EmailTemplateInsert,
+  EmailTemplateUpdate,
+  EmailCampaign,
+  EmailCampaignInsert,
+  EmailCampaignUpdate,
+  CampaignRecipient,
+  CampaignRecipientInsert,
 } from '@/types/database';
 
 // ─── Contacts ────────────────────────────────────────────
@@ -1781,3 +1792,283 @@ export async function updateStorePage(id: string, updates: StorePageUpdate): Pro
   return data as StorePage;
 }
 
+// ─── Document Hub: Categories ───────────────────────────
+
+const CRM_DOCS_BUCKET = 'crm-documents';
+
+export async function fetchDocumentCategories(): Promise<DocumentCategory[]> {
+  const { data, error } = await supabase
+    .from('document_categories')
+    .select('*')
+    .order('sort_order', { ascending: true });
+
+  if (error) throw error;
+  return data as DocumentCategory[];
+}
+
+export async function createDocumentCategory(item: DocumentCategoryInsert): Promise<DocumentCategory> {
+  const { data, error } = await supabase
+    .from('document_categories')
+    .insert(item)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as DocumentCategory;
+}
+
+export async function updateDocumentCategory(
+  id: string,
+  updates: Partial<DocumentCategoryInsert>
+): Promise<DocumentCategory> {
+  const { data, error } = await supabase
+    .from('document_categories')
+    .update(updates)
+    .eq('id', id)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as DocumentCategory;
+}
+
+export async function deleteDocumentCategory(id: string): Promise<void> {
+  const { error } = await supabase
+    .from('document_categories')
+    .delete()
+    .eq('id', id);
+
+  if (error) throw error;
+}
+
+// ─── Document Hub: Files ────────────────────────────────
+
+export async function fetchCrmDocuments(categoryId?: string): Promise<CrmDocument[]> {
+  let query = supabase
+    .from('crm_documents')
+    .select('*')
+    .order('created_at', { ascending: false });
+
+  if (categoryId) {
+    query = query.eq('category_id', categoryId);
+  }
+
+  const { data, error } = await query;
+  if (error) throw error;
+  return data as CrmDocument[];
+}
+
+export async function uploadCrmDocuments(
+  categoryId: string,
+  files: File[]
+): Promise<CrmDocument[]> {
+  const results: CrmDocument[] = [];
+
+  for (const file of files) {
+    const uniqueId = `${Date.now()}-${crypto.randomUUID().slice(0, 8)}`;
+    const storagePath = `${categoryId}/${uniqueId}-${file.name}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from(CRM_DOCS_BUCKET)
+      .upload(storagePath, file, { upsert: true });
+
+    if (uploadError) throw uploadError;
+
+    const { data, error: insertError } = await supabase
+      .from('crm_documents')
+      .insert({
+        category_id: categoryId,
+        file_name: file.name,
+        storage_path: storagePath,
+        file_size: file.size,
+        file_type: file.type || null,
+      })
+      .select()
+      .single();
+
+    if (insertError) throw insertError;
+    results.push(data as CrmDocument);
+  }
+
+  return results;
+}
+
+export async function renameCrmDocument(
+  docId: string,
+  newName: string
+): Promise<CrmDocument> {
+  const { data, error } = await supabase
+    .from('crm_documents')
+    .update({ file_name: newName })
+    .eq('id', docId)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as CrmDocument;
+}
+
+export async function deleteCrmDocument(doc: CrmDocument): Promise<void> {
+  const { error: storageError } = await supabase.storage
+    .from(CRM_DOCS_BUCKET)
+    .remove([doc.storage_path]);
+
+  if (storageError) throw storageError;
+
+  const { error: dbError } = await supabase
+    .from('crm_documents')
+    .delete()
+    .eq('id', doc.id);
+
+  if (dbError) throw dbError;
+}
+
+export function getCrmDocumentPublicUrl(storagePath: string): string {
+  const { data } = supabase.storage.from(CRM_DOCS_BUCKET).getPublicUrl(storagePath);
+  return data?.publicUrl || '';
+}
+
+// ─── Email Marketing: Templates ─────────────────────────────
+
+export async function fetchEmailTemplates(): Promise<EmailTemplate[]> {
+  const { data, error } = await supabase
+    .from('email_templates')
+    .select('*')
+    .order('created_at', { ascending: false });
+
+  if (error) throw error;
+  return data as EmailTemplate[];
+}
+
+export async function fetchEmailTemplate(id: string): Promise<EmailTemplate> {
+  const { data, error } = await supabase
+    .from('email_templates')
+    .select('*')
+    .eq('id', id)
+    .single();
+
+  if (error) throw error;
+  return data as EmailTemplate;
+}
+
+export async function createEmailTemplate(template: EmailTemplateInsert): Promise<EmailTemplate> {
+  const { data, error } = await supabase
+    .from('email_templates')
+    .insert(template)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as EmailTemplate;
+}
+
+export async function updateEmailTemplate(id: string, updates: EmailTemplateUpdate): Promise<EmailTemplate> {
+  const { data, error } = await supabase
+    .from('email_templates')
+    .update(updates)
+    .eq('id', id)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as EmailTemplate;
+}
+
+export async function deleteEmailTemplate(id: string): Promise<void> {
+  const { error } = await supabase.from('email_templates').delete().eq('id', id);
+  if (error) throw error;
+}
+
+// ─── Email Marketing: Campaigns ─────────────────────────────
+
+export async function fetchEmailCampaigns(): Promise<EmailCampaign[]> {
+  const { data, error } = await supabase
+    .from('email_campaigns')
+    .select('*')
+    .order('created_at', { ascending: false });
+
+  if (error) throw error;
+  return data as EmailCampaign[];
+}
+
+export async function fetchEmailCampaign(id: string): Promise<EmailCampaign> {
+  const { data, error } = await supabase
+    .from('email_campaigns')
+    .select('*')
+    .eq('id', id)
+    .single();
+
+  if (error) throw error;
+  return data as EmailCampaign;
+}
+
+export async function createEmailCampaign(campaign: EmailCampaignInsert): Promise<EmailCampaign> {
+  const { data, error } = await supabase
+    .from('email_campaigns')
+    .insert(campaign)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as EmailCampaign;
+}
+
+export async function updateEmailCampaign(id: string, updates: EmailCampaignUpdate): Promise<EmailCampaign> {
+  const { data, error } = await supabase
+    .from('email_campaigns')
+    .update(updates)
+    .eq('id', id)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as EmailCampaign;
+}
+
+export async function deleteEmailCampaign(id: string): Promise<void> {
+  const { error } = await supabase.from('email_campaigns').delete().eq('id', id);
+  if (error) throw error;
+}
+
+// ─── Email Marketing: Campaign Recipients ───────────────────
+
+export async function fetchCampaignRecipients(campaignId: string): Promise<CampaignRecipient[]> {
+  const { data, error } = await supabase
+    .from('campaign_recipients')
+    .select('*, contact:contacts(id, first_name, last_name)')
+    .eq('campaign_id', campaignId)
+    .order('created_at', { ascending: true });
+
+  if (error) throw error;
+  return data as CampaignRecipient[];
+}
+
+export async function fetchAllCampaignRecipients(): Promise<CampaignRecipient[]> {
+  const { data, error } = await supabase
+    .from('campaign_recipients')
+    .select('*')
+    .order('created_at', { ascending: false });
+
+  if (error) throw error;
+  return data as CampaignRecipient[];
+}
+
+export async function insertCampaignRecipients(
+  recipients: CampaignRecipientInsert[]
+): Promise<CampaignRecipient[]> {
+  const { data, error } = await supabase
+    .from('campaign_recipients')
+    .insert(recipients)
+    .select();
+
+  if (error) throw error;
+  return data as CampaignRecipient[];
+}
+
+export async function deleteCampaignRecipients(campaignId: string): Promise<void> {
+  const { error } = await supabase
+    .from('campaign_recipients')
+    .delete()
+    .eq('campaign_id', campaignId);
+  if (error) throw error;
+}

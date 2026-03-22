@@ -16,6 +16,7 @@ import { PageBuilderPage } from '@/features/store/PageBuilderPage';
 import { OrdersPage } from '@/features/orders/OrdersPage';
 import { OrderDetailPage } from '@/features/orders/OrderDetailPage';
 import { EmailMarketingPage } from '@/features/email-marketing/EmailMarketingPage';
+import { EmailBuilderPage } from '@/features/email-marketing/EmailBuilderPage';
 import { ReviewsPage } from '@/features/reviews/ReviewsPage';
 import { DocumentsPage } from '@/features/documents/DocumentsPage';
 import { InstallationsPage } from '@/features/installations/InstallationsPage';
@@ -53,6 +54,8 @@ export function App() {
           <Route path="orders" element={<OrdersPage />} />
           <Route path="orders/:id" element={<OrderDetailPage />} />
           <Route path="email-marketing" element={<EmailMarketingPage />} />
+          <Route path="email-marketing/builder" element={<EmailBuilderPage />} />
+          <Route path="email-marketing/builder/:id" element={<EmailBuilderPage />} />
           <Route path="reviews" element={<ReviewsPage />} />
           <Route path="documents" element={<DocumentsPage />} />
           <Route path="installations" element={<InstallationsPage />} />

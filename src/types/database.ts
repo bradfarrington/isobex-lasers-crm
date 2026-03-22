@@ -84,6 +84,28 @@ export interface DocumentFolder {
   created_at: string;
 }
 
+// ─── Document Hub (categories + files) ──────────────────
+export interface DocumentCategory {
+  id: string;
+  name: string;
+  sort_order: number;
+  created_at: string;
+}
+
+export type DocumentCategoryInsert = { name: string; sort_order?: number };
+export type DocumentCategoryUpdate = Partial<DocumentCategoryInsert>;
+
+export interface CrmDocument {
+  id: string;
+  category_id: string;
+  file_name: string;
+  storage_path: string;
+  file_size: number | null;
+  file_type: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 // ─── Pipelines ──────────────────────────────────────────
 export interface Pipeline {
   id: string;
@@ -554,4 +576,68 @@ export interface StorePage {
 
 export type StorePageInsert = Omit<StorePage, 'id' | 'created_at' | 'updated_at'>;
 export type StorePageUpdate = Partial<StorePageInsert>;
+
+// ─── Email Marketing: Templates ─────────────────────────────
+
+export interface EmailTemplate {
+  id: string;
+  name: string;
+  subject: string;
+  blocks: Record<string, any>[];
+  settings: Record<string, any>;
+  mjml_source: string;
+  active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export type EmailTemplateInsert = Omit<EmailTemplate, 'id' | 'created_at' | 'updated_at'>;
+export type EmailTemplateUpdate = Partial<EmailTemplateInsert>;
+
+// ─── Email Marketing: Campaigns ─────────────────────────────
+
+export type CampaignStatus = 'draft' | 'scheduled' | 'sending' | 'sent' | 'failed';
+export type CampaignSendMode = 'now' | 'scheduled' | 'batch';
+
+export interface EmailCampaign {
+  id: string;
+  name: string;
+  subject: string;
+  template_id: string | null;
+  blocks: Record<string, any>[];
+  settings: Record<string, any>;
+  html_content: string;
+  status: CampaignStatus;
+  send_mode: CampaignSendMode | null;
+  scheduled_at: string | null;
+  sent_at: string | null;
+  total_recipients: number;
+  batch_size: number | null;
+  batch_interval: number | null;
+  stats: Record<string, any>;
+  created_at: string;
+  updated_at: string;
+}
+
+export type EmailCampaignInsert = Omit<EmailCampaign, 'id' | 'created_at' | 'updated_at'>;
+export type EmailCampaignUpdate = Partial<EmailCampaignInsert>;
+
+// ─── Email Marketing: Campaign Recipients ───────────────────
+
+export type RecipientStatus = 'pending' | 'sent' | 'delivered' | 'opened' | 'clicked' | 'bounced' | 'failed';
+
+export interface CampaignRecipient {
+  id: string;
+  campaign_id: string;
+  contact_id: string | null;
+  email: string;
+  status: RecipientStatus;
+  opened_at: string | null;
+  clicked_at: string | null;
+  created_at: string;
+  // Joined
+  contact?: Contact | null;
+}
+
+export type CampaignRecipientInsert = Omit<CampaignRecipient, 'id' | 'created_at' | 'contact'>;
 
