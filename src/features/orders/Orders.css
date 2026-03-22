@@ -232,6 +232,27 @@
   font-weight: 600;
 }
 
+/* ─── Top Actions Bar ──────────────────── */
+
+.order-top-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.5rem;
+}
+
+/* ─── Tracking URL Row ─────────────────── */
+
+.order-tracking-url-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.order-tracking-url-row .form-input {
+  flex: 1;
+}
+
 /* ─── Responsive ────────────────────────── */
 
 @media (max-width: 1024px) {

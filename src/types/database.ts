@@ -349,6 +349,7 @@ export interface Order {
   id: string;
   order_number: number;
   contact_id: string | null;
+  company_id: string | null;
   customer_email: string;
   customer_name: string;
   customer_phone: string | null;
@@ -365,15 +366,18 @@ export interface Order {
   status: OrderStatus;
   payment_intent_id: string | null;
   payment_status: PaymentStatus;
+  tracking_number: string | null;
+  tracking_url: string | null;
   notes: string | null;
   created_at: string;
   updated_at: string;
   // Joined
   items?: OrderItem[];
   contact?: Contact | null;
+  company?: Company | null;
 }
 
-export type OrderInsert = Omit<Order, 'id' | 'order_number' | 'created_at' | 'updated_at' | 'items' | 'contact'>;
+export type OrderInsert = Omit<Order, 'id' | 'order_number' | 'created_at' | 'updated_at' | 'items' | 'contact' | 'company'>;
 
 export interface OrderItem {
   id: string;

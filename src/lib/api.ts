@@ -1235,6 +1235,17 @@ export async function fetchOrdersByContact(contactId: string): Promise<Order[]> 
   return data as Order[];
 }
 
+export async function fetchOrdersByCompany(companyId: string): Promise<Order[]> {
+  const { data, error } = await supabase
+    .from('orders')
+    .select('*')
+    .eq('company_id', companyId)
+    .order('created_at', { ascending: false });
+
+  if (error) throw error;
+  return data as Order[];
+}
+
 export async function createOrder(order: OrderInsert): Promise<Order> {
   const { data, error } = await supabase
     .from('orders')
@@ -1267,6 +1278,22 @@ export async function updateOrderStatus(
   const { data, error } = await supabase
     .from('orders')
     .update(updates)
+    .eq('id', id)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as Order;
+}
+
+export async function updateOrderTracking(
+  id: string,
+  trackingNumber: string | null,
+  trackingUrl: string | null
+): Promise<Order> {
+  const { data, error } = await supabase
+    .from('orders')
+    .update({ tracking_number: trackingNumber, tracking_url: trackingUrl })
     .eq('id', id)
     .select()
     .single();
