@@ -11,8 +11,7 @@ import { CollectionsPage } from '@/features/store/CollectionsPage';
 import { InventoryPage } from '@/features/store/InventoryPage';
 import { GiftCardsPage } from '@/features/store/GiftCardsPage';
 import { DiscountsPage } from '@/features/store/DiscountsPage';
-import { StoreBuilderPage } from '@/features/store/StoreBuilderPage';
-import { PageBuilderPage } from '@/features/store/PageBuilderPage';
+import { UnifiedBuilder } from '@/features/store/UnifiedBuilder';
 import { OrdersPage } from '@/features/orders/OrdersPage';
 import { OrderDetailPage } from '@/features/orders/OrderDetailPage';
 import { EmailMarketingPage } from '@/features/email-marketing/EmailMarketingPage';
@@ -51,7 +50,7 @@ export function App() {
           <Route path="store/inventory" element={<InventoryPage />} />
           <Route path="store/gift-cards" element={<GiftCardsPage />} />
           <Route path="store/discounts" element={<DiscountsPage />} />
-          <Route path="store/builder" element={<StoreBuilderPage />} />
+
           <Route path="orders" element={<OrdersPage />} />
           <Route path="orders/:id" element={<OrderDetailPage />} />
           <Route path="email-marketing" element={<EmailMarketingPage />} />
@@ -65,8 +64,8 @@ export function App() {
           <Route path="settings" element={<SettingsPage />} />
         </Route>
 
-        {/* Page Builder — Full-width, no CRM chrome */}
-        <Route path="store/pages" element={<PageBuilderPage />} />
+        {/* Unified Store Builder — Full-width, no CRM chrome */}
+        <Route path="store/builder" element={<UnifiedBuilder />} />
 
         {/* Public: Unsubscribe */}
         <Route path="unsubscribe/:token" element={<UnsubscribePage />} />

@@ -8,7 +8,7 @@ interface StoreConfigContextValue {
   formatPrice: (price: number) => string;
 }
 
-const StoreConfigContext = createContext<StoreConfigContextValue>({
+export const StoreConfigContext = createContext<StoreConfigContextValue>({
   config: null,
   loading: true,
   formatPrice: (p) => `£${p.toFixed(2)}`,

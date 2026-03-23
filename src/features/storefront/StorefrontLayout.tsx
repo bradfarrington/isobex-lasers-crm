@@ -2,7 +2,7 @@ import { Outlet, Link, useLocation } from 'react-router-dom';
 import { StoreConfigProvider, useStoreConfig } from './useStoreConfig';
 import { CartProvider, useCart } from './useCart';
 import { CartSidebar } from './CartSidebar';
-import { ShoppingCart, Menu, X } from 'lucide-react';
+import { ShoppingCart, ShoppingBag, ShoppingBasket, Menu, X } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import './StorefrontLayout.css';
 
@@ -20,8 +20,20 @@ function StorefrontShell() {
   }
 
   const navLinks = config?.header_layout?.nav_links || [];
-  const showAnnouncement = config?.announcement_bar_active && config?.announcement_bar_text;
+  // Ensure we show the bar if there are ticker messages, even if main text is empty
+  const showAnnouncement = config?.announcement_bar_active && 
+    (config?.announcement_bar_text || (config?.header_layout as any)?.ticker_messages?.length > 0);
 
+  // Header Layout Overrides
+  const headerLayout: any = config?.header_layout || { logo_position: 'left', nav_links: [] };
+  const hBg = headerLayout.bg_color || 'var(--sf-bg)';
+  const hColor = headerLayout.nav_color || 'var(--sf-text)';
+  const hFont = headerLayout.nav_font || 'inherit';
+  const logoWidthDesktop = headerLayout.logo_width_desktop || 150;
+  const logoWidthMobile = headerLayout.logo_width_mobile || 120;
+  const CartIconCmp = headerLayout.cart_icon_type === 'ShoppingBag' ? ShoppingBag : (headerLayout.cart_icon_type === 'ShoppingBasket' ? ShoppingBasket : ShoppingCart);
+  const cartIconColor = headerLayout.cart_icon_color || hColor;
+  
   // Apply theme CSS vars
   const themeVars: Record<string, string> = {
     '--sf-primary': config?.color_primary || '#2563eb',
@@ -33,21 +45,55 @@ function StorefrontShell() {
     '--sf-text-secondary': config?.color_text_secondary || '#64748b',
     '--sf-font-heading': config?.font_heading || 'Inter',
     '--sf-font-body': config?.font_body || 'Inter',
+    // Dynamic Header sizes injected as vars
+    '--sf-logo-desktop': `${logoWidthDesktop}px`,
+    '--sf-logo-mobile': `${logoWidthMobile}px`,
   };
+
+  const annBg = headerLayout.announcement_bg_color || '#000000';
+  const annColor = headerLayout.announcement_text_color || '#ffffff';
+  const annFont = headerLayout.announcement_font || 'inherit';
+
+  const isTicker = headerLayout.announcement_type === 'ticker';
+  const tickerSpacing = headerLayout.ticker_spacing || 50;
+  const tickerSpeed = headerLayout.ticker_speed || 20;
+  const tickerRepeat = headerLayout.ticker_repeat || 5;
+  const tickerMessages = headerLayout.ticker_messages?.length > 0 
+      ? headerLayout.ticker_messages 
+      : [config?.announcement_bar_text].filter(Boolean);
+  
+  const repeatedContent: string[] = [];
+  for (let i = 0; i < tickerRepeat; i++) {
+    repeatedContent.push(...tickerMessages);
+  }
 
   return (
     <div className="storefront" style={themeVars as React.CSSProperties}>
       {/* Announcement bar */}
       {showAnnouncement && (
-        <div className="sf-announcement">
-          {config!.announcement_bar_text}
+        <div 
+          className="sf-announcement" 
+          style={{ backgroundColor: annBg, color: annColor, fontFamily: annFont }}
+        >
+          {isTicker ? (
+            <div className="sf-announcement-ticker-wrap">
+              <div className="sf-marquee" style={{ gap: `${tickerSpacing}px`, paddingRight: `${tickerSpacing}px`, animationDuration: `${tickerSpeed}s` }}>
+                {repeatedContent.map((msg, i) => <span key={i}>{msg}</span>)}
+              </div>
+              <div className="sf-marquee" style={{ gap: `${tickerSpacing}px`, paddingRight: `${tickerSpacing}px`, animationDuration: `${tickerSpeed}s` }}>
+                {repeatedContent.map((msg, i) => <span key={`dup-${i}`}>{msg}</span>)}
+              </div>
+            </div>
+          ) : (
+            config?.announcement_bar_text
+          )}
         </div>
       )}
 
       {/* Header */}
-      <header className="sf-header">
+      <header className={`sf-header logo-${headerLayout.logo_position || 'left'}`} style={{ backgroundColor: hBg, color: hColor, fontFamily: hFont }}>
         <div className="sf-header-inner">
-          <button className="sf-mobile-menu-btn" onClick={() => setMenuOpen(!menuOpen)}>
+          <button className="sf-mobile-menu-btn" style={{ color: hColor }} onClick={() => setMenuOpen(!menuOpen)}>
             {menuOpen ? <X size={24} /> : <Menu size={24} />}
           </button>
 
@@ -55,21 +101,21 @@ function StorefrontShell() {
             {config?.logo_url ? (
               <img src={config.logo_url} alt={config.store_name} className="sf-logo-img" />
             ) : (
-              <span className="sf-logo-text">{config?.store_name || 'Store'}</span>
+              <span className="sf-logo-text" style={{ color: hColor }}>{config?.store_name || 'Store'}</span>
             )}
           </Link>
 
-          <nav className={`sf-nav ${menuOpen ? 'open' : ''}`}>
-            <Link to="/shop" className="sf-nav-link">Home</Link>
-            <Link to="/shop/products" className="sf-nav-link">Products</Link>
-            <Link to="/shop/collections" className="sf-nav-link">Collections</Link>
+          <nav className={`sf-nav ${menuOpen ? 'open' : ''}`} style={{ backgroundColor: menuOpen ? hBg : 'transparent' }}>
+            <Link to="/shop" className="sf-nav-link" style={{ color: hColor }}>Home</Link>
+            <Link to="/shop/products" className="sf-nav-link" style={{ color: hColor }}>Products</Link>
+            <Link to="/shop/collections" className="sf-nav-link" style={{ color: hColor }}>Collections</Link>
             {navLinks.map((link, i) => (
-              <Link key={i} to={link.url} className="sf-nav-link">{link.label}</Link>
+              <Link key={i} to={link.url} className="sf-nav-link" style={{ color: hColor }}>{link.label}</Link>
             ))}
           </nav>
 
-          <button className="sf-cart-btn" onClick={openCart}>
-            <ShoppingCart size={22} />
+          <button className="sf-cart-btn" onClick={openCart} style={{ color: cartIconColor }}>
+            <CartIconCmp size={22} />
             {cartCount > 0 && <span className="sf-cart-badge">{cartCount}</span>}
           </button>
         </div>

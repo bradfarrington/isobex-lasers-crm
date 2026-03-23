@@ -5,7 +5,6 @@ import {
   BarChart3,
   Gift,
   Percent,
-  Paintbrush,
   LayoutTemplate,
 } from 'lucide-react';
 
@@ -15,8 +14,7 @@ const storeTabs = [
   { label: 'Inventory', path: '/store/inventory', icon: BarChart3 },
   { label: 'Gift Cards', path: '/store/gift-cards', icon: Gift },
   { label: 'Discounts', path: '/store/discounts', icon: Percent },
-  { label: 'Pages', path: '/store/pages', icon: LayoutTemplate },
-  { label: 'Builder', path: '/store/builder', icon: Paintbrush },
+  { label: 'Builder', path: '/store/builder', icon: LayoutTemplate },
 ];
 
 export function StoreTabBar() {

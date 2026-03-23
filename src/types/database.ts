@@ -343,7 +343,18 @@ export interface StoreConfig {
   announcement_bar_active: boolean;
   header_layout: {
     logo_position: 'left' | 'center';
+    logo_width_desktop?: number;
+    logo_width_mobile?: number;
     nav_links: { label: string; url: string }[];
+    nav_font?: string;
+    nav_color?: string;
+    bg_color?: string;
+    cart_icon_type?: 'ShoppingCart' | 'ShoppingBag' | 'ShoppingBasket';
+    cart_icon_color?: string;
+    announcement_type?: 'static' | 'ticker';
+    announcement_bg_color?: string;
+    announcement_text_color?: string;
+    announcement_font?: string;
   };
   // Footer
   footer_config: {
@@ -557,6 +568,8 @@ export interface CartItem {
 // ─── Store Pages (Page Builder) ─────────────────────────────
 
 export type BlockType =
+  | 'columns'
+  | 'container'
   | 'hero'
   | 'half_hero'
   | 'heading'
@@ -576,6 +589,8 @@ export type BlockType =
   | 'testimonials'
   | 'faq'
   | 'banner'
+  | 'ticker'
+  | 'features'
   | 'custom_html';
 
 export interface PageBlock {

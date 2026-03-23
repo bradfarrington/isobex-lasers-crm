@@ -2,7 +2,7 @@ import type { BlockType } from '@/types/database';
 import {
   Image, Type, Heading, MousePointer, Grid3x3, ShoppingBag,
   Star, Video, HelpCircle, MessageSquare, Minus, MoveVertical,
-  LayoutTemplate, Code, Award, Columns2,
+  LayoutTemplate, Code, Award, Columns2, AlignLeft, LayoutGrid,
 } from 'lucide-react';
 import React from 'react';
 
@@ -19,7 +19,9 @@ interface BlockOption {
   category: string;
 }
 
-const BLOCK_OPTIONS: BlockOption[] = [
+export const BLOCK_OPTIONS: BlockOption[] = [
+  { type: 'columns', label: 'Columns', description: 'Multi-column layout for nesting blocks', icon: <Columns2 size={24} />, category: 'Layout' },
+  { type: 'container', label: 'Container', description: 'A styled box for nesting blocks with custom background', icon: <LayoutTemplate size={24} />, category: 'Layout' },
   { type: 'half_hero', label: 'Half Hero', description: 'Hero banner styled under the navigation bar', icon: <LayoutTemplate size={24} />, category: 'Layout' },
   { type: 'collection_showcase', label: 'Collection Showcase', description: 'A sleek, gapless row of products for a collection', icon: <Grid3x3 size={24} />, category: 'Store' },
   { type: 'category_links', label: 'Category Links', description: 'Large image tiles spanning full width', icon: <Columns2 size={24} />, category: 'Layout' },
@@ -39,10 +41,12 @@ const BLOCK_OPTIONS: BlockOption[] = [
   { type: 'featured_product', label: 'Featured Product', description: 'Spotlight a single product', icon: <Star size={24} />, category: 'Store' },
   { type: 'testimonials', label: 'Testimonials', description: 'Customer reviews and testimonials', icon: <MessageSquare size={24} />, category: 'Content' },
   { type: 'faq', label: 'FAQ', description: 'Frequently asked questions accordion', icon: <HelpCircle size={24} />, category: 'Content' },
+  { type: 'ticker', label: 'Ticker Tape', description: 'Scrolling announcement text', icon: <AlignLeft size={24} />, category: 'Content' },
+  { type: 'features', label: 'Features Grid', description: 'Icons and text grid', icon: <LayoutGrid size={24} />, category: 'Content' },
   { type: 'custom_html', label: 'Custom HTML', description: 'Raw HTML block for advanced users', icon: <Code size={24} />, category: 'Advanced' },
 ];
 
-const CATEGORIES = ['Layout', 'Text', 'Media', 'Store', 'Content', 'Advanced'];
+export const CATEGORIES = ['Layout', 'Text', 'Media', 'Store', 'Content', 'Advanced'];
 
 export function BlockLibrary({ onSelect, onClose }: Props) {
   return (

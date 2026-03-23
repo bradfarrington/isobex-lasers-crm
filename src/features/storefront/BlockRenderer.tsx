@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useStoreConfig } from './useStoreConfig';
 import * as api from '@/lib/api';
+import * as Icons from 'lucide-react';
 import type { PageBlock, Product, Collection } from '@/types/database';
 
 interface Props {
@@ -9,9 +10,58 @@ interface Props {
 }
 
 export function BlockRenderer({ block }: Props) {
+  const isPreview = typeof window !== 'undefined' && window.location.search.includes('preview=true');
+  const content = <BlockContent block={block} />;
+
+  if (isPreview) {
+    return (
+      <div 
+        className="sf-preview-block-wrapper" 
+        data-block-id={block.id}
+        onClick={(e) => {
+          e.stopPropagation();
+          e.preventDefault();
+          window.parent.postMessage({ type: 'BLOCK_CLICKED', blockId: block.id }, '*');
+        }}
+        title={`Click to edit ${block.type} block`}
+      >
+        {content}
+      </div>
+    );
+  }
+
+  return content;
+}
+
+export function BlockContent({ block }: Props) {
   const c = block.config;
 
   switch (block.type) {
+    case 'container':
+      return (
+        <div style={{ backgroundColor: c.bgColor || 'transparent', padding: c.padding || '40px 20px', display: 'flex', justifyContent: 'center' }}>
+          <div style={{ maxWidth: c.maxWidth || '1200px', width: '100%' }}>
+            {(c.blocks || []).map((childBlock: PageBlock) => (
+              <BlockRenderer key={childBlock.id} block={childBlock} />
+            ))}
+          </div>
+        </div>
+      );
+
+    case 'columns':
+      const cols = c.columns || [[], []];
+      return (
+        <div className={`sf-block-columns ${c.stackOnMobile ? 'stack-mobile' : ''}`} style={{ display: 'grid', gridTemplateColumns: `repeat(${cols.length}, 1fr)`, gap: `${c.gap || 16}px`, width: '100%' }}>
+          {cols.map((colBlocks: PageBlock[], idx: number) => (
+            <div key={idx} className="sf-column">
+              {colBlocks.map((childBlock: PageBlock) => (
+                <BlockRenderer key={childBlock.id} block={childBlock} />
+              ))}
+            </div>
+          ))}
+        </div>
+      );
+
     case 'hero':
       return (
         <div
@@ -145,6 +195,43 @@ export function BlockRenderer({ block }: Props) {
           style={{ backgroundColor: c.bgColor || '#1a1a2e', color: c.textColor || '#fff', textAlign: c.align || 'center' }}
         >
           {c.text}
+        </div>
+      );
+
+    case 'ticker':
+      return (
+        <div className="sf-block-ticker" style={{ backgroundColor: c.bgColor || '#000000', color: c.textColor || '#ffffff' }}>
+          <div className="sf-ticker-track" style={{ animationDuration: `${c.speed || 30}s` }}>
+            {Array.from({ length: 15 }).map((_, i) => (
+              <span key={i} className="sf-ticker-item">{c.text}</span>
+            ))}
+          </div>
+        </div>
+      );
+
+    case 'features':
+      return (
+        <div className="sf-block-features">
+          {(c.items || []).map((item: any, i: number) => {
+            // dynamically get Icon component from string name
+            // fall back to default icon or null if not found
+            let IconComponent: any = null;
+            if (item.icon) {
+              const camelName = item.icon.split('-').map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join('');
+              IconComponent = (Icons as any)[camelName] || (Icons as any)[item.icon.charAt(0).toUpperCase() + item.icon.slice(1)];
+            }
+            if (!IconComponent) IconComponent = Icons.Star;
+
+            return (
+              <div key={i} className="sf-feature-card">
+                <div className="sf-feature-icon-wrap">
+                  <IconComponent size={32} />
+                </div>
+                <h4 className="sf-feature-title">{item.title}</h4>
+                <p className="sf-feature-desc">{item.description}</p>
+              </div>
+            );
+          })}
         </div>
       );
 

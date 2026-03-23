@@ -262,6 +262,7 @@ function getBlockLabel(type: BlockType): string {
     category_links: 'Category Links', product_carousel: 'Product Carousel',
     featured_product: 'Featured Product', spacer: 'Spacer', divider: 'Divider', video: 'Video',
     testimonials: 'Testimonials', faq: 'FAQ', banner: 'Banner', custom_html: 'Custom HTML',
+    columns: 'Columns Layout', container: 'Container Block',
   };
   return labels[type] || type;
 }
@@ -284,6 +285,8 @@ function getBlockSummary(block: PageBlock): string {
     case 'spacer': return `${c.height || 40}px`;
     case 'faq': return `${(c.items || []).length} items`;
     case 'testimonials': return `${(c.items || []).length} reviews`;
+    case 'columns': return `${c.columns?.length || 0} columns`;
+    case 'container': return `${(c.blocks || []).length} inner blocks`;
     default: return '';
   }
 }
@@ -310,6 +313,8 @@ function getDefaultConfig(type: BlockType): Record<string, any> {
     case 'faq': return { items: [{ question: '', answer: '' }] };
     case 'banner': return { text: 'Banner text', bgColor: '#1a1a2e', textColor: '#ffffff', align: 'center' };
     case 'custom_html': return { html: '' };
+    case 'columns': return { columns: [[], []], gap: 16, stackOnMobile: true };
+    case 'container': return { blocks: [], padding: '40px', bgColor: 'transparent', maxWidth: '1200px' };
     default: return {};
   }
 }
