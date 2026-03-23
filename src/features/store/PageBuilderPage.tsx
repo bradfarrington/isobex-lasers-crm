@@ -313,7 +313,7 @@ function getDefaultConfig(type: BlockType): Record<string, any> {
     case 'faq': return { items: [{ question: '', answer: '' }] };
     case 'banner': return { text: 'Banner text', bgColor: '#1a1a2e', textColor: '#ffffff', align: 'center' };
     case 'custom_html': return { html: '' };
-    case 'columns': return { columns: [[], []], gap: 16, stackOnMobile: true };
+    case 'columns': return { columns: [{ blocks: [] }, { blocks: [] }], gap: 16, stackOnMobile: true };
     case 'container': return { blocks: [], padding: '40px', bgColor: 'transparent', maxWidth: '1200px' };
     default: return {};
   }

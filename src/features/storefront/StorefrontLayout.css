@@ -1133,3 +1133,10 @@
   background: rgba(var(--sf-primary-rgb), 0.02);
   z-index: 10;
 }
+
+/* ─── Columns Block — Mobile Stacking ─── */
+@media (max-width: 768px) {
+  .sf-block-columns.stack-mobile {
+    grid-template-columns: 1fr !important;
+  }
+}

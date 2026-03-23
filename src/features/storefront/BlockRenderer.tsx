@@ -52,13 +52,25 @@ export function BlockContent({ block }: Props) {
       const cols = c.columns || [[], []];
       return (
         <div className={`sf-block-columns ${c.stackOnMobile ? 'stack-mobile' : ''}`} style={{ display: 'grid', gridTemplateColumns: `repeat(${cols.length}, 1fr)`, gap: `${c.gap || 16}px`, width: '100%' }}>
-          {cols.map((colBlocks: PageBlock[], idx: number) => (
-            <div key={idx} className="sf-column">
-              {colBlocks.map((childBlock: PageBlock) => (
-                <BlockRenderer key={childBlock.id} block={childBlock} />
-              ))}
-            </div>
-          ))}
+          {cols.map((col: any, idx: number) => {
+            // Backward compat: old format is plain array, new format is { blocks, bgColor, ... }
+            const colBlocks: PageBlock[] = Array.isArray(col) ? col : (col.blocks || []);
+            const colStyle: React.CSSProperties = Array.isArray(col) ? {} : {
+              backgroundColor: col.bgColor || undefined,
+              borderWidth: col.borderWidth ? `${col.borderWidth}px` : undefined,
+              borderStyle: col.borderWidth ? 'solid' : undefined,
+              borderColor: col.borderColor || undefined,
+              borderRadius: col.borderRadius ? `${col.borderRadius}px` : undefined,
+              padding: col.padding || undefined,
+            };
+            return (
+              <div key={idx} className="sf-column" style={colStyle}>
+                {colBlocks.map((childBlock: PageBlock) => (
+                  <BlockRenderer key={childBlock.id} block={childBlock} />
+                ))}
+              </div>
+            );
+          })}
         </div>
       );
 

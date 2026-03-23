@@ -5,7 +5,7 @@ import { BlockEditor } from './BlockEditor';
 import * as api from '@/lib/api';
 import type { StorePage, PageBlock, BlockType, StoreConfig } from '@/types/database';
 import {
-  ArrowLeft, Save, Eye, Trash2,
+  ArrowLeft, Save, Eye, Trash2, Plus,
   GripVertical, X, Monitor, Smartphone, Layout, Paintbrush,
   Type, ShoppingCart, ShoppingBag, ShoppingBasket, Menu
 } from 'lucide-react';
@@ -52,12 +52,16 @@ export function UnifiedBuilder() {
   // UI Selection State
   const [editingBlockId, setEditingBlockId] = useState<string | null>(null);
   const [activePanel, setActivePanel] = useState<BuilderPanel | null>(null);
+  const [editingColumnTarget, setEditingColumnTarget] = useState<{ blockId: string; colIdx: number } | null>(null);
+  const [columnLibraryTarget, setColumnLibraryTarget] = useState<{ blockId: string; colIdx: number } | null>(null);
+  const [editingSubBlockId, setEditingSubBlockId] = useState<string | null>(null);
 
   // Drag State
   const dragSrcRef = useRef<number | null>(null);
   const [dragTargetIndex, setDragTargetIndex] = useState<number | null>(null);
   const [dragPosition, setDragPosition] = useState<'above' | 'below'>('below');
   const [isCanvasDragOver, setIsCanvasDragOver] = useState(false);
+  const [paletteDragType, setPaletteDragType] = useState<string | null>(null);
 
   // Settings State
   const [config, setConfig] = useState<StoreConfig | null>(null);
@@ -141,6 +145,13 @@ export function UnifiedBuilder() {
   const handlePaletteDragStart = (e: React.DragEvent, type: BlockType) => {
     e.dataTransfer.setData('text/plain', type);
     e.dataTransfer.effectAllowed = 'copy';
+    setPaletteDragType(type);
+  };
+
+  const handlePaletteDragEnd = () => {
+    setPaletteDragType(null);
+    setDragTargetIndex(null);
+    setIsCanvasDragOver(false);
   };
 
   const handleBlockDragStart = (e: React.DragEvent, index: number) => {
@@ -186,18 +197,81 @@ export function UnifiedBuilder() {
       addBlock(data as BlockType, insertAt);
     }
     setDragTargetIndex(null);
+    setPaletteDragType(null);
   };
 
   const handleCanvasDrop = (e: React.DragEvent) => {
     setIsCanvasDragOver(false);
+    setPaletteDragType(null);
     const data = e.dataTransfer.getData('text/plain');
     if (data && data !== '__reorder__') {
       addBlock(data as BlockType);
     }
   };
 
+  // Ghost preview helper
+  const isPaletteDrag = paletteDragType !== null;
+  const ghostOption = paletteDragType ? BLOCK_OPTIONS.find(o => o.type === paletteDragType) : null;
+  const DropGhost = () => ghostOption ? (
+    <div className="ub-drop-ghost">
+      <div className="ub-drop-ghost-icon">{ghostOption.icon}</div>
+      <div className="ub-drop-ghost-text">
+        <span className="ub-drop-ghost-label">{ghostOption.label}</span>
+        <span className="ub-drop-ghost-desc">{ghostOption.description}</span>
+      </div>
+    </div>
+  ) : null;
+
   const updateBlockConfig = (id: string, c: Record<string, any>) => {
     setBlocks(prev => prev.map(b => (b.id === id ? { ...b, config: c } : b)));
+    setHasChanges(true);
+  };
+
+  // ─── Column Operations ───
+  const normalizeCol = (col: any) => Array.isArray(col) ? { blocks: col } : col;
+
+  const addBlockToColumn = (parentBlockId: string, colIdx: number, type: BlockType) => {
+    const newBlock: PageBlock = { id: generateId(), type, config: getDefaultConfig(type) };
+    setBlocks(prev => prev.map(b => {
+      if (b.id !== parentBlockId || b.type !== 'columns') return b;
+      const cols = [...(b.config.columns || [])].map(normalizeCol);
+      cols[colIdx] = { ...cols[colIdx], blocks: [...(cols[colIdx].blocks || []), newBlock] };
+      return { ...b, config: { ...b.config, columns: cols } };
+    }));
+    setColumnLibraryTarget(null);
+    setHasChanges(true);
+  };
+
+  const removeBlockFromColumn = (parentBlockId: string, colIdx: number, blockId: string) => {
+    setBlocks(prev => prev.map(b => {
+      if (b.id !== parentBlockId || b.type !== 'columns') return b;
+      const cols = [...(b.config.columns || [])].map(normalizeCol);
+      cols[colIdx] = { ...cols[colIdx], blocks: (cols[colIdx].blocks || []).filter((sb: PageBlock) => sb.id !== blockId) };
+      return { ...b, config: { ...b.config, columns: cols } };
+    }));
+    setHasChanges(true);
+  };
+
+  const updateColumnStyle = (parentBlockId: string, colIdx: number, styles: Record<string, any>) => {
+    setBlocks(prev => prev.map(b => {
+      if (b.id !== parentBlockId || b.type !== 'columns') return b;
+      const cols = [...(b.config.columns || [])].map(normalizeCol);
+      cols[colIdx] = { ...cols[colIdx], ...styles };
+      return { ...b, config: { ...b.config, columns: cols } };
+    }));
+    setHasChanges(true);
+  };
+
+  const updateSubBlockConfig = (parentBlockId: string, colIdx: number, subBlockId: string, config: Record<string, any>) => {
+    setBlocks(prev => prev.map(b => {
+      if (b.id !== parentBlockId || b.type !== 'columns') return b;
+      const cols = [...(b.config.columns || [])].map(normalizeCol);
+      cols[colIdx] = {
+        ...cols[colIdx],
+        blocks: (cols[colIdx].blocks || []).map((sb: PageBlock) => sb.id === subBlockId ? { ...sb, config } : sb)
+      };
+      return { ...b, config: { ...b.config, columns: cols } };
+    }));
     setHasChanges(true);
   };
 
@@ -287,6 +361,7 @@ export function UnifiedBuilder() {
                           className="ub-library-item"
                           draggable
                           onDragStart={(e) => handlePaletteDragStart(e, opt.type as BlockType)}
+                          onDragEnd={handlePaletteDragEnd}
                           onClick={() => addBlock(opt.type as BlockType)} 
                         >
                           <div className="ub-library-icon">{opt.icon}</div>
@@ -406,7 +481,7 @@ export function UnifiedBuilder() {
               <div 
                 className="sf-builder-mock-container"
                 onDragOver={e => { e.preventDefault(); if (blocks.length === 0) setIsCanvasDragOver(true); }}
-                onDragLeave={e => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setIsCanvasDragOver(false); }}
+                onDragLeave={e => { if (!e.currentTarget.contains(e.relatedTarget as Node)) { setIsCanvasDragOver(false); } }}
               >
                 
                 {/* Global Announcement bar */}
@@ -461,18 +536,18 @@ export function UnifiedBuilder() {
                 {/* Page Blocks Area */}
                 <main className="sf-main" style={{ minHeight: '400px', backgroundColor: 'var(--sf-bg)' }}>
                   {blocks.length === 0 ? (
-                    <div className={`ub-canvas-empty${isCanvasDragOver ? ' drag-over' : ''}`} onDragOver={e => e.preventDefault()} onDrop={e => { e.preventDefault(); e.stopPropagation(); handleCanvasDrop(e); }}>
-                      <div className="ub-canvas-empty-text">Drag blocks here from the Library to build your page.</div>
+                    <div className={`ub-canvas-empty${isCanvasDragOver ? ' drag-over' : ''}`} onDragOver={e => { e.preventDefault(); if (!isCanvasDragOver) setIsCanvasDragOver(true); }} onDrop={e => { e.preventDefault(); e.stopPropagation(); handleCanvasDrop(e); }}>
+                      {isPaletteDrag ? <DropGhost /> : <div className="ub-canvas-empty-text">Drag blocks here from the Library to build your page.</div>}
                     </div>
                   ) : (
                     <div className="ub-native-blocks-wrapper">
                       {blocks.map((block, idx) => (
                         <div key={block.id}>
-                          {dragTargetIndex === idx && dragPosition === 'above' && <div className="ub-preview-drop-indicator" />}
+                          {dragTargetIndex === idx && dragPosition === 'above' && (isPaletteDrag ? <DropGhost /> : <div className="ub-preview-drop-indicator" />)}
                           <div
                             className={`ub-preview-block ${editingBlockId === block.id ? 'editing' : ''} ${dragSrcRef.current === idx ? 'dragging' : ''}`}
                             data-block-label={getBlockLabel(block.type).toUpperCase()}
-                            onClick={(e) => { e.stopPropagation(); setEditingBlockId(block.id); setActivePanel(null); }}
+                            onClick={(e) => { e.stopPropagation(); setEditingBlockId(block.id); setActivePanel(null); setEditingColumnTarget(null); }}
                             draggable
                             onDragStart={(e) => handleBlockDragStart(e, idx)}
                             onDragEnd={handleBlockDragEnd}
@@ -485,11 +560,40 @@ export function UnifiedBuilder() {
                                 <button className="ub-preview-block-btn danger" onClick={(e) => removeBlock(block.id, e)}><Trash2 size={14} /></button>
                               </div>
                             </div>
-                            <div style={{ pointerEvents: 'none' }}>
-                              <BlockContent block={block} />
-                            </div>
+                            {block.type === 'columns' ? (
+                              <ColumnsCanvasBlock
+                                block={block}
+                                editingColumnTarget={editingColumnTarget}
+                                columnLibraryTarget={columnLibraryTarget}
+                                isMobile={previewMode === 'mobile'}
+                                onColumnClick={(colIdx) => {
+                                  setEditingColumnTarget({ blockId: block.id, colIdx });
+                                  setEditingBlockId(block.id);
+                                  setActivePanel(null);
+                                }}
+                                onColumnDrop={(colIdx, type) => addBlockToColumn(block.id, colIdx, type as BlockType)}
+                                onAddClick={(colIdx) => {
+                                  setColumnLibraryTarget({ blockId: block.id, colIdx });
+                                  setEditingBlockId(block.id);
+                                  setActivePanel(null);
+                                }}
+                                onLibrarySelect={(colIdx, type) => addBlockToColumn(block.id, colIdx, type as BlockType)}
+                                onLibraryClose={() => setColumnLibraryTarget(null)}
+                                onSubBlockClick={(colIdx, subBlockId) => {
+                                  setEditingColumnTarget({ blockId: block.id, colIdx });
+                                  setEditingBlockId(block.id);
+                                  setEditingSubBlockId(subBlockId);
+                                  setActivePanel(null);
+                                }}
+                                onSubBlockRemove={(colIdx, subBlockId) => removeBlockFromColumn(block.id, colIdx, subBlockId)}
+                              />
+                            ) : (
+                              <div style={{ pointerEvents: 'none' }}>
+                                <BlockContent block={block} />
+                              </div>
+                            )}
                           </div>
-                          {dragTargetIndex === idx && dragPosition === 'below' && <div className="ub-preview-drop-indicator" />}
+                          {dragTargetIndex === idx && dragPosition === 'below' && (isPaletteDrag ? <DropGhost /> : <div className="ub-preview-drop-indicator" />)}
                         </div>
                       ))}
                     </div>
@@ -546,19 +650,59 @@ export function UnifiedBuilder() {
       {/* ─── RIGHT SIDEBAR (If editing block or setting) ─── */}
       {(editingBlock || activePanel) && (
         <div className="ub-right-sidebar">
-          {editingBlock && (
-            <>
-              <div className="ub-right-header">
-                <h3>{getBlockLabel(editingBlock.type)}</h3>
-                <button className="ub-close-btn" onClick={() => setEditingBlockId(null)}><X size={16} /></button>
-              </div>
-              <div className="ub-right-content">
-                <BlockEditor 
-                  block={editingBlock} 
-                  onChange={(c) => updateBlockConfig(editingBlock.id, c)} 
-                />
-              </div>
-            </>
+          {editingBlock && (() => {
+            // Check if we're editing a sub-block inside a column
+            const isEditingSubBlock = editingSubBlockId && editingColumnTarget && editingColumnTarget.blockId === editingBlock.id;
+            let subBlock: PageBlock | null = null;
+            if (isEditingSubBlock) {
+              const colData = editingBlock.config.columns?.[editingColumnTarget!.colIdx];
+              const colBlocks: PageBlock[] = Array.isArray(colData) ? colData : (colData?.blocks || []);
+              subBlock = colBlocks.find((sb: PageBlock) => sb.id === editingSubBlockId) || null;
+            }
+
+            if (subBlock) {
+              // Render sub-block editor
+              return (
+                <>
+                  <div className="ub-right-header">
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <button className="ub-close-btn" onClick={() => setEditingSubBlockId(null)} title="Back to column">
+                        <ArrowLeft size={16} />
+                      </button>
+                      <h3 style={{ margin: 0 }}>{getBlockLabel(subBlock.type)}</h3>
+                    </div>
+                    <button className="ub-close-btn" onClick={() => { setEditingBlockId(null); setEditingColumnTarget(null); setEditingSubBlockId(null); }}><X size={16} /></button>
+                  </div>
+                  <div className="ub-right-content">
+                    <BlockEditor
+                      block={subBlock}
+                      onChange={(config) => updateSubBlockConfig(editingBlock.id, editingColumnTarget!.colIdx, subBlock!.id, config)}
+                    />
+                  </div>
+                </>
+              );
+            }
+
+            // Render main block editor (or column style editor)
+            return (
+              <>
+                <div className="ub-right-header">
+                  <h3>{getBlockLabel(editingBlock.type)}{editingColumnTarget && editingColumnTarget.blockId === editingBlock.id ? ` — Column ${editingColumnTarget.colIdx + 1}` : ''}</h3>
+                  <button className="ub-close-btn" onClick={() => { setEditingBlockId(null); setEditingColumnTarget(null); setEditingSubBlockId(null); }}><X size={16} /></button>
+                </div>
+                <div className="ub-right-content">
+                  <BlockEditor 
+                    block={editingBlock} 
+                    onChange={(c) => updateBlockConfig(editingBlock.id, c)}
+                    editingColumnIndex={editingColumnTarget?.blockId === editingBlock.id ? editingColumnTarget.colIdx : undefined}
+                    onColumnStyleChange={editingColumnTarget?.blockId === editingBlock.id ? (styles) => updateColumnStyle(editingBlock.id, editingColumnTarget!.colIdx, styles) : undefined}
+                    onSubBlockConfigChange={editingColumnTarget?.blockId === editingBlock.id ? (subBlockId, config) => updateSubBlockConfig(editingBlock.id, editingColumnTarget!.colIdx, subBlockId, config) : undefined}
+                    onRemoveSubBlock={editingColumnTarget?.blockId === editingBlock.id ? (subBlockId) => removeBlockFromColumn(editingBlock.id, editingColumnTarget!.colIdx, subBlockId) : undefined}
+                  />
+                </div>
+              </>
+            );
+          })(
           )}
 
           {activePanel && (
@@ -630,8 +774,118 @@ function getDefaultConfig(type: BlockType): Record<string, any> {
     case 'ticker': return { text: '📢 FREE SHIPPING ON ALL ORDERS', speed: 30, bgColor: '#000000', textColor: '#ffffff' };
     case 'features': return { items: [{ icon: 'check', title: 'Feature 1', description: 'Description here' }, { icon: 'check', title: 'Feature 2', description: 'Description here' }, { icon: 'check', title: 'Feature 3', description: 'Description here' }] };
     case 'custom_html': return { html: '' };
-    case 'columns': return { columns: [[], []], gap: 16, stackOnMobile: true };
+    case 'columns': return { columns: [{ blocks: [] }, { blocks: [] }], gap: 16, stackOnMobile: true };
     case 'container': return { blocks: [], padding: '40px', bgColor: 'transparent', maxWidth: '1200px' };
     default: return {};
   }
+}
+
+// ─── Columns Canvas Component ───────────────────────────────────────
+interface ColumnsCanvasProps {
+  block: PageBlock;
+  editingColumnTarget: { blockId: string; colIdx: number } | null;
+  columnLibraryTarget: { blockId: string; colIdx: number } | null;
+  isMobile?: boolean;
+  onColumnClick: (colIdx: number) => void;
+  onColumnDrop: (colIdx: number, type: string) => void;
+  onAddClick: (colIdx: number) => void;
+  onLibrarySelect: (colIdx: number, type: string) => void;
+  onLibraryClose: () => void;
+  onSubBlockClick: (colIdx: number, subBlockId: string) => void;
+  onSubBlockRemove: (colIdx: number, subBlockId: string) => void;
+}
+
+function ColumnsCanvasBlock({
+  block, editingColumnTarget, columnLibraryTarget, isMobile,
+  onColumnClick, onColumnDrop, onAddClick, onLibrarySelect, onLibraryClose,
+  onSubBlockClick, onSubBlockRemove
+}: ColumnsCanvasProps) {
+  const c = block.config;
+  const cols = c.columns || [{ blocks: [] }, { blocks: [] }];
+  const gap = c.gap || 16;
+  const shouldStack = isMobile && (c.stackOnMobile ?? true);
+
+  return (
+    <div
+      className="ub-columns-canvas"
+      style={{ display: 'grid', gridTemplateColumns: shouldStack ? '1fr' : `repeat(${cols.length}, 1fr)`, gap: `${gap}px`, padding: '8px', minHeight: 80 }}
+      onClick={(e) => e.stopPropagation()}
+    >
+      {cols.map((col: any, idx: number) => {
+        const normalized = Array.isArray(col) ? { blocks: col } : col;
+        const colBlocks: PageBlock[] = normalized.blocks || [];
+        const isSelected = editingColumnTarget?.blockId === block.id && editingColumnTarget?.colIdx === idx;
+        const showLib = columnLibraryTarget?.blockId === block.id && columnLibraryTarget?.colIdx === idx;
+
+        const colStyle: React.CSSProperties = {
+          backgroundColor: normalized.bgColor || undefined,
+          borderWidth: normalized.borderWidth ? `${normalized.borderWidth}px` : undefined,
+          borderStyle: normalized.borderWidth ? 'solid' : undefined,
+          borderColor: normalized.borderColor || undefined,
+          borderRadius: normalized.borderRadius ? `${normalized.borderRadius}px` : undefined,
+          padding: normalized.padding || undefined,
+        };
+
+        return (
+          <div
+            key={idx}
+            className={`ub-column-cell ${isSelected ? 'selected' : ''}`}
+            style={colStyle}
+            onClick={(e) => { e.stopPropagation(); onColumnClick(idx); }}
+            onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); e.currentTarget.classList.add('drag-over'); }}
+            onDragLeave={(e) => { e.currentTarget.classList.remove('drag-over'); }}
+            onDrop={(e) => {
+              e.preventDefault(); e.stopPropagation();
+              e.currentTarget.classList.remove('drag-over');
+              const type = e.dataTransfer.getData('text/plain');
+              if (type && type !== '__reorder__' && type !== 'columns') {
+                onColumnDrop(idx, type);
+              }
+            }}
+          >
+            <div className="ub-column-label">Column {idx + 1}</div>
+
+            {colBlocks.length > 0 ? (
+              <div className="ub-column-blocks">
+                {colBlocks.map((sb: PageBlock) => (
+                  <div key={sb.id} className="ub-column-sub-block" onClick={(e) => { e.stopPropagation(); onSubBlockClick(idx, sb.id); }}>
+                    <span className="ub-column-sub-type">{sb.type.replace('_', ' ')}</span>
+                    <button className="ub-column-sub-delete" onClick={(e) => { e.stopPropagation(); onSubBlockRemove(idx, sb.id); }}>
+                      <Trash2 size={10} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="ub-column-empty">Drop blocks here</div>
+            )}
+
+            <button
+              className="ub-column-add-btn"
+              onClick={(e) => { e.stopPropagation(); onAddClick(idx); }}
+            >
+              <Plus size={12} /> Add
+            </button>
+
+            {showLib && (
+              <div className="ub-column-lib-popup">
+                <div className="ub-column-lib-header">
+                  <span>Add Block to Column {idx + 1}</span>
+                  <button onClick={(e) => { e.stopPropagation(); onLibraryClose(); }}><X size={12} /></button>
+                </div>
+                <div className="ub-column-lib-grid">
+                  {BLOCK_OPTIONS.filter(o => o.type !== 'columns' && o.type !== 'container').map(opt => (
+                    <button key={opt.type} className="ub-column-lib-item" onClick={(e) => { e.stopPropagation(); onLibrarySelect(idx, opt.type); }}>
+                      <span className="ub-column-lib-icon">{opt.icon}</span>
+                      <span className="ub-column-lib-label">{opt.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
 }
