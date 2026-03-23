@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useAlert } from '@/components/ui/AlertDialog';
 import { useNavigate } from 'react-router-dom';
 import { useStoreConfig } from './useStoreConfig';
 import { useCart } from './useCart';
@@ -6,6 +7,7 @@ import * as api from '@/lib/api';
 import type { ShippingRate, DiscountCode, GiftCard } from '@/types/database';
 
 export function StorefrontCheckout() {
+  const { showAlert } = useAlert();
   const navigate = useNavigate();
   const { formatPrice } = useStoreConfig();
   const { items, cartTotal, cartWeight, clearCart } = useCart();
@@ -146,7 +148,7 @@ export function StorefrontCheckout() {
       navigate(`/shop/thank-you/${order.id}`);
     } catch (err) {
       console.error('Order failed:', err);
-      alert('Something went wrong placing your order. Please try again.');
+      showAlert({ title: 'Order Failed', message: 'Something went wrong placing your order. Please try again.', variant: 'danger' });
     } finally {
       setPlacing(false);
     }

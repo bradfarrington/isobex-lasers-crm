@@ -35,6 +35,7 @@ export interface Contact {
   status: string | null;
   created_at: string;
   updated_at: string;
+  unsubscribed: boolean;
   // Joined from companies table
   company?: Company | null;
 }
@@ -60,6 +61,25 @@ export type ContactUpdate = Partial<ContactInsert>;
 
 export type CompanyInsert = Omit<Company, 'id' | 'created_at' | 'updated_at'>;
 export type CompanyUpdate = Partial<CompanyInsert>;
+
+// ─── Business Profile (singleton) ───────────────────────
+export interface BusinessProfile {
+  id: string;
+  business_name: string;
+  business_email: string;
+  business_phone: string;
+  business_website: string;
+  business_address_line_1: string;
+  business_address_line_2: string;
+  business_city: string;
+  business_county: string;
+  business_postcode: string;
+  business_country: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export type BusinessProfileUpdate = Partial<Omit<BusinessProfile, 'id' | 'created_at' | 'updated_at'>>;
 
 // ─── Contact Documents ──────────────────────────────────
 export interface ContactDocument {

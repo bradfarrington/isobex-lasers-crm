@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { useAlert } from '@/components/ui/AlertDialog';
 import { useNavigate } from 'react-router-dom';
 import { BlockEditor } from './BlockEditor';
 import { BlockLibrary } from './BlockLibrary';
@@ -31,6 +32,7 @@ function generateId() {
 
 export function PageBuilderPage() {
   const navigate = useNavigate();
+  const { showConfirm } = useAlert();
 
   // Pages state
   const [pages, setPages] = useState<StorePage[]>([]);
@@ -60,13 +62,16 @@ export function PageBuilderPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  const selectPage = useCallback((page: StorePage) => {
-    if (hasChanges && !window.confirm('You have unsaved changes. Switch page anyway?')) return;
+  const selectPage = useCallback(async (page: StorePage) => {
+    if (hasChanges) {
+      const ok = await showConfirm({ title: 'Unsaved Changes', message: 'You have unsaved changes. Switch page anyway?', variant: 'warning', confirmLabel: 'Switch Page' });
+      if (!ok) return;
+    }
     setSelectedPage(page);
     setBlocks(page.blocks || []);
     setEditingBlockId(null);
     setHasChanges(false);
-  }, [hasChanges]);
+  }, [hasChanges, showConfirm]);
 
   const handleSave = async () => {
     if (!selectedPage) return;

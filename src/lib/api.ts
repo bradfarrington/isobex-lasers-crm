@@ -1752,6 +1752,7 @@ export async function findOrCreateContact(
     source: 'Online Store',
     message: null,
     status: null,
+    unsubscribed: false,
   });
 
   return newContact;
@@ -2028,6 +2029,18 @@ export async function updateEmailCampaign(id: string, updates: EmailCampaignUpda
 export async function deleteEmailCampaign(id: string): Promise<void> {
   const { error } = await supabase.from('email_campaigns').delete().eq('id', id);
   if (error) throw error;
+}
+
+export async function sendCampaign(campaignId: string): Promise<{ sent: number; failed: number; total: number }> {
+  const { data, error } = await supabase.functions.invoke('send-email', {
+    body: { action: 'send_campaign', campaignId },
+  });
+  if (error) {
+    const msg = data?.error || error.message || 'Failed to send campaign';
+    throw new Error(msg);
+  }
+  if (data?.error) throw new Error(data.error);
+  return { sent: data.sent || 0, failed: data.failed || 0, total: data.total || 0 };
 }
 
 // ─── Email Marketing: Campaign Recipients ───────────────────

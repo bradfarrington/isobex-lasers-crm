@@ -38,6 +38,7 @@ const emptyForm: ContactInsert = {
   source: null,
   message: null,
   status: null,
+  unsubscribed: false,
 };
 
 export function CrmPage() {
@@ -171,6 +172,7 @@ export function CrmPage() {
       source: contact.source,
       message: contact.message,
       status: contact.status,
+      unsubscribed: contact.unsubscribed ?? false,
     });
     setModalOpen(true);
   };

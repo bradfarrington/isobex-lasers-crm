@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { useAlert } from '@/components/ui/AlertDialog';
 import { Upload, X, ChevronDown, ChevronRight, Tag } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { GOOGLE_FONTS, MERGE_TAGS, BRAND, loadGoogleFont } from './constants';
@@ -159,6 +160,7 @@ export function FontPicker({ value, onChange }: { value: string; onChange: (v: s
 
 /* ── Image upload to Supabase Storage ── */
 export function ImageUploadButton({ onUploaded }: { onUploaded: (url: string) => void }) {
+  const { showAlert } = useAlert();
   const [uploading, setUploading] = useState(false);
 
   async function handle(e: React.ChangeEvent<HTMLInputElement>) {
@@ -183,7 +185,7 @@ export function ImageUploadButton({ onUploaded }: { onUploaded: (url: string) =>
       onUploaded(data.publicUrl);
     } catch (err: any) {
       console.error('Image upload error:', err);
-      alert(`Image upload failed: ${err.message || err}`);
+      showAlert({ title: 'Upload Failed', message: `Image upload failed: ${err.message || err}`, variant: 'danger' });
     } finally { setUploading(false); e.target.value = ''; }
   }
 

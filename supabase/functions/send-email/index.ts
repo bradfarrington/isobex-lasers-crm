@@ -161,6 +161,122 @@ Deno.serve(async (req: Request) => {
             return jsonRes({ ok: true, sentTo: clientEmail });
         }
 
+        // ─── Action: send_campaign ───────────────
+        if (action === 'send_campaign') {
+            const { campaignId } = body;
+            if (!campaignId) return jsonRes({ error: 'campaignId is required' }, 400);
+
+            // 1. Fetch campaign
+            const { data: campaign, error: campErr } = await supabase
+                .from('email_campaigns')
+                .select('*')
+                .eq('id', campaignId)
+                .single();
+            if (campErr || !campaign) return jsonRes({ error: 'Campaign not found' }, 400);
+            if (!campaign.html_content) return jsonRes({ error: 'Campaign has no HTML content. Build the email first.' }, 400);
+
+            // 2. Mark campaign as sending
+            await supabase.from('email_campaigns').update({ status: 'sending', updated_at: new Date().toISOString() }).eq('id', campaignId);
+
+            // 3. Fetch business profile
+            const { data: bpData } = await supabase.from('business_profile').select('*').limit(1).single();
+            const bp = bpData || {};
+
+            // Build business address string
+            const addrParts = [bp.business_address_line_1, bp.business_address_line_2, bp.business_city, bp.business_county, bp.business_postcode, bp.business_country].filter(Boolean);
+            const businessAddress = addrParts.join(', ');
+
+            // 4. Fetch pending recipients with contact + company
+            const { data: recipients, error: recipErr } = await supabase
+                .from('campaign_recipients')
+                .select('*, contact:contacts(*, company:companies(*))')
+                .eq('campaign_id', campaignId)
+                .eq('status', 'pending');
+            if (recipErr) return jsonRes({ error: `Failed to fetch recipients: ${recipErr.message}` }, 500);
+            if (!recipients || recipients.length === 0) return jsonRes({ error: 'No pending recipients to send to.' }, 400);
+
+            // Get the site URL for unsubscribe links
+            const siteUrl = Deno.env.get('SITE_URL') || Deno.env.get('SUPABASE_URL')?.replace('.supabase.co', '.vercel.app') || 'http://localhost:5173';
+
+            // 5. Send to each recipient
+            let sentCount = 0;
+            let failCount = 0;
+            const batchSize = campaign.batch_size || 50;
+            const batchInterval = campaign.batch_interval || 1000; // ms between batches
+
+            for (let i = 0; i < recipients.length; i++) {
+                const r = recipients[i];
+                const contact = r.contact || {};
+                const company = contact.company || {};
+
+                try {
+                    // Replace merge tags with real data
+                    const contactName = `${contact.first_name || ''} ${contact.last_name || ''}`.trim();
+                    const unsubToken = btoa(contact.id || r.contact_id || r.email);
+                    const unsubLink = `${siteUrl}/unsubscribe/${unsubToken}`;
+
+                    const tagMap: Record<string, string> = {
+                        '{{contact_name}}': contactName || r.email,
+                        '{{contact_first_name}}': contact.first_name || '',
+                        '{{contact_last_name}}': contact.last_name || '',
+                        '{{contact_email}}': contact.email || r.email,
+                        '{{contact_phone}}': contact.phone || '',
+                        '{{company_name}}': company.name || '',
+                        '{{company_website}}': company.website || '',
+                        '{{business_name}}': bp.business_name || '',
+                        '{{business_email}}': bp.business_email || '',
+                        '{{business_phone}}': bp.business_phone || '',
+                        '{{business_website}}': bp.business_website || '',
+                        '{{business_address}}': businessAddress,
+                        '{{current_date}}': new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }),
+                        '{{current_year}}': String(new Date().getFullYear()),
+                        '{{unsubscribe_link}}': unsubLink,
+                    };
+
+                    let personalHtml = campaign.html_content;
+                    let personalSubject = campaign.subject || '';
+                    for (const [tag, val] of Object.entries(tagMap)) {
+                        const re = new RegExp(tag.replace(/[{}]/g, '\\$&'), 'g');
+                        personalHtml = personalHtml.replace(re, val);
+                        personalSubject = personalSubject.replace(re, val);
+                    }
+
+                    await client.send({
+                        from: fromAddress,
+                        to: r.email,
+                        subject: personalSubject,
+                        mimeContent: htmlMime(personalHtml),
+                        replyTo,
+                    });
+
+                    await supabase.from('campaign_recipients').update({ status: 'sent' }).eq('id', r.id);
+                    sentCount++;
+                } catch (sendErr: any) {
+                    console.error(`Failed to send to ${r.email}:`, sendErr?.message || sendErr);
+                    await supabase.from('campaign_recipients').update({ status: 'failed' }).eq('id', r.id);
+                    failCount++;
+                }
+
+                // Batch delay
+                if (batchSize && (i + 1) % batchSize === 0 && i + 1 < recipients.length) {
+                    await new Promise(resolve => setTimeout(resolve, batchInterval));
+                }
+            }
+
+            // 6. Update campaign status
+            const finalStatus = failCount === recipients.length ? 'failed' : 'sent';
+            await supabase.from('email_campaigns').update({
+                status: finalStatus,
+                sent_at: new Date().toISOString(),
+                total_recipients: recipients.length,
+                stats: { sent: sentCount, failed: failCount, total: recipients.length },
+                updated_at: new Date().toISOString(),
+            }).eq('id', campaignId);
+
+            await client.close();
+            return jsonRes({ ok: true, sent: sentCount, failed: failCount, total: recipients.length });
+        }
+
         return jsonRes({ error: `Unknown action: ${action}` }, 400);
 
     } catch (err) {

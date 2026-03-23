@@ -46,14 +46,18 @@ export const MERGE_TAGS = [
     { key: '{{contact_email}}', label: 'Email' },
     { key: '{{contact_phone}}', label: 'Phone' },
   ]},
-  { group: 'Company', tags: [
+  { group: "Contact's Company", tags: [
     { key: '{{company_name}}', label: 'Company Name' },
-    { key: '{{company_website}}', label: 'Website' },
+    { key: '{{company_website}}', label: 'Company Website' },
   ]},
-  { group: 'Business', tags: [
+  { group: 'Your Business', tags: [
     { key: '{{business_name}}', label: 'Business Name' },
     { key: '{{business_email}}', label: 'Business Email' },
     { key: '{{business_phone}}', label: 'Business Phone' },
+    { key: '{{business_website}}', label: 'Business Website' },
+    { key: '{{business_address}}', label: 'Business Address' },
+  ]},
+  { group: 'Utility', tags: [
     { key: '{{current_date}}', label: 'Current Date' },
     { key: '{{current_year}}', label: 'Current Year' },
     { key: '{{unsubscribe_link}}', label: 'Unsubscribe Link' },
@@ -70,7 +74,9 @@ export const SAMPLE_DATA: Record<string, string> = {
   '{{company_website}}': 'https://acme.co.uk',
   '{{business_name}}': 'Isobex Lasers',
   '{{business_email}}': 'info@isobexlasers.com',
-  '{{business_phone}}': '+44 1onal 000000',
+  '{{business_phone}}': '+44 1234 567890',
+  '{{business_website}}': 'https://isobexlasers.com',
+  '{{business_address}}': '123 Industrial Way, Sheffield, S1 1AA',
   '{{current_date}}': new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }),
   '{{current_year}}': String(new Date().getFullYear()),
   '{{unsubscribe_link}}': '#',

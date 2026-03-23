@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { useAlert } from '@/components/ui/AlertDialog';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import 'react-quill-new/dist/quill.snow.css';
 import {
@@ -80,6 +81,7 @@ async function cacheProductData(blocks: BlockData[]): Promise<BlockData[]> {
 
 
 export function EmailBuilderPage() {
+  const { showAlert } = useAlert();
   const navigate = useNavigate();
   const { id: routeId } = useParams();
   const [searchParams] = useSearchParams();
@@ -303,7 +305,7 @@ export function EmailBuilderPage() {
       setTimeout(() => setJustSaved(false), 2000);
     } catch (err) {
       console.error('Save failed:', err);
-      alert('Failed to save. Please try again.');
+      showAlert({ title: 'Save Failed', message: 'Failed to save. Please try again.', variant: 'danger' });
     } finally { setSaving(false); }
   }
 
@@ -470,10 +472,10 @@ export function EmailBuilderPage() {
                       throw new Error(detail);
                     }
                     if (res.data?.error) throw new Error(res.data.error);
-                    alert(`Test email sent to ${testEmail.trim()}!`);
+                    showAlert({ title: 'Test Email Sent', message: `Test email sent to ${testEmail.trim()}!`, variant: 'success' });
                     setShowTestModal(false);
                   } catch (err: any) {
-                    alert(err.message || 'Failed to send test email. Make sure SMTP is configured in Settings → Email / SMTP.');
+                    showAlert({ title: 'Send Failed', message: err.message || 'Failed to send test email. Make sure SMTP is configured in Settings → Email / SMTP.', variant: 'danger' });
                   } finally { setSaving(false); }
                 }}>
                 {saving ? <><Loader2 size={14} className="eb-spin" /> Sending…</> : <><Send size={14} /> Send Test</>}

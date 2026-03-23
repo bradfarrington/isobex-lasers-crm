@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useAlert } from '@/components/ui/AlertDialog';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { PageShell } from '@/components/layout/PageShell';
 import { CampaignsTab } from './CampaignsTab';
@@ -15,6 +16,7 @@ import {
 import './EmailMarketingPage.css';
 
 export function EmailMarketingPage() {
+  const { showConfirm } = useAlert();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const urlTab = searchParams.get('tab');
@@ -43,7 +45,8 @@ export function EmailMarketingPage() {
 
   const handleDelete = async (e: React.MouseEvent, t: EmailTemplate) => {
     e.stopPropagation();
-    if (!confirm(`Delete "${t.name}"? This cannot be undone.`)) return;
+    const ok = await showConfirm({ title: 'Delete Template', message: `Delete "${t.name}"? This cannot be undone.`, variant: 'danger', confirmLabel: 'Delete' });
+    if (!ok) return;
     try {
       await deleteEmailTemplate(t.id);
       setTemplates(prev => prev.filter(x => x.id !== t.id));

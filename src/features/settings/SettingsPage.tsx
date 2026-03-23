@@ -8,8 +8,9 @@ import type { LookupItem } from '@/types/database';
 import { useAlert } from '@/components/ui/AlertDialog';
 import {
   Plus, Pencil, Trash2, X, Check, Mail, Save, Send, Loader2,
-  CheckCircle2, Info, ListFilter,
+  CheckCircle2, Info, ListFilter, Building2,
 } from 'lucide-react';
+import type { BusinessProfile } from '@/types/database';
 import './SettingsPage.css';
 
 /* ═══════════════════════════════════════════
@@ -17,12 +18,13 @@ import './SettingsPage.css';
    ═══════════════════════════════════════════ */
 
 const TABS = [
+  { id: 'business', label: 'Business Profile', icon: Building2 },
   { id: 'lookups', label: 'Lookups', icon: ListFilter },
   { id: 'email', label: 'Email / SMTP', icon: Mail },
 ];
 
 export function SettingsPage() {
-  const [activeTab, setActiveTab] = useState('lookups');
+  const [activeTab, setActiveTab] = useState('business');
 
   return (
     <PageShell
@@ -49,11 +51,206 @@ export function SettingsPage() {
 
         {/* Panel content */}
         <div className="settings-panel" key={activeTab}>
+          {activeTab === 'business' && <BusinessProfilePanel />}
           {activeTab === 'lookups' && <LookupsPanel />}
           {activeTab === 'email' && <SmtpPanel />}
         </div>
       </div>
     </PageShell>
+  );
+}
+
+/* ═══════════════════════════════════════════
+   Business Profile Panel
+   ═══════════════════════════════════════════ */
+
+const EMPTY_PROFILE: Omit<BusinessProfile, 'id' | 'created_at' | 'updated_at'> = {
+  business_name: '',
+  business_email: '',
+  business_phone: '',
+  business_website: '',
+  business_address_line_1: '',
+  business_address_line_2: '',
+  business_city: '',
+  business_county: '',
+  business_postcode: '',
+  business_country: 'United Kingdom',
+};
+
+function BusinessProfilePanel() {
+  const { showAlert } = useAlert();
+  const [form, setForm] = useState({ ...EMPTY_PROFILE });
+  const [profileId, setProfileId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [dirty, setDirty] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const { data, error } = await supabase
+          .from('business_profile')
+          .select('*')
+          .limit(1)
+          .single();
+        if (!error && data) {
+          const p = data as BusinessProfile;
+          setProfileId(p.id);
+          setForm({
+            business_name: p.business_name || '',
+            business_email: p.business_email || '',
+            business_phone: p.business_phone || '',
+            business_website: p.business_website || '',
+            business_address_line_1: p.business_address_line_1 || '',
+            business_address_line_2: p.business_address_line_2 || '',
+            business_city: p.business_city || '',
+            business_county: p.business_county || '',
+            business_postcode: p.business_postcode || '',
+            business_country: p.business_country || 'United Kingdom',
+          });
+        }
+      } catch (err) {
+        console.error('Failed to load business profile:', err);
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
+
+  const handleChange = (field: string, value: string) => {
+    setForm(prev => ({ ...prev, [field]: value }));
+    setDirty(true);
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const payload = { ...form, updated_at: new Date().toISOString() };
+      if (profileId) {
+        const { error } = await supabase.from('business_profile').update(payload).eq('id', profileId);
+        if (error) throw error;
+      } else {
+        const { data, error } = await supabase.from('business_profile').insert(payload).select().single();
+        if (error) throw error;
+        if (data) setProfileId(data.id);
+      }
+      setDirty(false);
+      showAlert({ title: 'Saved', message: 'Business profile updated successfully.', variant: 'success' });
+    } catch (err: unknown) {
+      const msg = err && typeof err === 'object' && 'message' in err ? (err as { message: string }).message : 'Failed to save';
+      showAlert({ title: 'Error', message: msg, variant: 'danger' });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <>
+        <div className="settings-panel-head">
+          <h3>Business Profile</h3>
+          <p className="settings-panel-desc">Loading…</p>
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'center', padding: 'var(--space-12)' }}>
+          <div className="loading-spinner" />
+        </div>
+      </>
+    );
+  }
+
+  return (
+    <>
+      <div className="settings-panel-head">
+        <h3>Business Profile</h3>
+        <p className="settings-panel-desc">
+          Your business details are used in email merge tags and across the CRM.
+        </p>
+      </div>
+
+      <div className="settings-integration-card connected">
+        <div className="settings-integration-icon">
+          <Building2 size={24} />
+        </div>
+        <div className="settings-integration-info">
+          <h4>{form.business_name || 'Your Business'}</h4>
+          <p>{form.business_email || 'Set your business email below'}</p>
+        </div>
+      </div>
+
+      {/* Company Details */}
+      <div className="settings-section">
+        <div className="settings-section-title">Company Details</div>
+        <div className="smtp-field-row">
+          <div className="smtp-field">
+            <label className="smtp-field-label">Business Name</label>
+            <input className="smtp-field-input" value={form.business_name} onChange={e => handleChange('business_name', e.target.value)} placeholder="Isobex Lasers" />
+          </div>
+          <div className="smtp-field">
+            <label className="smtp-field-label">Website</label>
+            <input className="smtp-field-input" value={form.business_website} onChange={e => handleChange('business_website', e.target.value)} placeholder="https://isobexlasers.com" />
+          </div>
+        </div>
+        <div className="smtp-field-row">
+          <div className="smtp-field">
+            <label className="smtp-field-label">Email</label>
+            <input className="smtp-field-input" type="email" value={form.business_email} onChange={e => handleChange('business_email', e.target.value)} placeholder="info@isobexlasers.com" />
+          </div>
+          <div className="smtp-field">
+            <label className="smtp-field-label">Phone</label>
+            <input className="smtp-field-input" value={form.business_phone} onChange={e => handleChange('business_phone', e.target.value)} placeholder="+44 1234 567890" />
+          </div>
+        </div>
+      </div>
+
+      {/* Address */}
+      <div className="settings-section">
+        <div className="settings-section-title">Address</div>
+        <div className="smtp-field-row">
+          <div className="smtp-field">
+            <label className="smtp-field-label">Address Line 1</label>
+            <input className="smtp-field-input" value={form.business_address_line_1} onChange={e => handleChange('business_address_line_1', e.target.value)} placeholder="123 Industrial Way" />
+          </div>
+          <div className="smtp-field">
+            <label className="smtp-field-label">Address Line 2</label>
+            <input className="smtp-field-input" value={form.business_address_line_2} onChange={e => handleChange('business_address_line_2', e.target.value)} placeholder="Unit 4" />
+          </div>
+        </div>
+        <div className="smtp-field-row">
+          <div className="smtp-field">
+            <label className="smtp-field-label">City</label>
+            <input className="smtp-field-input" value={form.business_city} onChange={e => handleChange('business_city', e.target.value)} placeholder="Sheffield" />
+          </div>
+          <div className="smtp-field">
+            <label className="smtp-field-label">County</label>
+            <input className="smtp-field-input" value={form.business_county} onChange={e => handleChange('business_county', e.target.value)} placeholder="South Yorkshire" />
+          </div>
+        </div>
+        <div className="smtp-field-row">
+          <div className="smtp-field">
+            <label className="smtp-field-label">Postcode</label>
+            <input className="smtp-field-input" value={form.business_postcode} onChange={e => handleChange('business_postcode', e.target.value)} placeholder="S1 1AA" />
+          </div>
+          <div className="smtp-field">
+            <label className="smtp-field-label">Country</label>
+            <input className="smtp-field-input" value={form.business_country} onChange={e => handleChange('business_country', e.target.value)} placeholder="United Kingdom" />
+          </div>
+        </div>
+      </div>
+
+      <div className="smtp-info-box">
+        <Info size={14} />
+        <span>
+          These details are used as merge tags in email campaigns (e.g. <code>{'{{business_name}}'}</code>, <code>{'{{business_email}}'}</code>).
+          Update them here and they'll be automatically used when sending emails.
+        </span>
+      </div>
+
+      <div className="settings-form-actions">
+        <button className="btn-brand" onClick={handleSave} disabled={saving || !dirty}>
+          {saving ? <><Loader2 size={16} className="spin" /> Saving…</> : <><Save size={16} /> Save Changes</>}
+        </button>
+      </div>
+    </>
   );
 }
 

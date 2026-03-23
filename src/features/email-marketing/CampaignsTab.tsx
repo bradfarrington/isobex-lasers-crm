@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useAlert } from '@/components/ui/AlertDialog';
 import { useNavigate } from 'react-router-dom';
 import {
   fetchEmailCampaigns,
@@ -10,6 +11,8 @@ import {
   deleteEmailCampaign,
   insertCampaignRecipients,
   deleteCampaignRecipients,
+  sendCampaign,
+  fetchEmailCampaign,
 } from '@/lib/api';
 import type {
   EmailCampaign,
@@ -45,6 +48,7 @@ function statusColor(status: string) {
 
 // ─────────── Main Component ───────────
 export function CampaignsTab({ activeSubTab = 'campaigns' }: CampaignsTabProps) {
+  const { showAlert, showConfirm } = useAlert();
   const navigate = useNavigate();
 
   const [campaigns, setCampaigns] = useState<EmailCampaign[]>([]);
@@ -76,6 +80,7 @@ export function CampaignsTab({ activeSubTab = 'campaigns' }: CampaignsTabProps) 
   const [selectedRecipients, setSelectedRecipients] = useState<string[]>([]);
   const [recipientSearch, setRecipientSearch] = useState('');
   const [saving, setSaving] = useState(false);
+  const [sending, setSending] = useState(false);
 
   // Load data
   const loadData = useCallback(async () => {
@@ -102,7 +107,7 @@ export function CampaignsTab({ activeSubTab = 'campaigns' }: CampaignsTabProps) 
   const filteredContacts = useMemo(() => {
     const q = recipientSearch.toLowerCase();
     return contacts
-      .filter(c => c.email)
+      .filter(c => c.email && !c.unsubscribed)
       .filter(c =>
         !q ||
         `${c.first_name} ${c.last_name}`.toLowerCase().includes(q) ||
@@ -113,7 +118,8 @@ export function CampaignsTab({ activeSubTab = 'campaigns' }: CampaignsTabProps) 
   // ── Campaign List ──
   const handleDelete = async (e: React.MouseEvent, c: EmailCampaign) => {
     e.stopPropagation();
-    if (!confirm(`Delete campaign "${c.name}"?`)) return;
+    const ok = await showConfirm({ title: 'Delete Campaign', message: `Delete campaign "${c.name}"?`, variant: 'danger', confirmLabel: 'Delete' });
+    if (!ok) return;
     try {
       await deleteEmailCampaign(c.id);
       setCampaigns(prev => prev.filter(x => x.id !== c.id));
@@ -178,11 +184,11 @@ export function CampaignsTab({ activeSubTab = 'campaigns' }: CampaignsTabProps) 
   // ── Wizard: Save & Send ──
   const handleSave = async () => {
     if (!form.name.trim() || !form.subject.trim()) {
-      alert('Campaign name and subject are required.');
+      showAlert({ title: 'Missing Fields', message: 'Campaign name and subject are required.', variant: 'warning' });
       return;
     }
     if (selectedRecipients.length === 0) {
-      alert('Select at least one recipient.');
+      showAlert({ title: 'No Recipients', message: 'Select at least one recipient.', variant: 'warning' });
       return;
     }
 
@@ -232,9 +238,51 @@ export function CampaignsTab({ activeSubTab = 'campaigns' }: CampaignsTabProps) 
       setView('list');
     } catch (err) {
       console.error('Failed to create campaign:', err);
-      alert('Failed to create campaign.');
+      showAlert({ title: 'Error', message: 'Failed to create campaign.', variant: 'danger' });
     } finally {
       setSaving(false);
+    }
+  };
+
+  // ── Send Campaign ──
+  const handleSendCampaign = async (campaignId: string) => {
+    const campaign = campaigns.find(c => c.id === campaignId);
+    if (!campaign) return;
+
+    // Must have html_content
+    if (!campaign.html_content) {
+      showAlert({ title: 'No Email Content', message: 'This campaign has no email content. Open it in the email builder and save it first.', variant: 'warning' });
+      return;
+    }
+
+    const ok = await showConfirm({
+      title: 'Send Campaign',
+      message: `Send "${campaign.name}" to all pending recipients now?`,
+      variant: 'warning',
+      confirmLabel: 'Send Now',
+    });
+    if (!ok) return;
+
+    setSending(true);
+    try {
+      const result = await sendCampaign(campaignId);
+      showAlert({
+        title: 'Campaign Sent',
+        message: `Successfully sent to ${result.sent} of ${result.total} recipients.${result.failed > 0 ? ` ${result.failed} failed.` : ''}`,
+        variant: result.failed > 0 ? 'warning' : 'success',
+      });
+      // Refresh campaign data
+      const updated = await fetchEmailCampaign(campaignId);
+      setCampaigns(prev => prev.map(c => c.id === campaignId ? updated : c));
+      // Refresh recipients if in detail view
+      if (view === 'detail' && selectedCampaignId === campaignId) {
+        const r = await fetchCampaignRecipients(campaignId);
+        setRecipients(r);
+      }
+    } catch (err: any) {
+      showAlert({ title: 'Send Failed', message: err.message || 'Failed to send campaign.', variant: 'danger' });
+    } finally {
+      setSending(false);
     }
   };
 
@@ -328,6 +376,16 @@ export function CampaignsTab({ activeSubTab = 'campaigns' }: CampaignsTabProps) 
             <p className="campaign-detail-subject">{selectedCampaign.subject}</p>
           </div>
           <span className={`campaign-status-badge ${selectedCampaign.status}`}>{selectedCampaign.status}</span>
+          {(selectedCampaign.status === 'draft' || selectedCampaign.status === 'scheduled') && (
+            <button
+              className="btn-secondary"
+              style={{ background: 'var(--color-primary)', color: '#fff', borderColor: 'var(--color-primary)' }}
+              disabled={sending}
+              onClick={() => handleSendCampaign(selectedCampaign.id)}
+            >
+              {sending ? <><Loader2 size={14} className="eb-spin" /> Sending…</> : <><Send size={14} /> Send Now</>}
+            </button>
+          )}
         </div>
 
         {selectedCampaign.sent_at && (
@@ -843,6 +901,16 @@ export function CampaignsTab({ activeSubTab = 'campaigns' }: CampaignsTabProps) 
                 </div>
               </div>
               <div className="campaign-card-actions" onClick={e => e.stopPropagation()}>
+                {(c.status === 'draft' || c.status === 'scheduled') && (
+                  <button
+                    className="row-action-btn"
+                    title="Send Now"
+                    disabled={sending}
+                    onClick={e => { e.stopPropagation(); handleSendCampaign(c.id); }}
+                  >
+                    <Send size={14} />
+                  </button>
+                )}
                 <button className="row-action-btn" title="Duplicate" onClick={e => handleDuplicate(e, c)}>
                   <Copy size={14} />
                 </button>

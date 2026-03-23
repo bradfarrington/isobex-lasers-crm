@@ -31,6 +31,7 @@ import { StorefrontCollectionDetail } from '@/features/storefront/StorefrontColl
 import { StorefrontProductDetail } from '@/features/storefront/StorefrontProductDetail';
 import { StorefrontCheckout } from '@/features/storefront/StorefrontCheckout';
 import { StorefrontThankYou } from '@/features/storefront/StorefrontThankYou';
+import { UnsubscribePage } from '@/features/storefront/UnsubscribePage';
 
 export function App() {
   return (
@@ -66,6 +67,9 @@ export function App() {
 
         {/* Page Builder — Full-width, no CRM chrome */}
         <Route path="store/pages" element={<PageBuilderPage />} />
+
+        {/* Public: Unsubscribe */}
+        <Route path="unsubscribe/:token" element={<UnsubscribePage />} />
 
         {/* Public Storefront — no CRM chrome */}
         <Route path="shop" element={<StorefrontLayout />}>
