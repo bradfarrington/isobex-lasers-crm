@@ -143,6 +143,7 @@
 .alert-dialog-btn.confirm.danger {
   background: var(--color-danger);
   border-color: var(--color-danger);
+  color: #ffffff !important;
 }
 
 .alert-dialog-btn.confirm.danger:hover {

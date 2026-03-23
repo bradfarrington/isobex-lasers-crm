@@ -201,19 +201,69 @@ export function DatePicker({
 
 /* ═══════════════════════════════════════
    DATE TIME PICKER
-   Calendar + Hour/Minute selectors
+   Calendar + Custom scrollable time pickers
+   Enforces minimum 5-minutes-in-the-future
    ═══════════════════════════════════════ */
 
 interface DateTimePickerProps {
   value: string;            // yyyy-mm-ddTHH:MM or empty
   onChange: (value: string) => void;
   placeholder?: string;
+  minFutureMinutes?: number; // minimum minutes from now, default 5
 }
+
+/* Small scrollable column for hours or minutes */
+function TimeColumn({
+  items,
+  selected,
+  onSelect,
+  disabledItems,
+}: {
+  items: string[];
+  selected: string;
+  onSelect: (v: string) => void;
+  disabledItems?: Set<string>;
+}) {
+  const listRef = useRef<HTMLDivElement>(null);
+
+  // Scroll selected item into view on mount / change
+  useEffect(() => {
+    if (!listRef.current) return;
+    const idx = items.indexOf(selected);
+    if (idx >= 0) {
+      const el = listRef.current.children[idx] as HTMLElement | undefined;
+      el?.scrollIntoView({ block: 'center', behavior: 'auto' });
+    }
+  }, [selected, items]);
+
+  return (
+    <div className="dtp-time-col" ref={listRef}>
+      {items.map(v => {
+        const disabled = disabledItems?.has(v);
+        return (
+          <button
+            key={v}
+            type="button"
+            className={`dtp-time-item${v === selected ? ' active' : ''}${disabled ? ' disabled' : ''}`}
+            disabled={disabled}
+            onClick={() => !disabled && onSelect(v)}
+          >
+            {v}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+const HOURS = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
+const MINUTES = Array.from({ length: 12 }, (_, i) => String(i * 5).padStart(2, '0'));
 
 export function DateTimePicker({
   value,
   onChange,
   placeholder = 'Select date & time…',
+  minFutureMinutes = 5,
 }: DateTimePickerProps) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -221,8 +271,8 @@ export function DateTimePicker({
   // Parse value: "2026-03-25T14:30"
   const [datePart, timePart] = (value || '').split('T');
   const parsed = datePart ? new Date(datePart + 'T00:00:00') : null;
-  const hour = timePart ? timePart.split(':')[0] : '12';
-  const minute = timePart ? timePart.split(':')[1] : '00';
+  const hour = timePart ? timePart.split(':')[0] : '';
+  const minute = timePart ? timePart.split(':')[1] : '';
 
   const [viewYear, setViewYear] = useState(parsed?.getFullYear() ?? new Date().getFullYear());
   const [viewMonth, setViewMonth] = useState(parsed?.getMonth() ?? new Date().getMonth());
@@ -258,6 +308,47 @@ export function DateTimePicker({
     else setViewMonth(m => m + 1);
   };
 
+  // ── Minimum datetime logic ──
+  const now = new Date();
+  const minTime = new Date(now.getTime() + minFutureMinutes * 60_000);
+  const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  // Date string for yesterday (anything before today is disabled)
+  const minDateStr = todayStr;
+
+  const isDayDisabled = (cellStr: string) => cellStr < minDateStr;
+
+  // Hours/minutes that are too early on today's date
+  const getDisabledHours = (forDate: string): Set<string> => {
+    if (forDate !== todayStr) return new Set();
+    const cutoffHour = minTime.getHours();
+    const cutoffMin = minTime.getMinutes();
+    const disabled = new Set<string>();
+    for (let h = 0; h < 24; h++) {
+      // If every 5-min slot in this hour is before the cutoff, disable it
+      const hStr = String(h).padStart(2, '0');
+      // An hour is disabled if even :55 of that hour is before cutoff
+      const latestInHour = h * 60 + 55;
+      const cutoff = cutoffHour * 60 + cutoffMin;
+      if (latestInHour < cutoff) disabled.add(hStr);
+    }
+    return disabled;
+  };
+
+  const getDisabledMinutes = (forDate: string, forHour: string): Set<string> => {
+    if (forDate !== todayStr) return new Set();
+    const h = parseInt(forHour, 10);
+    const cutoffHour = minTime.getHours();
+    const cutoffMin = minTime.getMinutes();
+    const disabled = new Set<string>();
+    for (const mStr of MINUTES) {
+      const m = parseInt(mStr, 10);
+      const totalMins = h * 60 + m;
+      const cutoff = cutoffHour * 60 + cutoffMin;
+      if (totalMins < cutoff) disabled.add(mStr);
+    }
+    return disabled;
+  };
+
   const buildDays = () => {
     const firstDay = new Date(viewYear, viewMonth, 1);
     let startOffset = firstDay.getDay() - 1;
@@ -280,27 +371,49 @@ export function DateTimePicker({
     return cells;
   };
 
+  // Clamp time if the chosen combination would be in the past
+  const clampTime = (dateStr: string, h: string, m: string): [string, string] => {
+    if (dateStr !== todayStr) return [h, m];
+    const cutoffHour = minTime.getHours();
+    const cutoffMin = minTime.getMinutes();
+    let hNum = parseInt(h, 10);
+    let mNum = parseInt(m, 10);
+    if (hNum * 60 + mNum < cutoffHour * 60 + cutoffMin) {
+      hNum = cutoffHour;
+      // Round up to next 5-min slot
+      mNum = Math.ceil(cutoffMin / 5) * 5;
+      if (mNum >= 60) { mNum = 0; hNum++; }
+    }
+    return [String(hNum).padStart(2, '0'), String(mNum).padStart(2, '0')];
+  };
+
   const emit = (dateStr: string, h: string, m: string) => {
-    onChange(`${dateStr}T${h.padStart(2, '0')}:${m.padStart(2, '0')}`);
+    const [ch, cm] = clampTime(dateStr, h, m);
+    setSelectedHour(ch);
+    setSelectedMinute(cm);
+    onChange(`${dateStr}T${ch}:${cm}`);
   };
 
   const selectDate = (day: number, month: number, year: number) => {
     const mo = String(month + 1).padStart(2, '0');
     const d = String(day).padStart(2, '0');
-    emit(`${year}-${mo}-${d}`, selectedHour, selectedMinute);
+    const dateStr = `${year}-${mo}-${d}`;
+    // Auto-pick a reasonable time if no time is selected yet
+    const h = selectedHour || String(minTime.getHours()).padStart(2, '0');
+    const m = selectedMinute || String(Math.ceil(minTime.getMinutes() / 5) * 5).padStart(2, '0');
+    emit(dateStr, h, m);
   };
 
-  const today = new Date();
-  const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-
   const handleClear = () => { onChange(''); setOpen(false); };
-  const handleNow = () => {
-    const now = new Date();
-    const h = String(now.getHours()).padStart(2, '0');
-    const m = String(now.getMinutes()).padStart(2, '0');
-    setSelectedHour(h);
+  const handleEarliestSlot = () => {
+    let mNum = Math.ceil(minTime.getMinutes() / 5) * 5;
+    let hNum = minTime.getHours();
+    if (mNum >= 60) { mNum = 0; hNum++; }
+    const m = String(mNum).padStart(2, '0');
+    const hh = String(hNum).padStart(2, '0');
+    setSelectedHour(hh);
     setSelectedMinute(m);
-    emit(todayStr, h, m);
+    emit(todayStr, hh, m);
     setOpen(false);
   };
 
@@ -309,6 +422,8 @@ export function DateTimePicker({
     : '';
 
   const cells = buildDays();
+  const disabledHours = datePart ? getDisabledHours(datePart) : new Set<string>();
+  const disabledMinutes = datePart ? getDisabledMinutes(datePart, selectedHour) : new Set<string>();
 
   return (
     <div className="datepicker" ref={ref}>
@@ -320,7 +435,7 @@ export function DateTimePicker({
       </button>
 
       {open && (
-        <div className="datepicker-dropdown" style={{ width: 280 }}>
+        <div className="datepicker-dropdown dtp-datetime-dropdown">
           <div className="datepicker-nav">
             <button type="button" className="datepicker-nav-btn" onClick={prevMonth}><ChevronLeft size={16} /></button>
             <span className="datepicker-nav-title">{MONTHS[viewMonth]} {viewYear}</span>
@@ -336,29 +451,48 @@ export function DateTimePicker({
               const cellStr = `${cell.year}-${String(cell.month + 1).padStart(2, '0')}-${String(cell.day).padStart(2, '0')}`;
               const isSelected = cellStr === datePart;
               const isToday = cellStr === todayStr;
+              const disabled = isDayDisabled(cellStr);
               return (
                 <button key={i} type="button"
-                  className={['datepicker-day', !cell.isCurrentMonth && 'outside', isSelected && 'selected', isToday && !isSelected && 'today'].filter(Boolean).join(' ')}
-                  onClick={() => selectDate(cell.day, cell.month, cell.year)}>{cell.day}</button>
+                  disabled={disabled}
+                  className={[
+                    'datepicker-day',
+                    !cell.isCurrentMonth && 'outside',
+                    isSelected && 'selected',
+                    isToday && !isSelected && 'today',
+                    disabled && 'past-disabled',
+                  ].filter(Boolean).join(' ')}
+                  onClick={() => !disabled && selectDate(cell.day, cell.month, cell.year)}>{cell.day}</button>
               );
             })}
           </div>
 
-          {/* Time selector */}
-          <div className="datepicker-time">
-            <Clock size={13} style={{ opacity: 0.5, flexShrink: 0 }} />
-            <select className="datepicker-time-select" value={selectedHour} onChange={e => { setSelectedHour(e.target.value); if (datePart) emit(datePart, e.target.value, selectedMinute); }}>
-              {Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0')).map(h => <option key={h} value={h}>{h}</option>)}
-            </select>
-            <span style={{ fontWeight: 700, opacity: 0.4 }}>:</span>
-            <select className="datepicker-time-select" value={selectedMinute} onChange={e => { setSelectedMinute(e.target.value); if (datePart) emit(datePart, selectedHour, e.target.value); }}>
-              {['00','05','10','15','20','25','30','35','40','45','50','55'].map(m => <option key={m} value={m}>{m}</option>)}
-            </select>
+          {/* Custom scrollable time pickers */}
+          <div className="dtp-time-section">
+            <div className="dtp-time-label">
+              <Clock size={13} />
+              <span>Time</span>
+            </div>
+            <div className="dtp-time-cols">
+              <TimeColumn
+                items={HOURS}
+                selected={selectedHour}
+                disabledItems={disabledHours}
+                onSelect={h => { setSelectedHour(h); if (datePart) emit(datePart, h, selectedMinute || '00'); }}
+              />
+              <div className="dtp-time-sep">:</div>
+              <TimeColumn
+                items={MINUTES}
+                selected={selectedMinute}
+                disabledItems={disabledMinutes}
+                onSelect={m => { setSelectedMinute(m); if (datePart) emit(datePart, selectedHour || '12', m); }}
+              />
+            </div>
           </div>
 
           <div className="datepicker-footer">
             <button type="button" className="datepicker-footer-btn" onClick={handleClear}>Clear</button>
-            <button type="button" className="datepicker-footer-btn primary" onClick={handleNow}>Now</button>
+            <button type="button" className="datepicker-footer-btn primary" onClick={handleEarliestSlot}>Earliest</button>
           </div>
         </div>
       )}

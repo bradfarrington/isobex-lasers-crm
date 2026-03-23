@@ -65,7 +65,7 @@ export function CampaignsTab({ activeSubTab = 'campaigns' }: CampaignsTabProps) 
   const [view, setView] = useState<'list' | 'create' | 'detail'>(
     activeSubTab === 'analytics' ? 'list' : 'list'
   );
-  const [showAnalytics, setShowAnalytics] = useState(activeSubTab === 'analytics');
+  const showAnalytics = activeSubTab === 'analytics';
   const [selectedCampaignId, setSelectedCampaignId] = useState<string | null>(null);
   const [recipients, setRecipients] = useState<CampaignRecipient[]>([]);
 
@@ -240,6 +240,18 @@ export function CampaignsTab({ activeSubTab = 'campaigns' }: CampaignsTabProps) 
     if (selectedRecipients.length === 0) {
       showAlert({ title: 'No Recipients', message: 'Select at least one recipient.', variant: 'warning' });
       return;
+    }
+    if (form.sendMode === 'scheduled') {
+      if (!form.scheduledDateTime) {
+        showAlert({ title: 'No Date/Time', message: 'Please pick a date and time for the scheduled send.', variant: 'warning' });
+        return;
+      }
+      const scheduledMs = new Date(form.scheduledDateTime + ':00').getTime();
+      const minMs = Date.now() + 5 * 60_000;
+      if (scheduledMs < minMs) {
+        showAlert({ title: 'Too Soon', message: 'Scheduled time must be at least 5 minutes from now.', variant: 'warning' });
+        return;
+      }
     }
 
     setSaving(true);
@@ -492,12 +504,6 @@ export function CampaignsTab({ activeSubTab = 'campaigns' }: CampaignsTabProps) 
     const totalSent = sentCampaigns.reduce((s, c) => s + c.total_recipients, 0);
     return (
       <div className="analytics-overview">
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--space-5)' }}>
-          <h2 style={{ margin: 0 }}>Email Analytics</h2>
-          <button className="btn-secondary" onClick={() => setShowAnalytics(false)}>
-            <Mail size={14} /> View Campaigns
-          </button>
-        </div>
         <div className="analytics-stats-grid" style={{ marginBottom: 'var(--space-6)' }}>
           <div className="analytics-stat-card">
             <Send size={20} />
@@ -1069,9 +1075,6 @@ export function CampaignsTab({ activeSubTab = 'campaigns' }: CampaignsTabProps) 
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--space-5)' }}>
         <h2 style={{ margin: 0 }}>Campaigns</h2>
         <div style={{ display: 'flex', gap: 'var(--space-3)' }}>
-          <button className="btn-secondary" onClick={() => setShowAnalytics(true)}>
-            <BarChart3 size={14} /> Analytics
-          </button>
           <button
             className="btn-secondary"
             style={{ background: 'var(--color-primary)', color: '#fff', borderColor: 'var(--color-primary)' }}

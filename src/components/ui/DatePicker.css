@@ -240,3 +240,107 @@
   outline: none;
   border-color: var(--color-primary);
 }
+
+/* ── Disabled past days ── */
+.datepicker-day.past-disabled {
+  opacity: 0.25;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* ═══════════════════════════════════════
+   DateTimePicker – custom time columns
+   ═══════════════════════════════════════ */
+
+.dtp-datetime-dropdown {
+  width: 320px;
+}
+
+.dtp-time-section {
+  margin-top: var(--space-2);
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--color-border);
+}
+
+.dtp-time-label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  margin-bottom: var(--space-1);
+}
+
+.dtp-time-cols {
+  display: flex;
+  align-items: stretch;
+  gap: var(--space-2);
+  height: 120px;
+}
+
+.dtp-time-col {
+  flex: 1;
+  overflow-y: auto;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-surface);
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border-strong) transparent;
+}
+
+.dtp-time-col::-webkit-scrollbar {
+  width: 4px;
+}
+
+.dtp-time-col::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.dtp-time-col::-webkit-scrollbar-thumb {
+  background: var(--color-border-strong);
+  border-radius: 2px;
+}
+
+.dtp-time-item {
+  display: block;
+  width: 100%;
+  padding: 5px 0;
+  border: none;
+  background: transparent;
+  font-size: var(--font-size-sm);
+  font-family: inherit;
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-primary);
+  text-align: center;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  border-radius: 0;
+}
+
+.dtp-time-item:hover:not(.disabled):not(.active) {
+  background: var(--hover-bg);
+}
+
+.dtp-time-item.active {
+  background: var(--color-primary);
+  color: #fff;
+  font-weight: var(--font-weight-bold);
+}
+
+.dtp-time-item.disabled {
+  opacity: 0.2;
+  cursor: not-allowed;
+}
+
+.dtp-time-sep {
+  display: flex;
+  align-items: center;
+  font-weight: 700;
+  font-size: var(--font-size-lg);
+  color: var(--color-text-tertiary);
+  opacity: 0.4;
+}
+
