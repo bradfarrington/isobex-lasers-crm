@@ -3,6 +3,7 @@ import { StoreConfigProvider, useStoreConfig } from './useStoreConfig';
 import { CartProvider, useCart } from './useCart';
 import { CartSidebar } from './CartSidebar';
 import { ShoppingCart, ShoppingBag, ShoppingBasket, Menu, X } from 'lucide-react';
+import { SocialIcon } from './SocialIcons';
 import { useState, useEffect } from 'react';
 import './StorefrontLayout.css';
 
@@ -14,6 +15,39 @@ function StorefrontShell() {
 
   // Close mobile menu on route change
   useEffect(() => { setMenuOpen(false); }, [location.pathname]);
+
+  // Dynamically load Google Fonts for heading, body, and footer fonts
+  useEffect(() => {
+    const fonts = new Set<string>();
+    if (config?.font_heading && config.font_heading !== 'Inter') fonts.add(config.font_heading);
+    if (config?.font_body && config.font_body !== 'Inter') fonts.add(config.font_body);
+    const footerFont = (config?.footer_config as any)?.font;
+    if (footerFont && footerFont !== 'Inter') fonts.add(footerFont);
+    const links: HTMLLinkElement[] = [];
+    fonts.forEach(f => {
+      const link = document.createElement('link');
+      link.rel = 'stylesheet';
+      link.href = `https://fonts.googleapis.com/css2?family=${encodeURIComponent(f)}:wght@400;600;700&display=swap`;
+      document.head.appendChild(link);
+      links.push(link);
+    });
+    return () => { links.forEach(l => l.parentNode?.removeChild(l)); };
+  }, [config?.font_heading, config?.font_body, (config?.footer_config as any)?.font]);
+
+  // Dynamically inject favicon into document head
+  useEffect(() => {
+    if (!config?.favicon_url) return;
+    let link = document.querySelector("link[rel~='icon']") as HTMLLinkElement | null;
+    if (!link) {
+      link = document.createElement('link');
+      link.rel = 'icon';
+      document.head.appendChild(link);
+    }
+    link.href = config.favicon_url;
+    return () => {
+      if (link && link.parentNode) link.parentNode.removeChild(link);
+    };
+  }, [config?.favicon_url]);
 
   if (loading) {
     return <div className="sf-loading">Loading store...</div>;
@@ -127,32 +161,43 @@ function StorefrontShell() {
       </main>
 
       {/* Footer */}
-      <footer className="sf-footer">
-        <div className="sf-footer-inner">
-          <div className="sf-footer-columns">
-            {(config?.footer_config?.columns || []).map((col, ci) => (
-              <div className="sf-footer-column" key={ci}>
-                <h4>{col.title}</h4>
-                {col.links.map((link, li) => (
-                  <Link key={li} to={link.url} className="sf-footer-link">{link.label}</Link>
+      {(() => {
+        const fc: any = config?.footer_config || {};
+        const fStyle: Record<string, string> = {};
+        if (fc.bg_color) fStyle.backgroundColor = fc.bg_color;
+        if (fc.text_color) fStyle.color = fc.text_color;
+        if (fc.font) fStyle.fontFamily = `'${fc.font}', sans-serif`;
+        const headingColor = fc.heading_color || undefined;
+        const linkColor = fc.link_color || undefined;
+        return (
+          <footer className="sf-footer" style={fStyle}>
+            <div className="sf-footer-inner">
+              <div className="sf-footer-columns">
+                {(config?.footer_config?.columns || []).map((col, ci) => (
+                  <div className="sf-footer-column" key={ci}>
+                    <h4 style={headingColor ? { color: headingColor } : undefined}>{col.title}</h4>
+                    {col.links.map((link, li) => (
+                      <Link key={li} to={link.url} className="sf-footer-link" style={linkColor ? { color: linkColor } : undefined}>{link.label}</Link>
+                    ))}
+                  </div>
                 ))}
               </div>
-            ))}
-          </div>
-          <div className="sf-footer-bottom">
-            <div className="sf-footer-social">
-              {(config?.footer_config?.social_links || []).map((link, i) => (
-                <a key={i} href={link.url} target="_blank" rel="noopener noreferrer" className="sf-social-link">
-                  {link.platform}
-                </a>
-              ))}
+              <div className="sf-footer-bottom">
+                <div className="sf-footer-social">
+                  {(config?.footer_config?.social_links || []).map((link, i) => (
+                    <a key={i} href={link.url} target="_blank" rel="noopener noreferrer" className="sf-social-link" title={link.platform}>
+                      <SocialIcon platform={link.platform} size={18} />
+                    </a>
+                  ))}
+                </div>
+                <p className="sf-copyright">
+                  {config?.footer_config?.copyright || `© ${new Date().getFullYear()} ${config?.store_name}`}
+                </p>
+              </div>
             </div>
-            <p className="sf-copyright">
-              {config?.footer_config?.copyright || `© ${new Date().getFullYear()} ${config?.store_name}`}
-            </p>
-          </div>
-        </div>
-      </footer>
+          </footer>
+        );
+      })()}
 
       {/* Cart sidebar */}
       <CartSidebar />

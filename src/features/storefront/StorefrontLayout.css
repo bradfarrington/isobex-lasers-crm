@@ -269,37 +269,32 @@
 .sf-footer {
   background: var(--sf-text);
   color: var(--sf-bg);
-  margin-top: 6rem;
+  margin-top: auto;
   border-top: 1px solid rgba(0, 0, 0, 0.1);
   position: relative;
   overflow: hidden;
 }
 
-.sf-footer::before {
-  content: '';
-  position: absolute;
-  top: 0; left: 0; right: 0; height: 4px;
-  background: linear-gradient(90deg, var(--sf-primary), var(--sf-accent));
-}
+/* Gradient decoration removed */
 
 .sf-footer-inner {
   max-width: 1400px;
   margin: 0 auto;
-  padding: 5rem 2rem 3rem;
+  padding: 2rem 2rem 1.5rem;
 }
 
 .sf-footer-columns {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: 4rem;
-  margin-bottom: 4rem;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 2rem;
+  margin-bottom: 1.5rem;
 }
 
 .sf-footer-column h4 {
   font-family: var(--sf-font-heading);
-  font-size: 1.125rem;
+  font-size: 0.9375rem;
   font-weight: 700;
-  margin: 0 0 1.5rem;
+  margin: 0 0 0.75rem;
   letter-spacing: -0.01em;
   opacity: 1;
   color: var(--sf-bg);
@@ -323,12 +318,12 @@
 
 .sf-footer-bottom {
   border-top: 1px solid rgba(255, 255, 255, 0.1);
-  padding-top: 2.5rem;
+  padding-top: 1.25rem;
   display: flex;
   align-items: center;
   justify-content: space-between;
   flex-wrap: wrap;
-  gap: 2rem;
+  gap: 1rem;
 }
 
 .sf-footer-social {

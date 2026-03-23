@@ -5,6 +5,9 @@ import {
   BarChart3,
   Gift,
   Percent,
+  Truck,
+  Search,
+  Globe,
   LayoutTemplate,
 } from 'lucide-react';
 
@@ -14,6 +17,9 @@ const storeTabs = [
   { label: 'Inventory', path: '/store/inventory', icon: BarChart3 },
   { label: 'Gift Cards', path: '/store/gift-cards', icon: Gift },
   { label: 'Discounts', path: '/store/discounts', icon: Percent },
+  { label: 'Shipping', path: '/store/shipping', icon: Truck },
+  { label: 'SEO', path: '/store/seo', icon: Search },
+  { label: 'Domain', path: '/store/domain', icon: Globe },
   { label: 'Builder', path: '/store/builder', icon: LayoutTemplate },
 ];
 

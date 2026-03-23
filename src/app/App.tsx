@@ -11,6 +11,9 @@ import { CollectionsPage } from '@/features/store/CollectionsPage';
 import { InventoryPage } from '@/features/store/InventoryPage';
 import { GiftCardsPage } from '@/features/store/GiftCardsPage';
 import { DiscountsPage } from '@/features/store/DiscountsPage';
+import { ShippingPage } from '@/features/store/ShippingPage';
+import { SeoPage } from '@/features/store/SeoPage';
+import { DomainPage } from '@/features/store/DomainPage';
 import { UnifiedBuilder } from '@/features/store/UnifiedBuilder';
 import { OrdersPage } from '@/features/orders/OrdersPage';
 import { OrderDetailPage } from '@/features/orders/OrderDetailPage';
@@ -50,6 +53,9 @@ export function App() {
           <Route path="store/inventory" element={<InventoryPage />} />
           <Route path="store/gift-cards" element={<GiftCardsPage />} />
           <Route path="store/discounts" element={<DiscountsPage />} />
+          <Route path="store/shipping" element={<ShippingPage />} />
+          <Route path="store/seo" element={<SeoPage />} />
+          <Route path="store/domain" element={<DomainPage />} />
 
           <Route path="orders" element={<OrdersPage />} />
           <Route path="orders/:id" element={<OrderDetailPage />} />

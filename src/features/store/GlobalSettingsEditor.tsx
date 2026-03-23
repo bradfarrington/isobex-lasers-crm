@@ -1,8 +1,7 @@
-import { useState, useEffect } from 'react';
-import * as api from '@/lib/api';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
-import type { StoreConfig, ShippingZone, ShippingRate } from '@/types/database';
-import { Plus, Trash2, Upload } from 'lucide-react';
+import type { StoreConfig } from '@/types/database';
+import { Plus, Upload, ChevronDown, Search } from 'lucide-react';
 import { ColorPicker } from '@/components/ui/ColorPicker';
 
 interface Props {
@@ -17,21 +16,88 @@ const GOOGLE_FONTS = [
   'Source Sans 3', 'DM Sans', 'Space Grotesk', 'Manrope', 'Sora',
 ];
 
-export function GlobalSettingsEditor({ panel, draft, updateDraft }: Props) {
-  // Shipping state
-  const [shippingZones, setShippingZones] = useState<ShippingZone[]>([]);
-  const [shippingRates, setShippingRates] = useState<ShippingRate[]>([]);
-  const [editingZoneId, setEditingZoneId] = useState<string | null>(null);
+/* ── Font loader (deduplicates link tags) ── */
+const _loadedFonts = new Set<string>();
+function loadGoogleFont(name: string) {
+  if (!name || _loadedFonts.has(name)) return;
+  _loadedFonts.add(name);
+  const link = document.createElement('link');
+  link.rel = 'stylesheet';
+  link.href = `https://fonts.googleapis.com/css2?family=${encodeURIComponent(name)}:wght@400;600;700&display=swap`;
+  document.head.appendChild(link);
+}
 
+/* ── Font picker with live preview ── */
+function StoreFontPicker({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const ref = useRef<HTMLDivElement>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
+
+  // Load the currently-selected font
+  useEffect(() => { if (value) loadGoogleFont(value); }, [value]);
+
+  // Focus search on open
+  useEffect(() => { if (open) setTimeout(() => searchRef.current?.focus(), 0); }, [open]);
+
+  // Close on outside click
   useEffect(() => {
-    if (panel === 'shipping') {
-      Promise.all([api.fetchShippingZones(), api.fetchShippingRates()]).then(([zones, rates]) => {
-        setShippingZones(zones);
-        setShippingRates(rates);
-      }).catch(console.error);
-    }
-  }, [panel]);
+    if (!open) return;
+    const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) { setOpen(false); setSearch(''); } };
+    document.addEventListener('mousedown', h);
+    return () => document.removeEventListener('mousedown', h);
+  }, [open]);
 
+  const filtered = GOOGLE_FONTS.filter(f => !search || f.toLowerCase().includes(search.toLowerCase()));
+
+  return (
+    <div className="form-group" style={{ position: 'relative' }} ref={ref}>
+      <label className="form-label">{label}</label>
+      <button
+        type="button"
+        className="form-input ub-font-picker-trigger"
+        onClick={() => setOpen(!open)}
+      >
+        <span style={{ fontFamily: `'${value || 'Inter'}', sans-serif` }}>{value || 'Inter'}</span>
+        <ChevronDown size={14} style={{ opacity: 0.45, flexShrink: 0 }} />
+      </button>
+
+      {open && (
+        <div className="ub-font-dropdown">
+          <div className="ub-font-search-wrap">
+            <Search size={14} className="ub-font-search-icon" />
+            <input
+              ref={searchRef}
+              className="form-input ub-font-search"
+              placeholder="Search fonts…"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+            />
+          </div>
+          <div className="ub-font-list">
+            {filtered.map(f => (
+              <button
+                type="button"
+                key={f}
+                className={`ub-font-item${value === f ? ' active' : ''}`}
+                onClick={() => { loadGoogleFont(f); onChange(f); setOpen(false); setSearch(''); }}
+                onMouseEnter={() => loadGoogleFont(f)}
+                style={{ fontFamily: `'${f}', sans-serif` }}
+              >
+                {f}
+              </button>
+            ))}
+            {filtered.length === 0 && (
+              <div className="ub-font-empty">No fonts match "{search}"</div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export function GlobalSettingsEditor({ panel, draft, updateDraft }: Props) {
   // ─── Header nav link helpers ───────────
   const headerLayout = (draft as any)?.header_layout || { logo_position: 'left', nav_links: [] };
   const navLinks: { label: string; url: string }[] = headerLayout.nav_links || [];
@@ -69,6 +135,21 @@ export function GlobalSettingsEditor({ panel, draft, updateDraft }: Props) {
       updateDraft({ logo_url: publicUrl });
     } catch (err) {
       console.error('Logo upload failed:', err);
+    }
+  };
+
+  const handleFaviconUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const ext = file.name.split('.').pop();
+      const fileName = `favicons/${Date.now()}-${Math.random().toString(36).substring(7)}.${ext}`;
+      const { error: uploadError } = await supabase.storage.from('store-assets').upload(fileName, file);
+      if (uploadError) throw uploadError;
+      const { data: { publicUrl } } = supabase.storage.from('store-assets').getPublicUrl(fileName);
+      updateDraft({ favicon_url: publicUrl });
+    } catch (err) {
+      console.error('Favicon upload failed:', err);
     }
   };
 
@@ -124,81 +205,101 @@ export function GlobalSettingsEditor({ panel, draft, updateDraft }: Props) {
     updateDraft({ footer_config: updated } as any);
   };
 
-  // ─── Shipping helpers ─────────────────
-  const addShippingRate = async (zoneId: string) => {
-    try {
-      const newRate = await api.createShippingRate({
-        zone_id: zoneId,
-        name: 'Standard Delivery',
-        price: 5.0,
-        min_weight_kg: 0,
-        max_weight_kg: null as any,
-        estimated_days_min: 3,
-        estimated_days_max: 5,
-        sort_order: 0,
-        is_active: true,
-      });
-      setShippingRates([...shippingRates, newRate]);
-    } catch (err) {
-      console.error(err);
-    }
-  };
-  const saveRate = async (rate: ShippingRate) => {
-    try {
-      await api.updateShippingRate(rate.id, rate);
-    } catch (err) {
-      console.error(err);
-    }
-  };
-  const updateRate = (id: string, field: string, value: any) => {
-    setShippingRates(prev => prev.map(r => r.id === id ? { ...r, [field]: value } : r));
-  };
-  const deleteRate = async (id: string) => {
-    try {
-      await api.deleteShippingRate(id);
-      setShippingRates(prev => prev.filter(r => r.id !== id));
-    } catch (err) {
-      console.error(err);
-    }
-  };
+
+
 
 
   if (panel === 'brand') {
     return (
       <div className="builder-panel-content">
-        <div className="form-group">
-          <label className="form-label">Store Name</label>
-          <input type="text" className="form-input" value={draft.store_name || ''} onChange={(e) => updateDraft({ store_name: e.target.value })} />
-        </div>
-        <div className="form-group">
-          <label className="form-label">Tagline</label>
-          <input type="text" className="form-input" value={draft.tagline || ''} onChange={(e) => updateDraft({ tagline: e.target.value })} placeholder="Precision laser tech..." />
-        </div>
-        <div className="form-group">
-          <label className="form-label">Logo URL</label>
-          <input type="text" className="form-input" value={draft.logo_url || ''} onChange={(e) => updateDraft({ logo_url: e.target.value })} placeholder="https://..." />
-        </div>
-        <div className="form-group">
-          <label className="form-label">Favicon URL</label>
-          <input type="text" className="form-input" value={draft.favicon_url || ''} onChange={(e) => updateDraft({ favicon_url: e.target.value })} placeholder="https://..." />
-        </div>
-        <div className="form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-          <div className="form-group">
-            <label className="form-label">Currency Symbol</label>
-            <input type="text" className="form-input" value={draft.currency_symbol || '£'} onChange={(e) => updateDraft({ currency_symbol: e.target.value })} />
+        {/* Card 1 — Store Identity */}
+        <div className="ub-settings-card">
+          <div className="ub-settings-card-header">
+            <h3 className="ub-settings-card-title">Store Identity</h3>
           </div>
           <div className="form-group">
-            <label className="form-label">Currency Code</label>
-            <input type="text" className="form-input" value={draft.currency_code || 'GBP'} onChange={(e) => updateDraft({ currency_code: e.target.value })} />
+            <label className="form-label">Store Name</label>
+            <input type="text" className="form-input" value={draft.store_name || ''} onChange={(e) => updateDraft({ store_name: e.target.value })} />
           </div>
         </div>
-      </div>
-    );
-  }
 
-  if (panel === 'colours') {
-    return (
-      <div className="builder-panel-content">
+        {/* Card 2 — Logo */}
+        <div className="ub-settings-card">
+          <div className="ub-settings-card-header">
+            <h3 className="ub-settings-card-title">Logo</h3>
+            <p className="ub-settings-card-desc">Shared with header — changes apply everywhere.</p>
+          </div>
+          <div className="form-group">
+            <label className="ub-logo-upload-zone">
+              {draft.logo_url ? (
+                <>
+                  <img src={draft.logo_url} alt="Logo" className="ub-logo-preview" />
+                  <span className="ub-upload-replace">Click to replace logo</span>
+                </>
+              ) : (
+                <>
+                  <Upload size={24} color="var(--text-tertiary)" />
+                  <span className="ub-upload-title">Drop your logo here, or browse</span>
+                  <span className="ub-upload-hint">Supports PNG, JPG, or SVG</span>
+                </>
+              )}
+              <input type="file" accept="image/*" onChange={handleLogoUpload} style={{ display: 'none' }} />
+            </label>
+            {draft.logo_url && (
+               <button className="btn btn-ghost danger btn-sm" style={{ width: '100%', marginTop: '0.5rem', display: 'flex', justifyContent: 'center' }} onClick={() => updateDraft({ logo_url: null })}>Remove Logo</button>
+            )}
+          </div>
+        </div>
+
+        {/* Card 3 — Favicon */}
+        <div className="ub-settings-card">
+          <div className="ub-settings-card-header">
+            <h3 className="ub-settings-card-title">Favicon</h3>
+            <p className="ub-settings-card-desc">Appears in the browser tab on the live site.</p>
+          </div>
+          <div className="form-group">
+            <label className="ub-logo-upload-zone">
+              {draft.favicon_url ? (
+                <>
+                  <img src={draft.favicon_url} alt="Favicon" className="ub-favicon-preview" />
+                  <span className="ub-upload-replace">Click to replace favicon</span>
+                </>
+              ) : (
+                <>
+                  <Upload size={24} color="var(--text-tertiary)" />
+                  <span className="ub-upload-title">Upload a favicon</span>
+                  <span className="ub-upload-hint">Recommended: 32×32 or 64×64 PNG / ICO</span>
+                </>
+              )}
+              <input type="file" accept="image/png,image/x-icon,image/svg+xml,image/ico,.ico" onChange={handleFaviconUpload} style={{ display: 'none' }} />
+            </label>
+            {draft.favicon_url && (
+              <>
+                <button className="btn btn-ghost danger btn-sm" style={{ width: '100%', marginTop: '0.5rem', display: 'flex', justifyContent: 'center' }} onClick={() => updateDraft({ favicon_url: null })}>Remove Favicon</button>
+                <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.5rem', wordBreak: 'break-all' }}>{draft.favicon_url}</p>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* Card 4 — Currency */}
+        <div className="ub-settings-card">
+          <div className="ub-settings-card-header">
+            <h3 className="ub-settings-card-title">Currency</h3>
+          </div>
+          <div className="form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+            <div className="form-group">
+              <label className="form-label">Symbol</label>
+              <input type="text" className="form-input" value={draft.currency_symbol || '£'} onChange={(e) => updateDraft({ currency_symbol: e.target.value })} />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Code</label>
+              <input type="text" className="form-input" value={draft.currency_code || 'GBP'} onChange={(e) => updateDraft({ currency_code: e.target.value })} />
+            </div>
+          </div>
+        </div>
+
+        {/* Card 5 — Theme Colours */}
         <div className="ub-settings-card">
           <div className="ub-settings-card-header">
             <h3 className="ub-settings-card-title">Theme Colours</h3>
@@ -230,18 +331,8 @@ export function GlobalSettingsEditor({ panel, draft, updateDraft }: Props) {
           <div className="ub-settings-card-header">
             <h3 className="ub-settings-card-title">Global Typography</h3>
           </div>
-          <div className="form-group">
-            <label className="form-label">Heading Font</label>
-            <select className="form-input" value={draft.font_heading || 'Inter'} onChange={(e) => updateDraft({ font_heading: e.target.value })}>
-              {GOOGLE_FONTS.map(f => <option key={f} value={f}>{f}</option>)}
-            </select>
-          </div>
-          <div className="form-group">
-            <label className="form-label">Body Font</label>
-            <select className="form-input" value={draft.font_body || 'Inter'} onChange={(e) => updateDraft({ font_body: e.target.value })}>
-              {GOOGLE_FONTS.map(f => <option key={f} value={f}>{f}</option>)}
-            </select>
-          </div>
+          <StoreFontPicker label="Heading Font" value={draft.font_heading || 'Inter'} onChange={(v) => updateDraft({ font_heading: v })} />
+          <StoreFontPicker label="Body Font" value={draft.font_body || 'Inter'} onChange={(v) => updateDraft({ font_body: v })} />
         </div>
       </div>
     );
@@ -261,13 +352,13 @@ export function GlobalSettingsEditor({ panel, draft, updateDraft }: Props) {
               {draft.logo_url ? (
                 <>
                   <img src={draft.logo_url} alt="Logo" className="ub-logo-preview" />
-                  <span style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>Click to replace logo</span>
+                  <span className="ub-upload-replace">Click to replace logo</span>
                 </>
               ) : (
                 <>
-                  <Upload size={24} color="var(--text-tertiary)" style={{ marginBottom: 12 }} />
-                  <span style={{ fontSize: '0.875rem', fontWeight: 500, color: 'var(--text-primary)' }}>Drop your logo here, or browse</span>
-                  <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: 4 }}>Supports PNG, JPG, or SVG</span>
+                  <Upload size={24} color="var(--text-tertiary)" />
+                  <span className="ub-upload-title">Drop your logo here, or browse</span>
+                  <span className="ub-upload-hint">Supports PNG, JPG, or SVG</span>
                 </>
               )}
               <input type="file" accept="image/*" onChange={handleLogoUpload} style={{ display: 'none' }} />
@@ -479,6 +570,45 @@ export function GlobalSettingsEditor({ panel, draft, updateDraft }: Props) {
   if (panel === 'footer') {
     return (
       <div className="builder-panel-content">
+        {/* Card — Footer Styling */}
+        <div className="ub-settings-card">
+          <div className="ub-settings-card-header">
+            <h3 className="ub-settings-card-title">Footer Styling</h3>
+          </div>
+
+          <div className="form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+            <div className="form-group color-field">
+              <label className="form-label">Background Colour</label>
+              <div className="color-input-wrap">
+                <ColorPicker value={footerConfig.bg_color || '#111827'} onChange={(val) => updateDraft({ footer_config: { ...footerConfig, bg_color: val } } as any)} />
+              </div>
+            </div>
+            <div className="form-group color-field">
+              <label className="form-label">Text Colour</label>
+              <div className="color-input-wrap">
+                <ColorPicker value={footerConfig.text_color || '#d1d5db'} onChange={(val) => updateDraft({ footer_config: { ...footerConfig, text_color: val } } as any)} />
+              </div>
+            </div>
+          </div>
+
+          <div className="form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+            <div className="form-group color-field">
+              <label className="form-label">Heading Colour</label>
+              <div className="color-input-wrap">
+                <ColorPicker value={footerConfig.heading_color || '#ffffff'} onChange={(val) => updateDraft({ footer_config: { ...footerConfig, heading_color: val } } as any)} />
+              </div>
+            </div>
+            <div className="form-group color-field">
+              <label className="form-label">Link Colour</label>
+              <div className="color-input-wrap">
+                <ColorPicker value={footerConfig.link_color || '#9ca3af'} onChange={(val) => updateDraft({ footer_config: { ...footerConfig, link_color: val } } as any)} />
+              </div>
+            </div>
+          </div>
+
+          <StoreFontPicker label="Footer Font" value={footerConfig.font || ''} onChange={(v) => updateDraft({ footer_config: { ...footerConfig, font: v } } as any)} />
+        </div>
+
         <div className="ub-settings-card">
           <div className="ub-settings-card-header">
             <h3 className="ub-settings-card-title">Footer Configuration</h3>
@@ -495,14 +625,14 @@ export function GlobalSettingsEditor({ panel, draft, updateDraft }: Props) {
               <div key={ci} className="ub-settings-item-box">
                 <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
                   <input type="text" className="form-input" value={col.title} onChange={(e) => updateFooterColumn(ci, e.target.value)} placeholder="Column title" style={{ flex: 1 }} />
-                  <button className="btn btn-ghost btn-icon-sm danger" onClick={() => removeFooterColumn(ci)}><Trash2 size={16} color="#ef4444" /></button>
+                  <button className="btn btn-ghost btn-icon-sm danger" onClick={() => removeFooterColumn(ci)} style={{ color: '#ef4444' }}>✕</button>
                 </div>
                 {(col.links || []).map((link: any, li: number) => (
                   <div key={li} style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem', alignItems: 'center' }}>
                     <input type="text" className="form-input" value={link.label} onChange={(e) => updateFooterLink(ci, li, 'label', e.target.value)} placeholder="Label" style={{ width: '40%' }} />
                     <input type="text" className="form-input" value={link.url} onChange={(e) => updateFooterLink(ci, li, 'url', e.target.value)} placeholder="URL" style={{ flex: 1 }} />
                     <div style={{ display: 'flex', flexShrink: 0 }}>
-                      <button className="btn btn-ghost btn-icon-sm danger" onClick={() => removeFooterLink(ci, li)}>✕</button>
+                      <button className="btn btn-ghost btn-icon-sm danger" onClick={() => removeFooterLink(ci, li)} style={{ color: '#ef4444' }}>✕</button>
                     </div>
                   </div>
                 ))}
@@ -542,114 +672,8 @@ export function GlobalSettingsEditor({ panel, draft, updateDraft }: Props) {
     );
   }
 
-  if (panel === 'seo') {
-    return (
-      <div className="builder-panel-content">
-        <div className="ub-settings-card">
-          <div className="ub-settings-card-header">
-            <h3 className="ub-settings-card-title">Search Engine Optimization</h3>
-            <p className="ub-settings-card-desc">Default fallbacks for pages without specific SEO overrides.</p>
-          </div>
-          <div className="form-group">
-            <label className="form-label">Meta Title</label>
-            <input type="text" className="form-input" value={draft.seo_title || ''} onChange={(e) => updateDraft({ seo_title: e.target.value })} placeholder="Isobex Lasers — Premium Laser Equipment" />
-          </div>
-          <div className="form-group">
-            <label className="form-label">Meta Description</label>
-            <textarea className="form-input form-textarea" rows={3} value={draft.seo_description || ''} onChange={(e) => updateDraft({ seo_description: e.target.value })} placeholder="Browse our range of precision laser equipment..." />
-          </div>
-          <div className="form-group">
-            <label className="form-label">Social Share Image URL</label>
-            <input type="text" className="form-input" value={draft.seo_image_url || ''} onChange={(e) => updateDraft({ seo_image_url: e.target.value })} placeholder="https://..." />
-          </div>
-        </div>
-      </div>
-    );
-  }
 
-  if (panel === 'shipping') {
-    return (
-      <div className="builder-panel-content">
-        <div className="ub-settings-card">
-          <div className="ub-settings-card-header">
-            <h3 className="ub-settings-card-title">Shipping Zones</h3>
-            <p className="ub-settings-card-desc">Configure weight-based shipping rates.</p>
-          </div>
-          <div className="form-group">
-            {shippingZones.map((zone) => {
-              const zoneRates = shippingRates.filter((r) => r.zone_id === zone.id);
-              return (
-                <div key={zone.id} className="ub-settings-item-box" style={{ padding: 0, overflow: 'hidden' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem', background: editingZoneId === zone.id ? 'var(--surface-100)' : 'transparent', borderBottom: editingZoneId === zone.id ? '1px solid var(--border-color)' : 'none' }}>
-                    <h4 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 600 }}>{zone.name}</h4>
-                    <button className="btn btn-secondary btn-sm" onClick={() => setEditingZoneId(editingZoneId === zone.id ? null : zone.id)}>
-                      {editingZoneId === zone.id ? 'Collapse' : 'Edit Rates'}
-                    </button>
-                  </div>
 
-                  {editingZoneId === zone.id && (
-                    <div style={{ padding: '1rem' }}>
-                      {zoneRates.map((rate) => (
-                        <div key={rate.id} style={{ padding: '1rem', background: '#ffffff', border: '1px solid var(--border-color)', borderRadius: '6px', marginBottom: '1rem', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
-                          <div className="form-group">
-                            <label className="form-label">Rate Name</label>
-                            <input type="text" className="form-input" value={rate.name} onChange={(e) => updateRate(rate.id, 'name', e.target.value)} onBlur={() => saveRate(rate)} />
-                          </div>
-                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '1rem' }}>
-                            <div className="form-group">
-                              <label className="form-label">Min Wt (kg)</label>
-                              <input type="number" className="form-input" value={rate.min_weight_kg || 0} onChange={(e) => updateRate(rate.id, 'min_weight_kg', Number(e.target.value))} onBlur={() => saveRate(rate)} />
-                            </div>
-                            <div className="form-group">
-                              <label className="form-label">Max Wt (kg)</label>
-                              <input type="number" className="form-input" value={rate.max_weight_kg || ''} onChange={(e) => updateRate(rate.id, 'max_weight_kg', e.target.value === '' ? null : Number(e.target.value))} onBlur={() => saveRate(rate)} />
-                            </div>
-                          </div>
-                          <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem', alignItems: 'flex-end' }}>
-                            <div className="form-group" style={{ flex: 1 }}>
-                              <label className="form-label">Price (£)</label>
-                              <input type="number" className="form-input" value={rate.price} onChange={(e) => updateRate(rate.id, 'price', Number(e.target.value))} onBlur={() => saveRate(rate)} />
-                            </div>
-                            <button className="btn btn-ghost btn-icon-sm danger" onClick={() => deleteRate(rate.id)} style={{ marginBottom: 4 }}>✕</button>
-                          </div>
-                        </div>
-                      ))}
-                      <button className="btn btn-secondary btn-sm" style={{ width: '100%' }} onClick={() => addShippingRate(zone.id)}><Plus size={14} style={{ marginRight: 6 }}/> Add Rate</button>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (panel === 'domain') {
-    return (
-      <div className="builder-panel-content">
-        <p className="form-hint" style={{ fontSize: '0.875rem', marginBottom: '1rem' }}>Connect your store to a custom domain by pointing your domain's CNAME record to your Vercel URL.</p>
-        <div className="form-group">
-          <label className="form-label">Custom Domain</label>
-          <input type="text" className="form-input" value={draft.custom_domain || ''} onChange={(e) => updateDraft({ custom_domain: e.target.value })} placeholder="shop.isobex.co.uk" />
-        </div>
-        {draft.custom_domain && (
-          <div style={{ marginTop: '1rem', padding: '1rem', background: 'var(--bg-surface)', borderRadius: '6px', fontSize: '0.875rem' }}>
-            <h4 style={{ margin: '0 0 0.5rem' }}>DNS Setup Instructions</h4>
-            <ol style={{ paddingLeft: '1.25rem', margin: 0 }}>
-              <li>Go to your domain provider's DNS settings</li>
-              <li>Add a <strong>CNAME</strong> record: 
-                <br />Name: {draft.custom_domain?.split('.')[0] || 'shop'}
-                <br />Value: cname.vercel-dns.com
-              </li>
-              <li>Add <strong>{draft.custom_domain}</strong> to your Vercel project</li>
-            </ol>
-          </div>
-        )}
-      </div>
-    );
-  }
 
   // Not implemented or unknown panel falls back to this message
   return <p className="form-hint" style={{ color: 'var(--color-text-secondary)', fontSize: '0.875rem' }}>Settings form for {panel} goes here.</p>;

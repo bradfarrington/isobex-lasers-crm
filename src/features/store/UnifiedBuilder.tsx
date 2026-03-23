@@ -7,7 +7,7 @@ import type { StorePage, PageBlock, BlockType, StoreConfig } from '@/types/datab
 import {
   ArrowLeft, Save, Eye, Trash2,
   GripVertical, X, Monitor, Smartphone, Layout, Paintbrush,
-  Type, Image as ImageIcon, Search, Truck, Globe, ShoppingCart, ShoppingBag, ShoppingBasket, Menu
+  Type, ShoppingCart, ShoppingBag, ShoppingBasket, Menu
 } from 'lucide-react';
 import './UnifiedBuilder.css';
 import '../storefront/StorefrontLayout.css';
@@ -15,20 +15,16 @@ import { GlobalSettingsEditor } from './GlobalSettingsEditor';
 import { BLOCK_OPTIONS, CATEGORIES } from './BlockLibrary';
 import { StoreConfigContext } from '../storefront/useStoreConfig';
 import { BlockContent } from '../storefront/BlockRenderer';
+import { SocialIcon } from '../storefront/SocialIcons';
 
 type LeftTab = 'library' | 'layout' | 'settings';
-type BuilderPanel = 'brand' | 'colours' | 'typography' | 'header' | 'footer' | 'homepage' | 'seo' | 'shipping' | 'domain';
+type BuilderPanel = 'brand' | 'typography' | 'header' | 'footer';
 
 const SETTINGS_PANELS: { key: BuilderPanel; label: string; icon: any }[] = [
-  { key: 'brand', label: 'Brand', icon: Paintbrush },
-  { key: 'colours', label: 'Colours', icon: Paintbrush },
+  { key: 'brand', label: 'Brand & Colours', icon: Paintbrush },
   { key: 'typography', label: 'Typography', icon: Type },
   { key: 'header', label: 'Header', icon: Layout },
   { key: 'footer', label: 'Footer', icon: Layout },
-  { key: 'homepage', label: 'Homepage', icon: ImageIcon },
-  { key: 'seo', label: 'SEO', icon: Search },
-  { key: 'shipping', label: 'Shipping', icon: Truck },
-  { key: 'domain', label: 'Domain', icon: Globe },
 ];
 
 function generateId() {
@@ -503,30 +499,44 @@ export function UnifiedBuilder() {
                 </main>
 
                 {/* Global Footer */}
-                <footer className={`sf-footer sf-builder-global ${activePanel === 'footer' ? 'editing' : ''}`} onClick={() => { setActivePanel('footer'); setEditingBlockId(null); setLeftTab('settings'); }}>
-                  <div className="sf-footer-inner" style={{ pointerEvents: 'none' }}>
-                    <div className="sf-footer-columns">
-                      {(draftConfig?.footer_config?.columns || []).map((col, ci) => (
-                        <div className="sf-footer-column" key={ci}>
-                          <h4>{col.title}</h4>
-                          {col.links.map((link, li) => (
-                            <span key={li} className="sf-footer-link">{link.label}</span>
+                {(() => {
+                  const fc: any = draftConfig?.footer_config || {};
+                  const fBg = fc.bg_color || undefined;
+                  const fColor = fc.text_color || undefined;
+                  const fFont = fc.font ? `'${fc.font}', sans-serif` : undefined;
+                  const fHeading = fc.heading_color || undefined;
+                  const fLink = fc.link_color || undefined;
+                  return (
+                    <footer
+                      className={`sf-footer sf-builder-global ${activePanel === 'footer' ? 'editing' : ''}`}
+                      style={{ ...(fBg ? { backgroundColor: fBg } : {}), ...(fColor ? { color: fColor } : {}), ...(fFont ? { fontFamily: fFont } : {}) }}
+                      onClick={() => { setActivePanel('footer'); setEditingBlockId(null); setLeftTab('settings'); }}
+                    >
+                      <div className="sf-footer-inner" style={{ pointerEvents: 'none' }}>
+                        <div className="sf-footer-columns">
+                          {(draftConfig?.footer_config?.columns || []).map((col, ci) => (
+                            <div className="sf-footer-column" key={ci}>
+                              <h4 style={fHeading ? { color: fHeading } : undefined}>{col.title}</h4>
+                              {col.links.map((link, li) => (
+                                <span key={li} className="sf-footer-link" style={fLink ? { color: fLink } : undefined}>{link.label}</span>
+                              ))}
+                            </div>
                           ))}
                         </div>
-                      ))}
-                    </div>
-                    <div className="sf-footer-bottom">
-                      <div className="sf-footer-social">
-                        {(draftConfig?.footer_config?.social_links || []).map((link, i) => (
-                          <span key={i} className="sf-social-link">{link.platform}</span>
-                        ))}
+                        <div className="sf-footer-bottom">
+                          <div className="sf-footer-social">
+                            {(draftConfig?.footer_config?.social_links || []).map((link, i) => (
+                              <span key={i} className="sf-social-link" title={link.platform}><SocialIcon platform={link.platform} size={18} /></span>
+                            ))}
+                          </div>
+                          <p className="sf-copyright">
+                            {draftConfig?.footer_config?.copyright || `© ${new Date().getFullYear()} ${draftConfig?.store_name}`}
+                          </p>
+                        </div>
                       </div>
-                      <p className="sf-copyright">
-                        {draftConfig?.footer_config?.copyright || `© ${new Date().getFullYear()} ${draftConfig?.store_name}`}
-                      </p>
-                    </div>
-                  </div>
-                </footer>
+                    </footer>
+                  );
+                })()}
               </div>
             </StoreConfigContext.Provider>
           </div>
