@@ -2,6 +2,12 @@ import mjml2html from 'mjml-browser';
 import { BRAND, SOCIAL_PLATFORMS, replaceMergeTags, loadGoogleFont } from './constants';
 import type { BlockData } from './constants';
 
+/** Ensure a URL has a protocol — adds https:// if missing */
+function normalizeUrl(url: string): string {
+  if (!url || url === '#' || url.startsWith('http://') || url.startsWith('https://') || url.startsWith('mailto:') || url.startsWith('tel:') || url.startsWith('/') || url.startsWith('{{')) return url;
+  return `https://${url}`;
+}
+
 function inlineQuillStyles(html: string, linkColor: string): string {
   if (!html) return html;
   const lc = linkColor || BRAND;
@@ -53,8 +59,10 @@ export function blockToMjml(block: BlockData, gs: Record<string, any> = {}, pres
       const r = data.borderRadius ? `border-radius="${data.borderRadius}px"` : '';
       return `<mj-image src="${data.src}" alt="${data.alt||''}" width="${iw}px" align="${data.align||'center'}" padding="${ps}" ${r} />`;
     }
-    case 'button':
-      return `<mj-button href="${replaceMergeTags(data.link||'#', preserveTags)}" align="${data.align||'center'}" padding="${ps}" inner-padding="${data.paddingV||12}px ${data.paddingH||32}px" background-color="${data.bgColor||BRAND}" color="${data.textColor||'#fff'}" border-radius="${data.borderRadius||8}px" font-weight="${data.fontWeight||600}" font-size="${data.fontSize||15}px" font-family="${font}" ${data.fullWidth?'width="100%"':''}>${data.text||'Button'}</mj-button>`;
+    case 'button': {
+      const btnLink = normalizeUrl(replaceMergeTags(data.link||'#', preserveTags));
+      return `<mj-button href="${btnLink}" align="${data.align||'center'}" padding="${ps}" inner-padding="${data.paddingV||12}px ${data.paddingH||32}px" background-color="${data.bgColor||BRAND}" color="${data.textColor||'#fff'}" border-radius="${data.borderRadius||8}px" font-weight="${data.fontWeight||600}" font-size="${data.fontSize||15}px" font-family="${font}" ${data.fullWidth?'width="100%"':''}>${data.text||'Button'}</mj-button>`;
+    }
     case 'divider':
       return `<mj-divider border-width="${data.thickness||1}px" border-style="${data.style||'solid'}" border-color="${data.color||'#e5e7eb'}" width="${data.width||100}%" padding="${data.marginTop||8}px 0 ${data.marginBottom||8}px" />`;
     case 'spacer':
@@ -69,7 +77,7 @@ export function blockToMjml(block: BlockData, gs: Record<string, any> = {}, pres
       const active = SOCIAL_PLATFORMS.filter(plat => platforms[plat.key]);
       if (active.length === 0) return '';
       const els = active.map(plat =>
-        `<mj-social-element name="${plat.key === 'x' ? 'x-noshare' : plat.key}" href="${platforms[plat.key]}" icon-size="${iconSz}" background-color="transparent" src="${SOCIAL_ICON_URLS[plat.key] || ''}" alt="${plat.label}"></mj-social-element>`
+        `<mj-social-element name="${plat.key === 'x' ? 'x-noshare' : plat.key}" href="${normalizeUrl(platforms[plat.key])}" icon-size="${iconSz}" background-color="transparent" src="${SOCIAL_ICON_URLS[plat.key] || ''}" alt="${plat.label}"></mj-social-element>`
       ).join('');
       return `<mj-social font-size="0" icon-size="${iconSz}" mode="horizontal" padding="${ps}" align="${data.align||'center'}" inner-padding="${Math.round(Number(data.spacing||12)/2)}px">${els}</mj-social>`;
     }

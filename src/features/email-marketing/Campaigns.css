@@ -522,7 +522,7 @@
 .campaign-progress { margin-top: var(--space-5); }
 .campaign-progress-bar { display: flex; height: 12px; border-radius: var(--radius-full); overflow: hidden; background: var(--color-bg-surface); }
 .campaign-progress-seg { transition: width 0.5s ease; }
-.campaign-progress-seg.clicked { background: var(--color-primary); }
+.campaign-progress-seg.clicked { background: #10b981; }
 .campaign-progress-seg.opened  { background: #8b5cf6; }
 .campaign-progress-seg.sent    { background: #3b82f6; }
 .campaign-progress-seg.failed  { background: #ef4444; }

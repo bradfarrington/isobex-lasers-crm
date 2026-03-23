@@ -2036,7 +2036,20 @@ export async function sendCampaign(campaignId: string): Promise<{ sent: number; 
     body: { action: 'send_campaign', campaignId },
   });
   if (error) {
-    const msg = data?.error || error.message || 'Failed to send campaign';
+    // Try to extract the real error message from the response
+    let msg = 'Failed to send campaign';
+    if (data?.error) {
+      msg = data.error;
+    } else if (error.message) {
+      msg = error.message;
+    }
+    // Also try parsing context if available
+    if ((error as any).context) {
+      try {
+        const ctx = await (error as any).context.json();
+        if (ctx?.error) msg = ctx.error;
+      } catch { /* ignore parse errors */ }
+    }
     throw new Error(msg);
   }
   if (data?.error) throw new Error(data.error);

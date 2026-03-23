@@ -241,6 +241,28 @@ Deno.serve(async (req: Request) => {
                         personalSubject = personalSubject.replace(re, val);
                     }
 
+                    // ── Inject email tracking ──────────────────
+                    const trackerBase = `${Deno.env.get('SUPABASE_URL')}/functions/v1/email-tracker`;
+
+                    // 1. Tracking pixel for open detection (before </body>)
+                    const pixelTag = `<img src="${trackerBase}?type=open&rid=${r.id}" width="1" height="1" style="display:block;width:1px;height:1px;border:0;" alt="" />`;
+                    if (personalHtml.includes('</body>')) {
+                        personalHtml = personalHtml.replace('</body>', `${pixelTag}</body>`);
+                    } else {
+                        personalHtml += pixelTag;
+                    }
+
+                    // 2. Wrap links for click tracking (skip unsubscribe links)
+                    personalHtml = personalHtml.replace(
+                        /href="(https?:\/\/[^"]+)"/gi,
+                        (_match: string, linkUrl: string) => {
+                            // Don't wrap unsubscribe links
+                            if (linkUrl.includes('/unsubscribe/')) return `href="${linkUrl}"`;
+                            const encoded = encodeURIComponent(linkUrl);
+                            return `href="${trackerBase}?type=click&rid=${r.id}&url=${encoded}"`;
+                        },
+                    );
+
                     await client.send({
                         from: fromAddress,
                         to: r.email,

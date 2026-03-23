@@ -4,13 +4,14 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import 'react-quill-new/dist/quill.snow.css';
 import {
   ArrowLeft, Save, Eye, Check, GripVertical, Trash2, Plus,
-  Copy, Send, X, Loader2, Settings, Calendar, Undo2, Redo2, Clipboard,
+  Copy, Send, X, Loader2, Settings, Undo2, Redo2, Clipboard,
 } from 'lucide-react';
 import {
   fetchEmailTemplate,
   createEmailTemplate,
   updateEmailTemplate,
   updateEmailCampaign,
+  fetchEmailCampaign,
 } from '@/lib/api';
 import { BLOCK_GROUPS, BRAND, makeBlock } from './builder/constants';
 import type { BlockData } from './builder/constants';
@@ -88,7 +89,7 @@ export function EmailBuilderPage() {
   const campaignId = searchParams.get('campaignId');
   const isCampaignMode = !!campaignId;
 
-  const [templateName, setTemplateName] = useState(isCampaignMode ? 'Campaign Email' : 'Untitled Template');
+  const [templateName, setTemplateName] = useState(isCampaignMode ? '' : 'Untitled Template');
 
   // ── Undo/Redo history ──
   const [blocks, setBlocksRaw] = useState<BlockData[]>([]);
@@ -209,6 +210,23 @@ export function EmailBuilderPage() {
       }).catch(err => console.error('Failed to load template:', err));
     }
   }, [routeId]);
+
+  // Load campaign data when in campaign mode
+  useEffect(() => {
+    if (campaignId) {
+      fetchEmailCampaign(campaignId).then(c => {
+        setTemplateName(c.name || 'Campaign Email');
+        if (c.subject) setSettings(prev => ({ ...prev, subject: c.subject }));
+        if (c.blocks && Array.isArray(c.blocks) && c.blocks.length > 0) {
+          skipHistoryRef.current = true;
+          setBlocks(c.blocks as BlockData[]);
+        }
+        if (c.settings && typeof c.settings === 'object' && Object.keys(c.settings as object).length > 0) {
+          setSettings(prev => ({ ...prev, ...(c.settings as Record<string, any>) }));
+        }
+      }).catch(err => console.error('Failed to load campaign:', err));
+    }
+  }, [campaignId]);
 
   // Block mutations
   function addBlock(type: string, atIdx: number | null = null) {
@@ -334,11 +352,19 @@ export function EmailBuilderPage() {
           </button>
           {isCampaignMode && (
             <button className="btn-secondary" onClick={async () => {
-              const mjmlSource = generateEmailHtml(blocks, settings, true);
-              await updateEmailCampaign(campaignId!, { name: templateName, subject: settings.subject || templateName, blocks, settings, html_content: mjmlSource });
-              navigate(`/email-marketing?tab=campaigns&campaignId=${campaignId}&step=3`);
-            }} style={{ background: '#8b5cf6', color: '#fff', borderColor: '#8b5cf6' }}>
-              <Calendar size={14} /> Save & Schedule
+              setSaving(true);
+              try {
+                const cachedBlocks = await cacheProductData(blocks);
+                const mjmlSource = generateEmailHtml(cachedBlocks, settings, true);
+                await updateEmailCampaign(campaignId!, { name: templateName, subject: settings.subject || templateName, blocks: cachedBlocks, settings, html_content: mjmlSource });
+                navigate(`/email-marketing?tab=campaigns&campaignId=${campaignId}&step=2`);
+              } catch (err) {
+                console.error('Save failed:', err);
+                showAlert({ title: 'Save Failed', message: 'Failed to save. Please try again.', variant: 'danger' });
+              } finally { setSaving(false); }
+            }} style={{ background: '#8b5cf6', color: '#fff', borderColor: '#8b5cf6' }}
+              disabled={saving}>
+              {saving ? <><Loader2 size={14} className="eb-spin" /> Saving…</> : <><Send size={14} /> Save & Continue</>}
             </button>
           )}
           <button className={`btn-secondary${isPreview ? '' : ''}`} onClick={() => setIsPreview(p => !p)}
