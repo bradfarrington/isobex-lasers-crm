@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useStoreConfig } from './useStoreConfig';
 import * as api from '@/lib/api';
@@ -39,8 +39,21 @@ export function BlockContent({ block }: Props) {
   switch (block.type) {
     case 'container':
       return (
-        <div style={{ backgroundColor: c.bgColor || 'transparent', padding: c.padding || '40px 20px', display: 'flex', justifyContent: 'center' }}>
-          <div style={{ maxWidth: c.maxWidth || '1200px', width: '100%' }}>
+        <div style={{
+          backgroundColor: c.bgColor || 'transparent',
+          padding: c.padding || '40px 20px',
+          display: 'flex',
+          justifyContent: 'center',
+          marginTop: c.marginTop || undefined,
+          marginBottom: c.marginBottom || undefined,
+          borderWidth: c.borderWidth ? `${c.borderWidth}px` : undefined,
+          borderStyle: c.borderWidth ? (c.borderStyle || 'solid') : undefined,
+          borderColor: c.borderWidth ? (c.borderColor || '#e5e7eb') : undefined,
+          borderRadius: c.borderRadius ? `${c.borderRadius}px` : undefined,
+          boxShadow: c.shadow ? (c.shadowValue || '0 4px 24px rgba(0,0,0,0.08)') : undefined,
+          overflow: c.overflow || undefined,
+        }}>
+          <div style={{ maxWidth: c.maxWidth || '1200px', width: '100%', display: 'flex', flexDirection: 'column', gap: c.gap ? `${c.gap}px` : undefined }}>
             {(c.blocks || []).map((childBlock: PageBlock) => (
               <BlockRenderer key={childBlock.id} block={childBlock} />
             ))}
@@ -74,42 +87,144 @@ export function BlockContent({ block }: Props) {
         </div>
       );
 
-    case 'hero':
+    case 'hero': {
+      const bgMode = c.bgMode || 'image';
+      const hasImage = bgMode === 'image' && c.imageUrl;
+      const heroStyle: React.CSSProperties = {
+        backgroundImage: hasImage ? `url(${c.imageUrl})` : undefined,
+        backgroundColor: bgMode === 'colour' ? (c.bgColor || 'var(--sf-secondary)') : (!hasImage ? 'var(--sf-secondary)' : undefined),
+        minHeight: c.height || '600px',
+      };
+      const titleStyle: React.CSSProperties = {
+        fontFamily: c.titleFont ? `'${c.titleFont}', sans-serif` : undefined,
+        color: c.titleColor || '#ffffff',
+        fontWeight: c.titleFontWeight || 900,
+        fontSize: c.titleFontSize ? `${c.titleFontSize}px` : undefined,
+      };
+      const subtitleStyle: React.CSSProperties = {
+        color: c.subtitleColor || undefined,
+        fontSize: c.subtitleFontSize ? `${c.subtitleFontSize}px` : undefined,
+      };
+      const buttons = Array.isArray(c.buttons) ? c.buttons : (c.ctaText ? [{ text: c.ctaText, link: c.ctaLink, bgColor: c.ctaBgColor, textColor: c.ctaTextColor, radius: c.ctaRadius, size: c.ctaSize, fontSize: c.ctaFontSize }] : []);
+      const ctaSizePadding: Record<string, string> = { sm: '0.75rem 1.5rem', md: '1.25rem 3.5rem', lg: '1.5rem 4rem' };
+
       return (
-        <div
-          className="sf-block-hero"
-          style={{
-            backgroundImage: c.imageUrl ? `url(${c.imageUrl})` : undefined,
-            backgroundColor: !c.imageUrl ? 'var(--sf-secondary)' : undefined,
-          }}
-        >
-          <div className="sf-block-hero-overlay" style={{ opacity: c.overlayOpacity || 0.4 }} />
+        <div className="sf-block-hero" style={heroStyle}>
+          <div className="sf-block-hero-overlay" style={{
+            opacity: c.overlayOpacity ?? 0.4,
+            backgroundColor: c.overlayColor || undefined,
+          }} />
           <div className="sf-block-hero-content">
-            <h1>{c.title}</h1>
-            {c.subtitle && <p>{c.subtitle}</p>}
-            {c.ctaText && <Link to={c.ctaLink || '/shop/products'} className="sf-hero-cta">{c.ctaText}</Link>}
+            <h1 style={titleStyle}>{c.title}</h1>
+            {c.subtitle && <p style={subtitleStyle}>{c.subtitle}</p>}
+            {buttons.length > 0 && (
+              <div style={{ display: 'flex', gap: `${c.buttonSpacing ?? 16}px`, justifyContent: 'center', flexWrap: 'wrap', marginTop: '2rem' }}>
+                {buttons.map((btn: any, i: number) => (
+                  <Link key={i} to={btn.link || '/shop/products'} className="sf-hero-cta" style={{
+                    backgroundColor: btn.bgColor || undefined,
+                    color: btn.textColor || '#ffffff',
+                    borderRadius: btn.radius != null ? `${btn.radius}px` : undefined,
+                    padding: ctaSizePadding[btn.size || 'md'],
+                    fontSize: btn.fontSize ? `${btn.fontSize}px` : undefined,
+                  }}>{btn.text}</Link>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       );
+    }
 
-    case 'half_hero':
+    case 'half_hero': {
+      const bgMode = c.bgMode || 'image';
+      const hasImage = bgMode === 'image' && c.imageUrl;
+      const bgStyle: React.CSSProperties = {
+        height: c.height || '600px',
+        backgroundColor: bgMode === 'colour' ? (c.bgColor || 'var(--sf-secondary)') : (!hasImage ? 'var(--sf-secondary)' : undefined),
+      };
+      const cardBgHex = c.cardBgColor || '#000000';
+      const cardBgOpacity = c.cardBgOpacity ?? 0.4;
+      // Convert hex to rgba
+      const hexToRgba = (hex: string, alpha: number) => {
+        const h = hex.replace('#', '');
+        const r = parseInt(h.substring(0, 2), 16) || 0;
+        const g = parseInt(h.substring(2, 4), 16) || 0;
+        const b = parseInt(h.substring(4, 6), 16) || 0;
+        return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+      };
+      const cardStyle: React.CSSProperties = {
+        backgroundColor: hexToRgba(cardBgHex, cardBgOpacity),
+        borderRadius: c.cardRadius != null ? `${c.cardRadius}px` : undefined,
+        backdropFilter: c.cardBlur !== false ? `blur(${c.cardBlurAmount || 10}px)` : undefined,
+        WebkitBackdropFilter: c.cardBlur !== false ? `blur(${c.cardBlurAmount || 10}px)` : undefined,
+      };
+      const titleStyle: React.CSSProperties = {
+        fontFamily: c.titleFont ? `'${c.titleFont}', sans-serif` : undefined,
+        color: c.titleColor || '#ffffff',
+        fontWeight: c.titleFontWeight || 900,
+        fontSize: c.titleFontSize ? `${c.titleFontSize}px` : undefined,
+      };
+      const ctaSizePadding: Record<string, string> = { sm: '0.625rem 1.25rem', md: '1rem 2.5rem', lg: '1.25rem 3.5rem' };
+      const ctaBgColor = c.ctaBgColor || 'var(--sf-primary)';
+      const ctaTextColor = c.ctaTextColor || '#ffffff';
+      const ctaRadius = c.ctaRadius != null ? `${c.ctaRadius}px` : '8px';
+      const defaultCtaFontSize: Record<string, string> = { sm: '0.8125rem', md: '1rem', lg: '1.125rem' };
+
       return (
-        <div className="sf-block-half-hero" style={{ height: c.height || '600px' }}>
-          {c.imageUrl && <img src={c.imageUrl} alt={c.title || 'Hero'} className="sf-half-hero-img" style={{ objectPosition: c.objectPosition || 'center' }} />}
-          {(c.title || c.ctaText) && (
-            <div className="sf-half-hero-content">
-              {c.title && <h2>{c.title}</h2>}
-              {c.ctaText && <Link to={c.ctaLink || '#'} className="sf-btn sf-btn-primary">{c.ctaText}</Link>}
+        <div className="sf-block-half-hero" style={bgStyle}>
+          {hasImage && (
+            <img
+              src={c.imageUrl}
+              alt={c.title || 'Hero'}
+              className="sf-half-hero-img"
+              style={{
+                objectPosition: c.objectPosition || 'center',
+                opacity: c.imageOpacity != null ? c.imageOpacity : 0.85,
+              }}
+            />
+          )}
+          {(hasImage && c.overlayOpacity > 0) && (
+            <div
+              className="sf-half-hero-overlay"
+              style={{ backgroundColor: c.overlayColor || '#000000', opacity: c.overlayOpacity || 0 }}
+            />
+          )}
+          {(c.title || c.subtitle || c.ctaText) && (
+            <div className="sf-half-hero-content" style={cardStyle}>
+              {c.title && <h2 style={titleStyle}>{c.title}</h2>}
+              {c.subtitle && <p className="sf-half-hero-subtitle" style={{ color: c.subtitleColor || undefined, fontSize: c.subtitleFontSize ? `${c.subtitleFontSize}px` : undefined }}>{c.subtitle}</p>}
+              {c.ctaText && (
+                <Link
+                  to={c.ctaLink || '#'}
+                  className="sf-half-hero-cta"
+                  style={{
+                    backgroundColor: ctaBgColor,
+                    color: ctaTextColor,
+                    borderRadius: ctaRadius,
+                    padding: ctaSizePadding[c.ctaSize || 'md'],
+                    fontSize: c.ctaFontSize ? `${c.ctaFontSize}px` : defaultCtaFontSize[c.ctaSize || 'md'],
+                  }}
+                >
+                  {c.ctaText}
+                </Link>
+              )}
             </div>
           )}
         </div>
       );
+    }
 
     case 'heading': {
       const level = (c.level || 'h2') as 'h1' | 'h2' | 'h3' | 'h4';
+      const headingStyle: React.CSSProperties = {
+        fontFamily: c.fontFamily ? `'${c.fontFamily}', sans-serif` : undefined,
+        fontSize: c.fontSize ? `${c.fontSize}px` : undefined,
+        color: c.color || undefined,
+        fontWeight: c.fontWeight ? Number(c.fontWeight) : undefined,
+      };
       return (
         <div className="sf-block-heading" style={{ textAlign: c.align || 'center' }}>
-          {React.createElement(level, null, c.text)}
+          {React.createElement(level, { style: headingStyle }, c.text)}
         </div>
       );
     }
@@ -121,37 +236,143 @@ export function BlockContent({ block }: Props) {
         </div>
       );
 
-    case 'image':
+    case 'image': {
+      const getShadow = (s: string) => {
+        if (s === 'sm') return '0 1px 2px 0 rgba(0,0,0,0.05)';
+        if (s === 'md') return '0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06)';
+        if (s === 'lg') return '0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05)';
+        return 'none';
+      };
+
+      const imgStyle: React.CSSProperties = {
+        maxWidth: c.width || '100%',
+        borderRadius: c.borderRadius ? `${c.borderRadius}px` : undefined,
+        boxShadow: getShadow(c.shadow || 'none'),
+        opacity: typeof c.opacity === 'number' ? c.opacity / 100 : 1,
+        transition: 'opacity 0.2s, box-shadow 0.2s',
+        display: 'inline-block'
+      };
+
+      const imgElement = c.url ? (
+        <img src={c.url} alt={c.alt || ''} style={imgStyle} />
+      ) : (
+        <div className="sf-block-image-placeholder">No image set</div>
+      );
+
       return (
         <div className="sf-block-image" style={{ textAlign: c.align || 'center' }}>
-          {c.url ? (
-            <img src={c.url} alt={c.alt || ''} style={{ maxWidth: c.width || '100%' }} />
+          {c.link ? (
+            <Link to={c.link} style={{ display: 'inline-block' }}>
+              {imgElement}
+            </Link>
           ) : (
-            <div className="sf-block-image-placeholder">No image set</div>
+            imgElement
           )}
         </div>
       );
+    }
 
-    case 'image_gallery':
+    case 'image_gallery': {
+      const getShadow = (s: string) => {
+        if (s === 'sm') return '0 1px 2px 0 rgba(0,0,0,0.05)';
+        if (s === 'md') return '0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06)';
+        if (s === 'lg') return '0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05)';
+        return 'none';
+      };
+
+      const layout = c.layout || 'grid';
+      const gap = c.gap ?? 16;
+      const columns = c.columns || 3;
+      const images: string[] = Array.isArray(c.images) ? c.images : [];
+
+      let containerStyle: React.CSSProperties = {};
+      if (layout === 'masonry') {
+        containerStyle = { columnCount: columns, columnGap: `${gap}px` };
+      } else if (layout === 'bento') {
+        containerStyle = {
+          display: 'grid',
+          gridTemplateColumns: `repeat(${columns}, 1fr)`,
+          gridAutoRows: '200px',
+          gap: `${gap}px`,
+          gridAutoFlow: 'dense'
+        };
+      } else {
+        containerStyle = {
+          display: 'grid',
+          gridTemplateColumns: `repeat(${columns}, 1fr)`,
+          gap: `${gap}px`
+        };
+      }
+
+      const getAspectMapping = (ratio: string) => {
+        if (ratio === 'square') return '1/1';
+        if (ratio === 'portrait') return '3/4';
+        if (ratio === 'landscape') return '4/3';
+        return undefined; // auto
+      };
+
+      const arStyle = layout === 'masonry' ? undefined : getAspectMapping(c.aspectRatio || 'square');
+
       return (
-        <div className="sf-block-gallery" style={{ gridTemplateColumns: `repeat(${c.columns || 3}, 1fr)`, gap: c.gap || 16 }}>
-          {(c.images || []).map((url: string, i: number) => (
-            <img key={i} src={url} alt={`Gallery image ${i + 1}`} className="sf-block-gallery-img" />
-          ))}
+        <div className={`sf-block-gallery sf-layout-${layout}`} style={containerStyle}>
+          {images.map((url: string, i: number) => {
+            let itemStyle: React.CSSProperties = {
+              display: 'block',
+              width: '100%',
+              objectFit: 'cover',
+              height: layout === 'masonry' ? 'auto' : '100%',
+              aspectRatio: arStyle,
+              borderRadius: c.borderRadius ? `${c.borderRadius}px` : undefined,
+              boxShadow: getShadow(c.shadow || 'none'),
+              marginBottom: layout === 'masonry' ? `${gap}px` : 0,
+              breakInside: 'avoid',
+            };
+
+            if (layout === 'bento') {
+              const isFeatured = i % 5 === 0;
+              itemStyle = {
+                ...itemStyle,
+                gridColumn: isFeatured ? 'span 2' : 'span 1',
+                gridRow: isFeatured ? 'span 2' : 'span 1',
+              };
+            }
+
+            return (
+              <img
+                key={i}
+                src={url}
+                alt={`Gallery image ${i + 1}`}
+                style={itemStyle}
+              />
+            );
+          })}
         </div>
       );
+    }
 
-    case 'button':
+    case 'button': {
+      const btnStyle: React.CSSProperties = {
+        fontFamily: c.fontFamily ? `'${c.fontFamily}', sans-serif` : undefined,
+        fontSize: c.fontSize ? `${c.fontSize}px` : undefined,
+        fontWeight: c.fontWeight ? Number(c.fontWeight) : undefined,
+        color: c.textColor || undefined,
+        backgroundColor: c.bgColor || undefined,
+        borderColor: c.bgColor || undefined,
+        borderRadius: c.borderRadius != null && c.borderRadius !== '' ? `${c.borderRadius}px` : undefined,
+      };
+
       return (
         <div className="sf-block-button" style={{ textAlign: c.align || 'center' }}>
           <Link
             to={c.link || '#'}
             className={`sf-btn sf-btn-${c.style || 'primary'} sf-btn-${c.size || 'md'}`}
+            style={btnStyle}
           >
             {c.text || 'Button'}
           </Link>
         </div>
       );
+    }
 
     case 'product_grid':
       return <ProductGridBlock config={c} />;
@@ -174,15 +395,17 @@ export function BlockContent({ block }: Props) {
     case 'spacer':
       return <div style={{ height: c.height || 40 }} />;
 
-    case 'divider':
+    case 'divider': {
+      const isFull = c.width === 'full';
       return (
-        <div className="sf-block-divider">
+        <div className="sf-block-divider" style={isFull ? { width: '100cqw', marginLeft: 'calc(-50cqw + 50%)' } : undefined}>
           <hr style={{ borderStyle: c.style || 'solid', borderColor: c.color || '#e5e7eb', borderWidth: `${c.thickness || 1}px 0 0 0` }} />
         </div>
       );
+    }
 
     case 'video':
-      return <VideoBlock url={c.url} autoplay={c.autoplay} />;
+      return <VideoBlock config={c} />;
 
     case 'testimonials':
       return (
@@ -200,15 +423,75 @@ export function BlockContent({ block }: Props) {
     case 'faq':
       return <FAQBlock items={c.items || []} />;
 
-    case 'banner':
+    case 'banner': {
+      const mode = c.mode || 'static';
+      const bgMode = c.bgMode || 'colour';
+      const hasImage = bgMode === 'image' && !!c.imageUrl;
+      
+      const containerStyle: React.CSSProperties = {
+        width: '100cqw',
+        marginLeft: 'calc(-50cqw + 50%)',
+        position: 'relative',
+        overflow: 'hidden',
+        paddingTop: c.paddingTop !== undefined ? `${c.paddingTop}px` : '24px',
+        paddingBottom: c.paddingBottom !== undefined ? `${c.paddingBottom}px` : '24px',
+        borderWidth: c.borderWidth ? `${c.borderWidth}px` : undefined,
+        borderStyle: c.borderWidth ? 'solid' : undefined,
+        borderColor: c.borderColor || undefined,
+        borderRadius: c.borderRadius ? `${c.borderRadius}px` : undefined,
+        backgroundImage: hasImage ? `url(${c.imageUrl})` : undefined,
+        backgroundColor: bgMode === 'colour' ? (c.bgColor || '#1a1a2e') : (!hasImage ? '#1a1a2e' : undefined),
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+      };
+
+      const overlayStyle: React.CSSProperties = {
+        position: 'absolute',
+        inset: 0,
+        backgroundColor: c.overlayColor || '#000000',
+        opacity: hasImage ? (c.overlayOpacity ?? 0.5) : 0,
+        zIndex: 1,
+      };
+
+      const textStyle: React.CSSProperties = {
+        position: 'relative',
+        zIndex: 2,
+        fontFamily: c.fontFamily ? `'${c.fontFamily}', sans-serif` : undefined,
+        fontSize: c.fontSize ? `${c.fontSize}px` : '1.0625rem',
+        fontWeight: c.fontWeight || 600,
+        color: c.textColor || '#ffffff',
+        textAlign: c.align || 'center',
+        margin: 0,
+        width: '100%',
+        whiteSpace: mode === 'ticker' ? 'nowrap' : 'normal',
+      };
+
+      if (mode === 'ticker') {
+        const speed = c.speed || 30;
+        return (
+          <div className="sf-block-banner" style={containerStyle}>
+            {hasImage && <div style={overlayStyle} />}
+            <div className="sf-ticker-track" style={{ ...textStyle, animationDuration: `${speed}s`, display: 'flex' }}>
+              {Array.from({ length: 15 }).map((_, i) => (
+                <span key={i} className="sf-ticker-item" style={{ padding: '0 2rem' }}>{c.text}</span>
+              ))}
+            </div>
+          </div>
+        );
+      }
+
       return (
-        <div
-          className="sf-block-banner"
-          style={{ backgroundColor: c.bgColor || '#1a1a2e', color: c.textColor || '#fff', textAlign: c.align || 'center' }}
-        >
-          {c.text}
+        <div className="sf-block-banner" style={containerStyle}>
+          {hasImage && <div style={overlayStyle} />}
+          <div style={textStyle}>
+            {c.text}
+          </div>
         </div>
       );
+    }
 
     case 'ticker':
       return (
@@ -350,20 +633,129 @@ function FeaturedProductBlock({ productId }: { productId: string }) {
   );
 }
 
-function VideoBlock({ url, autoplay }: { url: string; autoplay: boolean }) {
+function VideoBlock({ config: c }: { config: Record<string, any> }) {
+  const source = c.source || 'url';
+  const url = c.url || '';
+  const autoplay = c.autoplay || false;
+  const muted = c.muted !== undefined ? c.muted : false;
+  const controls = c.controls !== undefined ? c.controls : true;
+
   const getEmbedUrl = (input: string) => {
     const ytMatch = input.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\s]+)/);
-    if (ytMatch) return `https://www.youtube.com/embed/${ytMatch[1]}${autoplay ? '?autoplay=1&mute=1' : ''}`;
+    if (ytMatch) {
+      const params = new URLSearchParams();
+      if (autoplay) { params.set('autoplay', '1'); params.set('mute', '1'); }
+      else if (muted) { params.set('mute', '1'); }
+      if (!controls) { params.set('controls', '0'); }
+      return `https://www.youtube.com/embed/${ytMatch[1]}?${params.toString()}`;
+    }
     const vimeoMatch = input.match(/vimeo\.com\/(\d+)/);
-    if (vimeoMatch) return `https://player.vimeo.com/video/${vimeoMatch[1]}${autoplay ? '?autoplay=1&muted=1' : ''}`;
+    if (vimeoMatch) {
+      const params = new URLSearchParams();
+      if (autoplay) { params.set('autoplay', '1'); params.set('muted', '1'); }
+      else if (muted) { params.set('muted', '1'); }
+      if (!controls) { params.set('controls', '0'); }
+      return `https://player.vimeo.com/video/${vimeoMatch[1]}?${params.toString()}`;
+    }
     return input;
   };
 
   if (!url) return <div className="sf-block-image-placeholder">No video URL set</div>;
 
+  if (source === 'url') {
+    return (
+      <div className="sf-block-video">
+        <iframe src={getEmbedUrl(url)} allowFullScreen allow="autoplay" title="Video" />
+      </div>
+    );
+  }
+
+  return <CustomVideoPlayer src={url} autoplay={autoplay} defaultMuted={muted} showControls={controls} />;
+}
+
+function CustomVideoPlayer({ src, autoplay, defaultMuted, showControls }: { src: string; autoplay: boolean; defaultMuted: boolean; showControls: boolean; }) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [playing, setPlaying] = useState(autoplay);
+  const [muted, setMuted] = useState(defaultMuted || autoplay);
+  const [progress, setProgress] = useState(0);
+
+  // Sync builder changes dynamically
+  useEffect(() => {
+    setPlaying(autoplay);
+    if (videoRef.current) {
+      if (autoplay) videoRef.current.play().catch(() => {});
+      else videoRef.current.pause();
+    }
+  }, [autoplay, src]);
+
+  useEffect(() => {
+    const isMuted = defaultMuted || autoplay;
+    setMuted(isMuted);
+    if (videoRef.current) {
+      videoRef.current.muted = isMuted;
+    }
+  }, [defaultMuted, autoplay]);
+
+  const togglePlay = (e?: React.MouseEvent) => {
+    if (e) {
+      e.stopPropagation();
+    }
+    if (!videoRef.current) return;
+    if (playing) {
+      videoRef.current.pause();
+    } else {
+      videoRef.current.play().catch((err) => console.error("Video play failed:", err));
+    }
+    setPlaying(!playing);
+  };
+
+  const toggleMute = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!videoRef.current) return;
+    videoRef.current.muted = !muted;
+    setMuted(!muted);
+  };
+
+  const handleTimeUpdate = () => {
+    if (!videoRef.current) return;
+    const p = (videoRef.current.currentTime / videoRef.current.duration) * 100;
+    setProgress(p || 0);
+  };
+
+  const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
+    e.stopPropagation();
+    if (!videoRef.current) return;
+    const time = (Number(e.target.value) / 100) * videoRef.current.duration;
+    videoRef.current.currentTime = time;
+    setProgress(Number(e.target.value));
+  };
+
   return (
-    <div className="sf-block-video">
-      <iframe src={getEmbedUrl(url)} allowFullScreen allow="autoplay" title="Video" />
+    <div className="sf-custom-video-wrapper" style={{ position: 'relative', width: '100%', borderRadius: 8, overflow: 'hidden', background: '#000', cursor: showControls ? 'pointer' : 'default' }} onClick={(e) => { if (showControls) togglePlay(e); }}>
+      <video
+        ref={videoRef}
+        src={src}
+        autoPlay={autoplay}
+        muted={muted}
+        playsInline
+        loop={autoplay}
+        onTimeUpdate={handleTimeUpdate}
+        onEnded={() => setPlaying(false)}
+        style={{ width: '100%', display: 'block', pointerEvents: 'auto' }}
+      />
+      {showControls && (
+        <div className="sf-custom-video-controls" onMouseDown={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()} style={{ position: 'absolute', bottom: 16, left: 16, right: 16, display: 'flex', alignItems: 'center', gap: '1rem', background: 'rgba(0,0,0,0.6)', padding: '8px 16px', borderRadius: 100, backdropFilter: 'blur(10px)', transition: 'background 0.2s', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)', zIndex: 50, pointerEvents: 'auto' }}>
+          <button type="button" onClick={togglePlay} onMouseDown={(e) => e.stopPropagation()} style={{ background: 'transparent', border: 'none', color: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>
+            {playing ? <Icons.Pause size={18} fill="currentColor" /> : <Icons.Play size={18} fill="currentColor" />}
+          </button>
+          
+          <input type="range" min="0" max="100" value={progress} onChange={handleSeek} onMouseDown={(e) => e.stopPropagation()} style={{ flex: 1, accentColor: 'var(--brand-danger, #dc2626)', cursor: 'pointer', height: 4, background: 'rgba(255,255,255,0.2)', borderRadius: 2 }} />
+          
+          <button type="button" onClick={toggleMute} onMouseDown={(e) => e.stopPropagation()} style={{ background: 'transparent', border: 'none', color: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>
+            {muted ? <Icons.VolumeX size={18} /> : <Icons.Volume2 size={18} />}
+          </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -453,16 +845,88 @@ function CollectionShowcaseBlock({ config }: { config: Record<string, any> }) {
 }
 
 function CategoryLinksBlock({ config }: { config: Record<string, any> }) {
-  const items = config.items || [];
+  const [collections, setCollections] = useState<Collection[]>([]);
+
+  useEffect(() => {
+    api.fetchCollections()
+      .then(all => {
+        let selected: Collection[] = [];
+        if (config.collectionIds && config.collectionIds.length > 0) {
+          selected = config.collectionIds.map((id: string) => all.find(c => c.id === id)).filter(Boolean) as Collection[];
+        } else {
+          selected = all;
+        }
+        setCollections(selected.slice(0, config.limit || 3));
+      })
+      .catch(console.error);
+  }, [config.collectionIds, config.limit]);
+
+  const cols = config.columns || 3;
+  const stackOnMobile = config.stackOnMobile ?? true;
+  const aspectRatio = config.aspectRatio || 'auto';
+  const textPosition = config.textPosition || 'below';
+
+  const cardStyle: React.CSSProperties = {
+    backgroundColor: config.bgColor || undefined,
+    borderColor: config.borderColor || undefined,
+    borderWidth: config.borderColor ? '1px' : undefined,
+    borderStyle: config.borderColor ? 'solid' : undefined,
+    borderRadius: config.borderRadius ? `${config.borderRadius}px` : undefined,
+    padding: (config.bgColor || config.borderColor) && textPosition === 'below' ? '1rem' : undefined,
+  };
+
+  const titleStyle: React.CSSProperties = {
+    color: config.titleColor || undefined,
+  };
+
+  const ctaStyle = config.ctaStyle || 'link';
+  const hoverClass = (config.hoverEffect ?? true) ? 'hover-lift' : '';
+
+  const renderCta = () => {
+    if (ctaStyle === 'link') {
+      return <span className="sf-catlink-cta" style={config.ctaColor ? { color: config.ctaColor, borderColor: config.ctaColor } : {}}>
+        {config.ctaText || 'SHOP NOW'}
+      </span>;
+    }
+    const isPrimary = ctaStyle === 'primary';
+    const btnClass = isPrimary ? 'sf-btn-primary' : 'sf-btn-secondary';
+    const colorStyle = config.ctaColor 
+      ? (isPrimary ? { backgroundColor: config.ctaColor, borderColor: config.ctaColor, color: '#fff' } : { color: config.ctaColor, borderColor: config.ctaColor })
+      : {};
+    return <span className={`sf-btn ${btnClass}`} style={{ padding: '0.5rem 1rem', fontSize: '0.875rem', marginTop: '0.5rem', ...colorStyle }}>
+      {config.ctaText || 'SHOP NOW'}
+    </span>;
+  };
+
   return (
-    <div className="sf-category-links" style={{ gridTemplateColumns: `repeat(${items.length || 3}, 1fr)` }}>
-      {items.map((item: any, i: number) => (
-        <Link key={i} to={item.link || '#'} className="sf-catlink-card">
-          {item.imageUrl && <img src={item.imageUrl} alt={item.title} className="sf-catlink-img" />}
-          <div className="sf-catlink-overlay">
-            <h3 className="sf-catlink-title">{item.title}</h3>
-            <span className="sf-catlink-cta">SHOP NOW</span>
+    <div className={`sf-category-links pos-${textPosition} ${stackOnMobile ? 'stack-mobile' : ''}`} style={{ 
+      gridTemplateColumns: `repeat(${cols}, 1fr)`,
+      paddingTop: config.paddingTop !== undefined ? `${config.paddingTop}px` : undefined,
+      paddingRight: config.paddingRight !== undefined ? `${config.paddingRight}px` : undefined,
+      paddingBottom: config.paddingBottom !== undefined ? `${config.paddingBottom}px` : undefined,
+      paddingLeft: config.paddingLeft !== undefined ? `${config.paddingLeft}px` : undefined,
+      marginTop: config.marginTop !== undefined ? `${config.marginTop}px` : undefined,
+      marginRight: config.marginRight !== undefined ? `${config.marginRight}px` : undefined,
+      marginBottom: config.marginBottom !== undefined ? `${config.marginBottom}px` : undefined,
+      marginLeft: config.marginLeft !== undefined ? `${config.marginLeft}px` : undefined,
+    }}>
+      {collections.map((col: Collection, i: number) => (
+        <Link key={col.id || i} to={`/shop/collections/${col.slug || col.id}`} className={`sf-catlink-card ${hoverClass}`} style={cardStyle}>
+          <div className={`sf-catlink-img-wrap aspect-${aspectRatio}`} style={{ borderRadius: config.borderRadius ? `${textPosition === 'overlay' ? config.borderRadius : Math.max(0, config.borderRadius - 4)}px` : undefined, marginBottom: textPosition === 'below' ? '1rem' : '0' }}>
+            {col.cover_image_url && <img src={col.cover_image_url} alt={col.name} className={`sf-catlink-img aspect-${aspectRatio}`} />}
+            {textPosition === 'overlay' && (
+              <div className="sf-catlink-content sf-catlink-overlay-content">
+                <h3 className="sf-catlink-title" style={titleStyle}>{col.name}</h3>
+                {renderCta()}
+              </div>
+            )}
           </div>
+          {textPosition === 'below' && (
+            <div className="sf-catlink-content sf-catlink-below-content">
+              <h3 className="sf-catlink-title" style={titleStyle}>{col.name}</h3>
+              {renderCta()}
+            </div>
+          )}
         </Link>
       ))}
     </div>

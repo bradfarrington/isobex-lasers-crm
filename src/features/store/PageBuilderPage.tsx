@@ -261,7 +261,7 @@ function getBlockLabel(type: BlockType): string {
     collection_grid: 'Collection Grid', collection_showcase: 'Collection Showcase',
     category_links: 'Category Links', product_carousel: 'Product Carousel',
     featured_product: 'Featured Product', spacer: 'Spacer', divider: 'Divider', video: 'Video',
-    testimonials: 'Testimonials', faq: 'FAQ', banner: 'Banner', custom_html: 'Custom HTML',
+    testimonials: 'Testimonials', faq: 'FAQ', banner: 'Banner', ticker: 'Ticker Tape', features: 'Features Grid', custom_html: 'Custom HTML',
     columns: 'Columns Layout', container: 'Container Block',
   };
   return labels[type] || type;
@@ -279,7 +279,7 @@ function getBlockSummary(block: PageBlock): string {
     case 'product_grid': return `${c.columns || 4} col, ${c.limit || 8} max`;
     case 'collection_grid': return `${c.columns || 3} col`;
     case 'collection_showcase': return c.title || 'Collection Showcase';
-    case 'category_links': return `${(c.items || []).length} categories`;
+    case 'category_links': return `${(c.collectionIds || []).length} categories`;
     case 'product_carousel': return c.title || 'Product Carousel';
     case 'banner': return c.text || 'Banner';
     case 'spacer': return `${c.height || 40}px`;
@@ -303,7 +303,7 @@ function getDefaultConfig(type: BlockType): Record<string, any> {
     case 'product_grid': return { mode: 'auto', productIds: [], columns: 4, limit: 8 };
     case 'collection_grid': return { mode: 'auto', collectionIds: [], columns: 3 };
     case 'collection_showcase': return { title: 'INTRODUCING THE COLLECTION', subtitle: 'Built for a life in constant motion.', collectionId: '', limit: 5, showSwatches: true, ctaText: 'SHOP NOW', ctaLink: '/shop/products' };
-    case 'category_links': return { items: [{ title: 'JACKETS', imageUrl: '', link: '' }, { title: 'TOPS', imageUrl: '', link: '' }, { title: 'BOTTOMS', imageUrl: '', link: '' }] };
+    case 'category_links': return { collectionIds: [], limit: 3, columns: 3, stackOnMobile: true, aspectRatio: 'auto', textPosition: 'below' };
     case 'product_carousel': return { title: 'BEST SELLERS', ctaText: 'SHOP NOW', ctaLink: '/shop/products', collectionId: '', limit: 10 };
     case 'featured_product': return { productId: '' };
     case 'spacer': return { height: 40 };

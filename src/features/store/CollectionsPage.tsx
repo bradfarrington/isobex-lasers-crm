@@ -4,7 +4,8 @@ import { StoreTabBar } from './StoreTabBar';
 import { useAlert } from '@/components/ui/AlertDialog';
 import * as api from '@/lib/api';
 import type { Collection } from '@/types/database';
-import { Plus, Pencil, Trash2, X, Check, FolderOpen, Package } from 'lucide-react';
+import { Plus, Pencil, Trash2, X, Check, FolderOpen, Package, Upload } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
 import './StorePage.css';
 
 export function CollectionsPage() {
@@ -14,10 +15,40 @@ export function CollectionsPage() {
   const [showAdd, setShowAdd] = useState(false);
   const [newName, setNewName] = useState('');
   const [newDesc, setNewDesc] = useState('');
+  const [newImage, setNewImage] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
   const [editDesc, setEditDesc] = useState('');
+  const [editImage, setEditImage] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, isEdit: boolean) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploading(true);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `collection_${Date.now()}.${fileExt}`;
+
+      const { error: uploadError } = await supabase.storage.from('store-assets').upload(fileName, file);
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage.from('store-assets').getPublicUrl(fileName);
+      
+      if (isEdit) {
+        setEditImage(publicUrl);
+      } else {
+        setNewImage(publicUrl);
+      }
+    } catch (err) {
+      console.error('Image upload failed:', err);
+      showAlert({ title: 'Error', message: 'Failed to upload image.', variant: 'danger' });
+    } finally {
+      setUploading(false);
+    }
+  };
 
   useEffect(() => {
     loadCollections();
@@ -42,12 +73,14 @@ export function CollectionsPage() {
       const item = await api.createCollection({
         name: newName.trim(),
         description: newDesc.trim() || null,
-        cover_image_url: null,
+        cover_image_url: newImage,
         sort_order: collections.length,
+        slug: null,
       });
       setCollections((prev) => [...prev, item]);
       setNewName('');
       setNewDesc('');
+      setNewImage(null);
       setShowAdd(false);
     } catch (err) {
       showAlert({
@@ -68,6 +101,7 @@ export function CollectionsPage() {
       const updated = await api.updateCollection(id, {
         name: editName.trim(),
         description: editDesc.trim() || null,
+        cover_image_url: editImage,
       });
       setCollections((prev) =>
         prev.map((c) => (c.id === id ? { ...c, ...updated } : c))
@@ -99,6 +133,7 @@ export function CollectionsPage() {
     setEditingId(c.id);
     setEditName(c.name);
     setEditDesc(c.description || '');
+    setEditImage(c.cover_image_url);
   };
 
   return (
@@ -141,6 +176,19 @@ export function CollectionsPage() {
               if (e.key === 'Escape') setShowAdd(false);
             }}
           />
+          <div className="collection-image-upload" style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '1rem' }}>
+            {newImage && <img src={newImage} alt="Preview" style={{ width: 60, height: 60, objectFit: 'cover', borderRadius: '4px' }} />}
+            <label className="btn btn-secondary btn-sm" style={{ cursor: uploading ? 'not-allowed' : 'pointer', opacity: uploading ? 0.7 : 1 }}>
+              <Upload size={14} style={{ marginRight: 6 }} />
+              {uploading ? 'Uploading...' : (newImage ? 'Change Image' : 'Upload Cover Image')}
+              <input type="file" accept="image/*" onChange={(e) => handleImageUpload(e, false)} style={{ display: 'none' }} disabled={uploading} />
+            </label>
+            {newImage && (
+              <button className="btn btn-ghost btn-icon-sm danger" onClick={() => setNewImage(null)} title="Remove image">
+                <Trash2 size={14} />
+              </button>
+            )}
+          </div>
           <div className="collection-add-actions">
             <button className="btn btn-primary" onClick={handleAdd} disabled={!newName.trim() || saving}>
               <Check size={14} /> Save
@@ -188,6 +236,19 @@ export function CollectionsPage() {
                       if (e.key === 'Escape') setEditingId(null);
                     }}
                   />
+                  <div className="collection-image-upload" style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                    {editImage && <img src={editImage} alt="Preview" style={{ width: 60, height: 60, objectFit: 'cover', borderRadius: '4px' }} />}
+                    <label className="btn btn-secondary btn-sm" style={{ cursor: uploading ? 'not-allowed' : 'pointer', opacity: uploading ? 0.7 : 1 }}>
+                      <Upload size={14} style={{ marginRight: 6 }} />
+                      {uploading ? 'Uploading...' : (editImage ? 'Change Image' : 'Upload Cover Image')}
+                      <input type="file" accept="image/*" onChange={(e) => handleImageUpload(e, true)} style={{ display: 'none' }} disabled={uploading} />
+                    </label>
+                    {editImage && (
+                      <button className="btn btn-ghost btn-icon-sm danger" onClick={() => setEditImage(null)} title="Remove image">
+                        <Trash2 size={14} />
+                      </button>
+                    )}
+                  </div>
                   <div className="collection-add-actions">
                     <button className="btn btn-primary btn-sm" onClick={() => handleEdit(c.id)}>
                       <Check size={14} />
@@ -199,8 +260,12 @@ export function CollectionsPage() {
                 </div>
               ) : (
                 <>
-                  <div className="collection-card-icon">
-                    <FolderOpen size={24} />
+                  <div className="collection-card-icon" style={{ padding: 0, overflow: 'hidden', backgroundColor: 'var(--surface-50)' }}>
+                    {c.cover_image_url ? (
+                      <img src={c.cover_image_url} alt={c.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    ) : (
+                      <FolderOpen size={24} />
+                    )}
                   </div>
                   <div className="collection-card-info">
                     <h4>{c.name}</h4>

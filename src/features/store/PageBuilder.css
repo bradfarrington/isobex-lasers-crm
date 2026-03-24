@@ -699,7 +699,7 @@
 .sf-block-video { padding: 1rem 0; position: relative; padding-bottom: 56.25%; height: 0; }
 .sf-block-video iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: none; border-radius: 8px; }
 
-.sf-block-banner { padding: 1.5rem 2rem; border-radius: 8px; font-size: 1.0625rem; font-weight: 600; margin: 1rem 0; }
+
 
 .sf-block-testimonials { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1.25rem; padding: 1rem 0; }
 .sf-testimonial-card { background: var(--sf-surface, #f8f8f8); border-radius: 12px; padding: 1.5rem; border: 1px solid var(--sf-border, #e5e7eb); }

@@ -36,6 +36,8 @@
   flex-direction: column;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  container-type: inline-size;
+  container-name: sf-page;
 }
 
 .sf-loading {
@@ -410,13 +412,20 @@
   background: rgba(0,0,0,0.05);
 }
 
+.sf-btn-sm { padding: 0.625rem 1.25rem; font-size: 0.875rem; }
+.sf-btn-md { padding: 1rem 2rem; font-size: 1rem; }
+.sf-btn-lg { padding: 1.25rem 3rem; font-size: 1.125rem; }
+
 /* ─── Hero Section ──────────────────────── */
 
 .sf-block-hero {
   position: relative;
-  border-radius: var(--sf-radius-xl);
+  width: 100cqw;
+  margin-left: calc(-50cqw + 50%);
+  margin-top: 0;
+  margin-bottom: 2rem;
+  border-radius: 0; /* Full bleed usually loses border radius */
   overflow: hidden;
-  margin: 2rem 0 4rem;
   min-height: 600px;
   display: flex;
   align-items: center;
@@ -425,7 +434,6 @@
   background-size: cover;
   background-position: center;
   color: #fff;
-  box-shadow: var(--sf-shadow-lg);
 }
 
 .sf-logo-img { width: var(--sf-logo-desktop, 160px); max-height: 50px; }
@@ -487,7 +495,7 @@
   align-items: center;
   justify-content: center;
   padding: 1.25rem 3.5rem;
-  background: var(--sf-accent);
+  background-color: var(--sf-accent);
   color: #fff;
   text-decoration: none;
   font-weight: 700;
@@ -503,6 +511,130 @@
   transform: translateY(-4px) scale(1.02);
   box-shadow: 0 15px 35px rgba(0,0,0,0.4);
   filter: brightness(1.1);
+}
+
+/* ─── Category Links ────────────────────── */
+
+.sf-category-links {
+  display: grid;
+  gap: 2rem;
+  margin-bottom: 4rem;
+}
+
+@media (max-width: 768px) {
+  .sf-category-links.stack-mobile {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+.sf-catlink-card {
+  text-decoration: none;
+  color: inherit;
+  display: flex;
+  flex-direction: column;
+  transition: var(--sf-transition);
+  align-items: center;
+  text-align: center;
+}
+
+.sf-catlink-card.hover-lift:hover {
+  transform: translateY(-6px);
+  box-shadow: var(--sf-shadow-md);
+}
+
+.sf-catlink-img-wrap {
+  width: 100%;
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--sf-radius-lg);
+  margin-bottom: 1rem;
+  background: transparent;
+}
+
+.sf-catlink-img-wrap.aspect-square { aspect-ratio: 1/1; }
+.sf-catlink-img-wrap.aspect-portrait { aspect-ratio: 3/4; }
+.sf-catlink-img-wrap.aspect-landscape { aspect-ratio: 4/3; }
+.sf-catlink-img-wrap.aspect-auto { aspect-ratio: auto; }
+
+.sf-catlink-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain; /* Using contain works best for auto aspect ratio transparent images like lasers */
+  transition: transform 0.6s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+.sf-catlink-img:not(.aspect-auto) {
+  object-fit: cover;
+}
+
+.sf-catlink-img.aspect-auto {
+  height: auto;
+  max-height: 400px; /* Sensible limit for auto height */
+}
+
+.sf-catlink-card:hover .sf-catlink-img {
+  transform: scale(1.03);
+}
+
+.sf-catlink-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+}
+
+.sf-catlink-overlay-content {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.3);
+  color: #fff;
+  padding: 1.5rem;
+  transition: background 0.3s;
+}
+
+.sf-catlink-card:hover .sf-catlink-overlay-content {
+  background: rgba(0,0,0,0.4);
+}
+
+.sf-category-links.pos-overlay .sf-catlink-title,
+.sf-category-links.pos-overlay .sf-catlink-cta {
+  color: #fff;
+  text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+}
+
+.sf-category-links.pos-overlay .sf-catlink-cta {
+  border-color: rgba(255,255,255,0.3);
+}
+
+.sf-catlink-card:hover .sf-category-links.pos-overlay .sf-catlink-cta {
+  border-color: #fff;
+}
+
+.sf-catlink-title {
+  font-family: var(--sf-font-heading);
+  font-size: 1.5rem;
+  font-weight: 800;
+  margin: 0 0 0.5rem;
+  letter-spacing: -0.01em;
+  color: var(--sf-text);
+  line-height: 1.2;
+}
+
+.sf-catlink-cta {
+  font-size: 0.875rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--sf-text-secondary);
+  letter-spacing: 0.05em;
+  padding-bottom: 2px;
+  border-bottom: 2px solid transparent;
+  transition: var(--sf-transition);
+}
+
+.sf-catlink-card:hover .sf-catlink-cta {
+  color: var(--sf-primary);
+  border-color: var(--sf-primary);
 }
 
 /* ─── Product Grid ──────────────────────── */
@@ -786,9 +918,7 @@
 
 .sf-block-half-hero {
   position: relative;
-  width: 100vw;
-  margin-left: calc(-50vw + 50%);
-  margin-top: -80px; /* Pull up under header */
+  width: 100%;
   overflow: hidden;
   background: var(--sf-secondary);
   display: flex;
@@ -797,13 +927,19 @@
   z-index: 0;
 }
 
+.sf-half-hero-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+}
+
 .sf-half-hero-img {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
   object-fit: cover;
-  opacity: 0.85;
 }
 
 .sf-half-hero-content {
@@ -811,10 +947,7 @@
   z-index: 2;
   text-align: center;
   color: #fff;
-  background: rgba(0, 0, 0, 0.4);
-  backdrop-filter: blur(10px);
   padding: 4rem;
-  border-radius: var(--sf-radius-lg);
   max-width: 800px;
   box-shadow: 0 10px 30px rgba(0,0,0,0.3);
   border: 1px solid rgba(255,255,255,0.1);
@@ -825,9 +958,32 @@
   font-family: var(--sf-font-heading);
   font-size: 3.5rem;
   font-weight: 900;
-  margin: 0 0 2rem;
+  margin: 0 0 1rem;
   letter-spacing: -0.02em;
-  text-shadow: 0 4px 15px rgba(0,0,0,0.5);
+}
+
+.sf-half-hero-content .sf-half-hero-subtitle {
+  font-size: 1.125rem;
+  margin: 0 0 2rem;
+  opacity: 0.9;
+  line-height: 1.5;
+}
+
+.sf-half-hero-cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  text-decoration: none;
+  transition: var(--sf-transition);
+  cursor: pointer;
+  letter-spacing: 0.02em;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.15);
+}
+
+.sf-half-hero-cta:hover {
+  transform: translateY(-2px);
+  filter: brightness(1.1);
 }
 
 /* ─── Product Detail ────────────────────── */
@@ -1026,14 +1182,6 @@
   to { opacity: 1; transform: translateY(0); }
 }
 
-.sf-block-banner {
-  padding: 1.5rem;
-  border-radius: var(--sf-radius-lg);
-  font-weight: 700;
-  font-size: 1.125rem;
-  box-shadow: var(--sf-shadow-md);
-  margin: 2rem 0;
-}
 
 .sf-block-video iframe {
   width: 100%;

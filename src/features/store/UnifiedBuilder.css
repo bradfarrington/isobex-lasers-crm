@@ -410,6 +410,8 @@
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  container-type: inline-size;
+  container-name: sf-page;
 }
 
 .ub-canvas-body.mobile {
@@ -429,6 +431,16 @@
   display: flex;
   flex-direction: column;
   min-height: 200px;
+}
+
+.ub-native-blocks-wrapper.drag-over {
+  background: rgba(var(--primary-rgb), 0.02);
+}
+
+.ub-canvas-bottom-drop {
+  min-height: 120px;
+  flex: 1;
+  transition: background-color 0.2s;
 }
 
 /* Native Block Editing Overlay */
@@ -696,6 +708,42 @@
   pointer-events: auto;
 }
 
+/* ─── Container Canvas Block ─── */
+.ub-container-canvas {
+  pointer-events: auto;
+  border: 2px dashed var(--border-color);
+  border-radius: 8px;
+  padding: 12px;
+  min-height: 80px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+  background: rgba(255,255,255,0.5);
+}
+
+.ub-container-canvas:hover {
+  border-color: var(--primary);
+  background: rgba(var(--primary-rgb), 0.03);
+}
+
+.ub-container-canvas.drag-over {
+  border-color: var(--primary);
+  background: rgba(var(--primary-rgb), 0.08);
+  box-shadow: inset 0 0 12px rgba(var(--primary-rgb), 0.1);
+}
+
+.ub-container-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  opacity: 0.7;
+}
+
 .ub-column-cell {
   border: 2px dashed var(--border-color);
   border-radius: 8px;
@@ -912,4 +960,224 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* ─── Layers Tree ─── */
+.ub-layers-tree {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ub-layer-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.ub-layer-node {
+  border-radius: 6px;
+  transition: all 0.15s ease;
+  cursor: pointer;
+}
+
+.ub-layer-node:hover {
+  background: var(--surface-hover, #f1f5f9);
+}
+
+.ub-layer-node.editing {
+  background: rgba(var(--primary-rgb), 0.08);
+  box-shadow: inset 3px 0 0 var(--primary);
+}
+
+.ub-layer-node.global {
+  opacity: 0.7;
+}
+.ub-layer-node.global:hover {
+  opacity: 1;
+}
+
+.ub-layer-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 7px 8px;
+  min-height: 34px;
+}
+
+.ub-layer-indent {
+  width: 18px;
+  flex-shrink: 0;
+}
+
+.ub-layer-toggle {
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 0;
+  border-radius: 4px;
+  flex-shrink: 0;
+  transition: all 0.15s ease;
+}
+.ub-layer-toggle:hover {
+  background: var(--surface-100);
+  color: var(--text-primary);
+}
+.ub-layer-toggle svg {
+  transition: transform 0.2s ease;
+}
+.ub-layer-toggle.expanded svg {
+  transform: rotate(90deg);
+}
+
+.ub-layer-drag {
+  color: var(--text-muted);
+  cursor: grab;
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.ub-layer-node:hover .ub-layer-drag {
+  opacity: 0.6;
+}
+
+.ub-layer-title {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ub-layer-title.global {
+  color: var(--primary);
+  font-weight: 600;
+}
+
+.ub-layer-badge {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-muted);
+  background: var(--surface-100, #e2e8f0);
+  padding: 1px 6px;
+  border-radius: 10px;
+  flex-shrink: 0;
+}
+
+.ub-layer-actions {
+  display: flex;
+  gap: 2px;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.ub-layer-node:hover .ub-layer-actions {
+  opacity: 1;
+}
+
+.ub-layer-action-btn {
+  background: none;
+  border: none;
+  padding: 3px;
+  color: var(--text-muted);
+  cursor: pointer;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.ub-layer-action-btn.danger:hover {
+  color: var(--danger, #ef4444);
+  background: #fee2e2;
+}
+
+/* Depth indentation */
+.ub-layer-node.depth-1 .ub-layer-row {
+  padding-left: 28px;
+}
+.ub-layer-node.depth-2 .ub-layer-row {
+  padding-left: 48px;
+}
+
+/* ─── Preview Button ─── */
+.ub-preview-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: #ffffff;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.ub-preview-btn:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+  background: rgba(var(--primary-rgb), 0.04);
+}
+
+/* ─── Preview Mode ─── */
+.unified-builder-root.preview-mode .ub-left-sidebar {
+  display: none;
+}
+.unified-builder-root.preview-mode .ub-right-sidebar {
+  display: none;
+}
+
+/* Hide all editing overlays in preview */
+.unified-builder-root.preview-mode .ub-preview-block {
+  cursor: default;
+}
+.unified-builder-root.preview-mode .ub-preview-block::before {
+  display: none !important;
+}
+.unified-builder-root.preview-mode .ub-preview-block-overlay {
+  display: none !important;
+}
+.unified-builder-root.preview-mode .sf-builder-global::before {
+  display: none !important;
+}
+.unified-builder-root.preview-mode .sf-builder-global {
+  cursor: default;
+}
+
+/* Active state for the preview button when in preview mode */
+.unified-builder-root.preview-mode .ub-preview-btn {
+  background: var(--primary);
+  color: #ffffff;
+  border-color: var(--primary);
+}
+.unified-builder-root.preview-mode .ub-preview-btn:hover {
+  background: var(--primary-dark, #4338ca);
+  color: #ffffff;
+}
+
+/* Hide column/container builder chrome in preview */
+.unified-builder-root.preview-mode .ub-column-cell {
+  border-color: transparent;
+  background: transparent;
+}
+.unified-builder-root.preview-mode .ub-column-label,
+.unified-builder-root.preview-mode .ub-column-empty,
+.unified-builder-root.preview-mode .ub-column-add-btn,
+.unified-builder-root.preview-mode .ub-container-label {
+  display: none;
+}
+.unified-builder-root.preview-mode .ub-container-canvas {
+  border-color: transparent;
+  background: transparent;
+}
+.unified-builder-root.preview-mode .ub-column-sub-delete {
+  display: none;
 }
