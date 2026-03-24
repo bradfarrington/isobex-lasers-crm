@@ -1,4 +1,5 @@
 import { Outlet, Link, useLocation } from 'react-router-dom';
+import { sfPath } from './storefrontPaths';
 import { StoreConfigProvider, useStoreConfig } from './useStoreConfig';
 import { CartProvider, useCart } from './useCart';
 import { CartSidebar } from './CartSidebar';
@@ -137,7 +138,7 @@ function StorefrontShell() {
             <Menu size={24} />
           </button>
 
-          <Link to="/shop" className="sf-logo">
+          <Link to={sfPath('/')} className="sf-logo">
             {config?.logo_url ? (
               <img src={config.logo_url} alt={config.store_name} className="sf-logo-img" />
             ) : (
@@ -154,9 +155,9 @@ function StorefrontShell() {
                 </button>
               </div>
             )}
-            <Link to="/shop" className="sf-nav-link" style={{ color: menuOpen ? 'var(--sf-text)' : hColor }} onClick={() => setMenuOpen(false)}>Home</Link>
-            <Link to="/shop/products" className="sf-nav-link" style={{ color: menuOpen ? 'var(--sf-text)' : hColor }} onClick={() => setMenuOpen(false)}>Products</Link>
-            <Link to="/shop/collections" className="sf-nav-link" style={{ color: menuOpen ? 'var(--sf-text)' : hColor }} onClick={() => setMenuOpen(false)}>Collections</Link>
+            <Link to={sfPath('/')} className="sf-nav-link" style={{ color: menuOpen ? 'var(--sf-text)' : hColor }} onClick={() => setMenuOpen(false)}>Home</Link>
+            <Link to={sfPath('/products')} className="sf-nav-link" style={{ color: menuOpen ? 'var(--sf-text)' : hColor }} onClick={() => setMenuOpen(false)}>Products</Link>
+            <Link to={sfPath('/collections')} className="sf-nav-link" style={{ color: menuOpen ? 'var(--sf-text)' : hColor }} onClick={() => setMenuOpen(false)}>Collections</Link>
             {navLinks.map((link, i) => (
               <Link key={i} to={link.url} className="sf-nav-link" style={{ color: menuOpen ? 'var(--sf-text)' : hColor }} onClick={() => setMenuOpen(false)}>{link.label}</Link>
             ))}

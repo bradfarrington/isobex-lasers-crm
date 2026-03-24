@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { sfPath } from './storefrontPaths';
 import { useCart } from './useCart';
 import { useStoreConfig } from './useStoreConfig';
 import { X, Trash2 } from 'lucide-react';
@@ -36,7 +37,7 @@ export function CartSidebar() {
           {items.length === 0 ? (
             <div className="cart-empty">
               <p>{emptyText}</p>
-              <Link to="/shop/products" onClick={closeCart} className="sf-hero-cta" style={{ marginTop: '1rem', display: 'inline-block', background: '#dc2626', color: '#ffffff', borderRadius: '6px', padding: '0.75rem 2rem', textDecoration: 'none' }}>
+              <Link to={sfPath('/products')} onClick={closeCart} className="sf-hero-cta" style={{ marginTop: '1rem', display: 'inline-block', background: '#dc2626', color: '#ffffff', borderRadius: '6px', padding: '0.75rem 2rem', textDecoration: 'none' }}>
                 {emptyButtonText}
               </Link>
             </div>
@@ -88,7 +89,7 @@ export function CartSidebar() {
               <span>{formatPrice(cartTotal)}</span>
             </div>
             <Link
-              to="/shop/checkout"
+              to={sfPath('/checkout')}
               className="cart-checkout-btn"
               onClick={closeCart}
               style={{

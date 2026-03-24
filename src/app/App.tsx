@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { DashboardPage } from '@/features/dashboard/DashboardPage';
 import { CrmPage } from '@/features/crm/CrmPage';
@@ -35,7 +35,46 @@ import { StorefrontCheckout } from '@/features/storefront/StorefrontCheckout';
 import { StorefrontThankYou } from '@/features/storefront/StorefrontThankYou';
 import { UnsubscribePage } from '@/features/storefront/UnsubscribePage';
 
+/**
+ * Detect if the app is being served on a custom storefront domain.
+ * On custom domains, only storefront routes are rendered (from root /).
+ * On localhost / .vercel.app, the full CRM + storefront is available.
+ */
+function isStorefrontDomain(): boolean {
+  const hostname = window.location.hostname;
+  // CRM is accessible on localhost and the default Vercel domain
+  if (hostname === 'localhost' || hostname === '127.0.0.1') return false;
+  if (hostname.endsWith('.vercel.app')) return false;
+  // Everything else is a custom domain → storefront only
+  return true;
+}
+
 export function App() {
+  const storefrontOnly = isStorefrontDomain();
+
+  // Custom domain: only serve storefront routes from root (/)
+  if (storefrontOnly) {
+    return (
+      <BrowserRouter>
+        <Routes>
+          <Route element={<StorefrontLayout />}>
+            <Route index element={<StorefrontHome />} />
+            <Route path="products" element={<StorefrontProducts />} />
+            <Route path="products/:slug" element={<StorefrontProductDetail />} />
+            <Route path="collections" element={<StorefrontCollections />} />
+            <Route path="collections/:slug" element={<StorefrontCollectionDetail />} />
+            <Route path="checkout" element={<StorefrontCheckout />} />
+            <Route path="thank-you/:orderId" element={<StorefrontThankYou />} />
+          </Route>
+          <Route path="unsubscribe/:token" element={<UnsubscribePage />} />
+          {/* Catch-all: redirect any CRM routes to storefront home */}
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </BrowserRouter>
+    );
+  }
+
+  // Default: full CRM + storefront (localhost / .vercel.app)
   return (
     <BrowserRouter>
       <Routes>

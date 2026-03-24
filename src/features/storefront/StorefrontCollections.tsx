@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { sfPath } from './storefrontPaths';
 import { ArrowRight } from 'lucide-react';
 import { useStoreConfig } from './useStoreConfig';
 import * as api from '@/lib/api';
@@ -62,7 +63,7 @@ export function StorefrontCollections() {
         {collections.map((col) => (
           <Link
             key={col.id}
-            to={`/shop/collections/${col.slug || col.id}`}
+            to={sfPath(`/collections/${col.slug || col.id}`)}
             className="sf-collection-card-modern"
             style={{ borderRadius: `${cardRadius}px` }}
           >

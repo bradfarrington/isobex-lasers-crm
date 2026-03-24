@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
+import { sfPath } from './storefrontPaths';
 import { useStoreConfig } from './useStoreConfig';
 import { supabase } from '@/lib/supabase';
 import * as api from '@/lib/api';
@@ -103,7 +104,7 @@ export function StorefrontCollectionDetail({ previewSlug }: { previewSlug?: stri
         {products.map((product) => (
           <Link
             key={product.id}
-            to={`/shop/products/${product.slug || product.id}`}
+            to={sfPath(`/products/${product.slug || product.id}`)}
             className="sf-product-card"
             style={{
               borderRadius: `${cardRadius}px`,

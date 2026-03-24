@@ -5,6 +5,7 @@ import { useStoreConfig } from './useStoreConfig';
 import { useCart } from './useCart';
 import * as api from '@/lib/api';
 import type { ShippingRate, DiscountCode, GiftCard } from '@/types/database';
+import { sfPath } from './storefrontPaths';
 
 export function StorefrontCheckout() {
   const { showAlert } = useAlert();
@@ -150,7 +151,7 @@ export function StorefrontCheckout() {
       }
 
       clearCart();
-      navigate(`/shop/thank-you/${order.id}`);
+      navigate(sfPath(`/thank-you/${order.id}`));
     } catch (err) {
       console.error('Order failed:', err);
       showAlert({ title: 'Order Failed', message: 'Something went wrong placing your order. Please try again.', variant: 'danger' });

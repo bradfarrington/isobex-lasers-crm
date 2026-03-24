@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { sfPath } from './storefrontPaths';
 import { useStoreConfig } from './useStoreConfig';
 import * as api from '@/lib/api';
 import type { Product, Collection, LookupItem } from '@/types/database';
@@ -209,7 +210,7 @@ export function StorefrontProducts() {
             {sortedProducts.map((product) => (
               <Link
                 key={product.id}
-                to={`/shop/products/${product.slug || product.id}`}
+                to={sfPath(`/products/${product.slug || product.id}`)}
                 className="sf-product-card modern"
                 style={{
                   borderRadius: `${cardRadius}px`,

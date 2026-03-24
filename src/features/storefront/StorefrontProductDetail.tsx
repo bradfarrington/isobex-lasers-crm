@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
+import { sfPath } from './storefrontPaths';
 import { useStoreConfig } from './useStoreConfig';
 import { useCart } from './useCart';
 import { supabase } from '@/lib/supabase';
@@ -456,7 +457,7 @@ export function StorefrontProductDetail({ previewSlug }: { previewSlug?: string 
           <h2 style={{ fontSize: '2.5rem', fontWeight: 800, marginBottom: '3rem', color: titleColor || undefined, textAlign: 'center', letterSpacing: '-0.02em' }}>{relatedProductsTitle}</h2>
           <div className="sf-related-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '2rem' }}>
             {relatedProducts.map(p => (
-              <Link to={`/shop/products/${p.slug || p.id}`} key={p.id} className="sf-related-product-card">
+              <Link to={sfPath(`/products/${p.slug || p.id}`)} key={p.id} className="sf-related-product-card">
                 <div className="sf-related-product-image">
                   {relatedThumbs[p.id] ? (
                     <img src={relatedThumbs[p.id]} alt={p.name} />

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
+import { sfPath } from './storefrontPaths';
 import { useStoreConfig } from './useStoreConfig';
 import * as api from '@/lib/api';
 import * as Icons from 'lucide-react';
@@ -151,7 +152,7 @@ function renderBlockContent(block: PageBlock) {
             {buttons.length > 0 && (
               <div style={{ display: 'flex', gap: `${c.buttonSpacing ?? 16}px`, justifyContent: 'center', flexWrap: 'wrap', marginTop: '2rem' }}>
                 {buttons.map((btn: any, i: number) => (
-                  <Link key={i} to={btn.link || '/shop/products'} className="sf-hero-cta" style={{
+                  <Link key={i} to={btn.link || sfPath('/products')} className="sf-hero-cta" style={{
                     backgroundColor: btn.bgColor || undefined,
                     color: btn.textColor || '#ffffff',
                     borderRadius: btn.radius != null ? `${btn.radius}px` : undefined,
@@ -618,7 +619,7 @@ function ProductGridBlock({ config }: { config: Record<string, any> }) {
   return (
     <div className="sf-product-grid" style={{ gridTemplateColumns: `repeat(${config.columns || 4}, 1fr)` }}>
       {products.map(product => (
-        <Link key={product.id} to={`/shop/products/${product.slug || product.id}`} className="sf-product-card" style={cardStyle}>
+        <Link key={product.id} to={sfPath(`/products/${product.slug || product.id}`)} className="sf-product-card" style={cardStyle}>
           {thumbnails[product.id] ? (
             <img src={thumbnails[product.id]} alt={product.name} className="sf-product-card-image" />
           ) : (
@@ -657,7 +658,7 @@ function CollectionGridBlock({ config }: { config: Record<string, any> }) {
   return (
     <div className="sf-collection-grid" style={{ gridTemplateColumns: `repeat(${config.columns || 3}, 1fr)` }}>
       {collections.map(col => (
-        <Link key={col.id} to={`/shop/collections/${col.slug || col.id}`} className="sf-collection-card" style={cardStyle}>
+        <Link key={col.id} to={sfPath(`/collections/${col.slug || col.id}`)} className="sf-collection-card" style={cardStyle}>
           <div className="sf-collection-card-img-wrap">
             {col.cover_image_url ? (
               <img src={col.cover_image_url} alt={col.name} className="sf-collection-card-cover" />
@@ -719,7 +720,7 @@ function FeaturedProductBlock({ config }: { config: Record<string, any> }) {
         )}
         <div className="sf-featured-card-action">
           <Link 
-            to={`/shop/products/${product.slug || product.id}`} 
+            to={sfPath(`/products/${product.slug || product.id}`)} 
             className="sf-btn sf-btn-lg"
             style={{
               background: config.btnBgColor || 'var(--sf-primary)',
@@ -1062,7 +1063,7 @@ function CollectionShowcaseBlock({ config }: { config: Record<string, any> }) {
       </div>
       <div className="sf-showcase-grid" style={{ gridTemplateColumns: `repeat(${config.limit || 5}, 1fr)` }}>
         {products.map(product => (
-          <Link key={product.id} to={`/shop/products/${product.slug || product.id}`} className="sf-showcase-card" style={cardStyle}>
+          <Link key={product.id} to={sfPath(`/products/${product.slug || product.id}`)} className="sf-showcase-card" style={cardStyle}>
             <div className="sf-showcase-img-wrap">
               {thumbnails[product.id] ? (
                 <img src={thumbnails[product.id]} alt={product.name} className="sf-showcase-img" />
@@ -1148,7 +1149,7 @@ function CategoryLinksBlock({ config }: { config: Record<string, any> }) {
       marginLeft: config.marginLeft !== undefined ? `${config.marginLeft}px` : undefined,
     }}>
       {collections.map((col: Collection, i: number) => (
-        <Link key={col.id || i} to={`/shop/collections/${col.slug || col.id}`} className={`sf-catlink-card ${hoverClass}`} style={cardStyle}>
+        <Link key={col.id || i} to={sfPath(`/collections/${col.slug || col.id}`)} className={`sf-catlink-card ${hoverClass}`} style={cardStyle}>
           <div className={`sf-catlink-img-wrap aspect-${aspectRatio}`} style={{ borderRadius: config.borderRadius ? `${textPosition === 'overlay' ? config.borderRadius : Math.max(0, config.borderRadius - 4)}px` : undefined, marginBottom: textPosition === 'below' ? '1rem' : '0' }}>
             {col.cover_image_url && <img src={col.cover_image_url} alt={col.name} className={`sf-catlink-img aspect-${aspectRatio}`} />}
             {textPosition === 'overlay' && (
@@ -1227,7 +1228,7 @@ function ProductCarouselBlock({ config }: { config: Record<string, any> }) {
       </div>
       <div className="sf-carousel-track">
         {products.map(product => (
-          <Link key={product.id} to={`/shop/products/${product.slug || product.id}`} className="sf-carousel-card" style={cardStyle}>
+          <Link key={product.id} to={sfPath(`/products/${product.slug || product.id}`)} className="sf-carousel-card" style={cardStyle}>
             <div className="sf-carousel-img-wrap">
               {thumbnails[product.id] ? (
                 <img src={thumbnails[product.id]} alt={product.name} className="sf-carousel-img" />
