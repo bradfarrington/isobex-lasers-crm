@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import type { PageBlock } from '@/types/database';
 import { Plus, Trash2, Upload, ChevronDown, Search, Loader2 } from 'lucide-react';
+import * as Icons from 'lucide-react';
 import { ColorPicker } from '@/components/ui/ColorPicker';
 import { supabase } from '@/lib/supabase';
 import * as api from '@/lib/api';
@@ -14,12 +15,37 @@ interface Props {
   onRemoveSubBlock?: (subBlockId: string) => void;
 }
 
+const COMMON_ICONS = [
+  'star', 'check', 'heart', 'shield', 'shield-check', 'zap', 'truck', 
+  'credit-card', 'box', 'package', 'thumbs-up', 'map-pin', 'phone', 
+  'mail', 'clock', 'shopping-cart', 'shopping-bag', 'user', 'users', 
+  'globe', 'award', 'settings', 'tool', 'plus', 'minus', 
+  'arrow-right', 'arrow-left', 'chevron-right', 'store', 'tag', 
+  'key', 'lock', 'unlock', 'smile', 'info', 'help-circle'
+];
+
 export function BlockEditor({ block, onChange, editingColumnIndex, onColumnStyleChange, onRemoveSubBlock }: Props) {
   const c = block.config;
 
   const set = (key: string, value: any) => {
     onChange({ ...c, [key]: value });
   };
+
+  const editorContent = renderBlockEditor(block, c, set, editingColumnIndex, onColumnStyleChange, onRemoveSubBlock);
+
+  if (!editorContent) return null;
+
+  return (
+    <>
+      {editorContent}
+      <div className="builder-panel-content">
+        <SpacingCard c={c} set={set} />
+      </div>
+    </>
+  );
+}
+
+function renderBlockEditor(block: PageBlock, c: Record<string, any>, set: (key: string, value: any) => void, editingColumnIndex?: number, onColumnStyleChange?: (styles: Record<string, any>) => void, onRemoveSubBlock?: (subBlockId: string) => void) {
 
   switch (block.type) {
     case 'hero':
@@ -167,138 +193,22 @@ export function BlockEditor({ block, onChange, editingColumnIndex, onColumnStyle
       );
 
     case 'product_grid':
-      return (
-        <div className="builder-panel-content">
-          <Card title="Products">
-            <Field label="Mode">
-              <select className="form-input" value={c.mode || 'auto'} onChange={(e) => set('mode', e.target.value)}>
-                <option value="auto">Auto — Show all visible products</option>
-                <option value="manual">Manual — Choose specific products</option>
-              </select>
-            </Field>
-          </Card>
-          <Card title="Layout">
-            <div className="form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-              <Field label="Columns">
-                <select className="form-input" value={c.columns || 4} onChange={(e) => set('columns', Number(e.target.value))}>
-                  <option value="2">2</option>
-                  <option value="3">3</option>
-                  <option value="4">4</option>
-                </select>
-              </Field>
-              <Field label="Max Products">
-                <input className="form-input" type="number" value={c.limit || 8} min="1" max="50"
-                  onChange={(e) => set('limit', Number(e.target.value))} />
-              </Field>
-            </div>
-          </Card>
-        </div>
-      );
+      return <ProductGridEditor config={c} set={set} />;
 
     case 'collection_grid':
-      return (
-        <div className="builder-panel-content">
-          <Card title="Collections">
-            <Field label="Mode">
-              <select className="form-input" value={c.mode || 'auto'} onChange={(e) => set('mode', e.target.value)}>
-                <option value="auto">Auto — Show all collections</option>
-                <option value="manual">Manual — Choose specific collections</option>
-              </select>
-            </Field>
-            <Field label="Columns">
-              <select className="form-input" value={c.columns || 3} onChange={(e) => set('columns', Number(e.target.value))}>
-                <option value="2">2</option>
-                <option value="3">3</option>
-                <option value="4">4</option>
-              </select>
-            </Field>
-          </Card>
-        </div>
-      );
+      return <CollectionGridEditor config={c} set={set} />;
 
     case 'collection_showcase':
-      return (
-        <div className="builder-panel-content">
-          <Card title="Content">
-            <Field label="Title">
-              <input className="form-input" value={c.title || ''} onChange={(e) => set('title', e.target.value)} />
-            </Field>
-            <Field label="Subtitle">
-              <input className="form-input" value={c.subtitle || ''} onChange={(e) => set('subtitle', e.target.value)} />
-            </Field>
-          </Card>
-          <Card title="Collection">
-            <div className="form-row" style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '1rem' }}>
-              <Field label="Collection Slug or ID">
-                <input className="form-input" value={c.collectionId || ''} onChange={(e) => set('collectionId', e.target.value)} placeholder="e.g. spring-2026" />
-              </Field>
-              <Field label="Limit">
-                <input className="form-input" type="number" value={c.limit || 5} onChange={(e) => set('limit', Number(e.target.value))} />
-              </Field>
-            </div>
-          </Card>
-          <Card title="Call to Action">
-            <div className="form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-              <Field label="CTA Text">
-                <input className="form-input" value={c.ctaText || ''} onChange={(e) => set('ctaText', e.target.value)} />
-              </Field>
-              <Field label="CTA Link">
-                <input className="form-input" value={c.ctaLink || ''} onChange={(e) => set('ctaLink', e.target.value)} />
-              </Field>
-            </div>
-            <Field label="">
-              <label className="pb-checkbox">
-                <input type="checkbox" checked={c.showSwatches ?? true} onChange={(e) => set('showSwatches', e.target.checked)} />
-                Show colour swatches
-              </label>
-            </Field>
-          </Card>
-        </div>
-      );
+      return <CollectionShowcaseEditor config={c} set={set} />;
 
     case 'category_links':
       return <CategoryLinksEditor config={c} set={set} />;
 
     case 'product_carousel':
-      return (
-        <div className="builder-panel-content">
-          <Card title="Content">
-            <Field label="Section Title">
-              <input className="form-input" value={c.title || ''} onChange={(e) => set('title', e.target.value)} />
-            </Field>
-            <div className="form-row" style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '1rem' }}>
-              <Field label="Collection Slug or ID">
-                <input className="form-input" value={c.collectionId || ''} onChange={(e) => set('collectionId', e.target.value)} placeholder="e.g. best-sellers" />
-              </Field>
-              <Field label="Limit">
-                <input className="form-input" type="number" value={c.limit || 10} onChange={(e) => set('limit', Number(e.target.value))} />
-              </Field>
-            </div>
-          </Card>
-          <Card title="Call to Action" desc="Optional CTA shown below the carousel.">
-            <div className="form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-              <Field label="CTA Text">
-                <input className="form-input" value={c.ctaText || ''} onChange={(e) => set('ctaText', e.target.value)} />
-              </Field>
-              <Field label="CTA Link">
-                <input className="form-input" value={c.ctaLink || ''} onChange={(e) => set('ctaLink', e.target.value)} />
-              </Field>
-            </div>
-          </Card>
-        </div>
-      );
+      return <ProductCarouselEditor config={c} set={set} />;
 
     case 'featured_product':
-      return (
-        <div className="builder-panel-content">
-          <Card title="Product" desc="Copy the product ID from the product editor URL.">
-            <Field label="Product ID">
-              <input className="form-input" value={c.productId || ''} onChange={(e) => set('productId', e.target.value)}
-                placeholder="Paste product ID" />
-            </Field>
-          </Card>
-        </div>
-      );
+      return <FeaturedProductEditor config={c} set={set} />;
 
     case 'spacer':
       return (
@@ -358,9 +268,17 @@ export function BlockEditor({ block, onChange, editingColumnIndex, onColumnStyle
             <Field label="Ticker Text">
               <input className="form-input" value={c.text || ''} onChange={(e) => set('text', e.target.value)} placeholder="📢 FREE SHIPPING ON ALL ORDERS" />
             </Field>
-            <Field label="Scroll Speed (seconds)">
-              <input type="number" className="form-input" value={c.speed || 30} onChange={(e) => set('speed', Number(e.target.value))} />
-            </Field>
+            <div className="form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '1rem' }}>
+              <Field label="Width">
+                <select className="form-input" value={c.width || 'full'} onChange={(e) => set('width', e.target.value)}>
+                  <option value="full">Full Viewport</option>
+                  <option value="container">Container</option>
+                </select>
+              </Field>
+              <Field label="Scroll Speed">
+                <input type="number" className="form-input" value={c.speed || 30} onChange={(e) => set('speed', Number(e.target.value))} />
+              </Field>
+            </div>
           </Card>
           <Card title="Colours">
             <InlineColor label="Background" value={c.bgColor || '#000000'} onChange={(val) => set('bgColor', val)} />
@@ -372,6 +290,18 @@ export function BlockEditor({ block, onChange, editingColumnIndex, onColumnStyle
     case 'features':
       return (
         <div className="builder-panel-content">
+          <Card title="Features Layout">
+            <div className="form-row">
+              <Field label="Grid Columns (Desktop)">
+                <select className="form-input" value={c.columns || 3} onChange={(e) => set('columns', Number(e.target.value))}>
+                  <option value={1}>1 Column</option>
+                  <option value={2}>2 Columns</option>
+                  <option value={3}>3 Columns</option>
+                  <option value={4}>4 Columns</option>
+                </select>
+              </Field>
+            </div>
+          </Card>
           <Card title="Features">
             {(c.items || []).map((item: any, i: number) => (
               <div className="ub-settings-item-box" key={i}>
@@ -383,13 +313,27 @@ export function BlockEditor({ block, onChange, editingColumnIndex, onColumnStyle
                     set('items', items);
                   }} style={{ color: '#ef4444' }}>✕</button>
                 </div>
-                <div className="form-group">
-                  <label className="form-label">Icon name (Lucide)</label>
-                  <input className="form-input" value={item.icon || 'star'} onChange={(e) => {
-                    const items = [...(c.items || [])];
-                    items[i] = { ...item, icon: e.target.value };
-                    set('items', items);
-                  }} />
+                <div className="form-group" style={{ display: 'flex', alignItems: 'flex-end', gap: '1rem', marginBottom: '0.75rem' }}>
+                  <div style={{ flex: 1 }}>
+                    <label className="form-label">Icon</label>
+                    <select className="form-input" value={item.icon || 'star'} onChange={(e) => {
+                      const items = [...(c.items || [])];
+                      items[i] = { ...item, icon: e.target.value };
+                      set('items', items);
+                    }}>
+                      {COMMON_ICONS.map(icon => (
+                        <option key={icon} value={icon}>{icon.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div style={{ width: '42px', height: '42px', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#f9fafb', borderRadius: '8px', border: '1px solid #e5e7eb', flexShrink: 0 }}>
+                    {(() => {
+                      const iconName = item.icon || 'star';
+                      const camelName = iconName.split('-').map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join('');
+                      const IconComponent = (Icons as any)[camelName] || (Icons as any)[iconName.charAt(0).toUpperCase() + iconName.slice(1)] || Icons.Star;
+                      return IconComponent ? <IconComponent size={20} color={c.iconColor || "#374151"} /> : null;
+                    })()}
+                  </div>
                 </div>
                 <div className="form-group">
                   <label className="form-label">Title</label>
@@ -415,14 +359,104 @@ export function BlockEditor({ block, onChange, editingColumnIndex, onColumnStyle
               <Plus size={14} style={{ marginRight: 6 }}/> Add Feature
             </button>
           </Card>
+          
+          <Card title="Features Styling">
+            <div className="ub-settings-item-box">
+              <span style={{ fontWeight: 600, fontSize: '0.8125rem', display: 'block', marginBottom: '0.5rem' }}>Card Details</span>
+              <InlineColor label="Card Background" value={c.cardBgColor || 'transparent'} onChange={(val) => set('cardBgColor', val)} />
+              <div style={{ margin: '0.5rem 0' }} />
+              <Field label="Border Radius">
+                <input className="form-input" type="number" min="0" value={c.cardRadius ?? 0} onChange={(e) => set('cardRadius', Number(e.target.value))} />
+              </Field>
+              <div style={{ margin: '0.5rem 0' }} />
+              <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+                <input type="checkbox" checked={c.cardShadow !== false} onChange={(e) => set('cardShadow', e.target.checked)} />
+                <span className="text-sm">Card Drop Shadow</span>
+              </label>
+            </div>
+            
+            <div className="ub-settings-item-box" style={{ marginTop: '1rem' }}>
+              <span style={{ fontWeight: 600, fontSize: '0.8125rem', display: 'block', marginBottom: '0.5rem' }}>Icon & Typography</span>
+              <InlineColor label="Icon Colour" value={c.iconColor || 'var(--sf-primary)'} onChange={(val) => set('iconColor', val)} />
+              <div style={{ margin: '0.5rem 0' }} />
+              <InlineColor label="Icon Background" value={c.iconBgColor || 'rgba(22,163,74,0.1)'} onChange={(val) => set('iconBgColor', val)} />
+              <div style={{ margin: '0.5rem 0' }} />
+              <InlineColor label="Title Colour" value={c.titleColor || 'var(--sf-text)'} onChange={(val) => set('titleColor', val)} />
+              <div style={{ margin: '0.5rem 0' }} />
+              <InlineColor label="Description Colour" value={c.descColor || 'var(--sf-text-secondary)'} onChange={(val) => set('descColor', val)} />
+              
+              <div className="form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '1rem' }}>
+                <Field label="Title Size (px)">
+                  <input className="form-input" type="number" value={c.titleFontSize || 20} onChange={(e) => set('titleFontSize', Number(e.target.value))} />
+                </Field>
+                <Field label="Title Weight">
+                  <select className="form-input" value={c.titleFontWeight || '700'} onChange={(e) => set('titleFontWeight', e.target.value)}>
+                    <option value="400">Regular (400)</option>
+                    <option value="500">Medium (500)</option>
+                    <option value="600">Semibold (600)</option>
+                    <option value="700">Bold (700)</option>
+                    <option value="800">Black (800)</option>
+                  </select>
+                </Field>
+              </div>
+              <div className="form-row" style={{ marginTop: '0.5rem' }}>
+                <Field label="Desc Size (px)">
+                  <input className="form-input" type="number" value={c.descFontSize || 16} onChange={(e) => set('descFontSize', Number(e.target.value))} />
+                </Field>
+              </div>
+            </div>
+          </Card>
         </div>
       );
 
     case 'testimonials':
       return (
         <div className="builder-panel-content">
-          <Card title="Testimonials">
-            {(c.items || []).map((item: any, i: number) => (
+          <Card title="Layout Settings">
+            <div className="form-row">
+              <Field label="Display Type">
+                <select className="form-input" value={c.layout || 'grid'} onChange={(e) => set('layout', e.target.value)}>
+                  <option value="grid">Grid</option>
+                  <option value="carousel">Carousel</option>
+                  <option value="list">List (Stacked)</option>
+                </select>
+              </Field>
+            </div>
+            {c.layout === 'carousel' && (
+              <div className="form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '1rem' }}>
+                <Field label="Auto Scroll">
+                  <select className="form-input" value={c.autoScroll === false ? 'no' : 'yes'} onChange={(e) => set('autoScroll', e.target.value === 'yes')}>
+                    <option value="yes">Yes</option>
+                    <option value="no">No</option>
+                  </select>
+                </Field>
+                <Field label="Interval (ms)">
+                  <input className="form-input" type="number" step="500" min="1000" disabled={c.autoScroll === false} value={c.scrollInterval || 3000} onChange={(e) => set('scrollInterval', Number(e.target.value))} />
+                </Field>
+              </div>
+            )}
+          </Card>
+
+          <Card title="Review Sources">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+                <input type="checkbox" checked={c.showManual !== false} onChange={(e) => set('showManual', e.target.checked)} />
+                <span className="text-sm">Show Manual Testimonials</span>
+              </label>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'not-allowed', opacity: 0.6 }} title="Coming soon">
+                <input type="checkbox" disabled checked={c.showGoogle === true} onChange={(e) => set('showGoogle', e.target.checked)} />
+                <span className="text-sm">Show Google Business Reviews</span>
+              </label>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'not-allowed', opacity: 0.6 }} title="Coming soon">
+                <input type="checkbox" disabled checked={c.showProduct === true} onChange={(e) => set('showProduct', e.target.checked)} />
+                <span className="text-sm">Show Product Reviews</span>
+              </label>
+            </div>
+          </Card>
+
+          {c.showManual !== false && (
+            <Card title="Manual Testimonials">
+              {(c.items || []).map((item: any, i: number) => (
               <div className="ub-settings-item-box" key={i}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
                   <span style={{ fontWeight: 600, fontSize: '0.8125rem' }}>Testimonial {i + 1}</span>
@@ -449,12 +483,48 @@ export function BlockEditor({ block, onChange, editingColumnIndex, onColumnStyle
               <Plus size={14} style={{ marginRight: 6 }}/> Add Testimonial
             </button>
           </Card>
+          )}
+
+          <Card title="Testimonial Styling">
+            <InlineColor label="Card Background" value={c.cardBgColor || '#f9fafb'} onChange={(val) => set('cardBgColor', val)} />
+            <div style={{ margin: '0.5rem 0' }} />
+            <InlineColor label="Text Colour" value={c.textColor || '#111827'} onChange={(val) => set('textColor', val)} />
+            <div style={{ margin: '0.5rem 0' }} />
+            <InlineColor label="Star Colour" value={c.starColor || '#fbbf24'} onChange={(val) => set('starColor', val)} />
+            <div className="form-row" style={{ marginTop: '1rem' }}>
+              <Field label="Border Radius">
+                <input className="form-input" type="number" value={c.cardRadius ?? 16} min="0" max="50" onChange={(e) => set('cardRadius', Number(e.target.value))} />
+              </Field>
+            </div>
+          </Card>
         </div>
       );
 
     case 'faq':
       return (
         <div className="builder-panel-content">
+          <Card title="Header Text">
+            <Field label="Title">
+              <input className="form-input" value={c.title || ''} onChange={(e) => set('title', e.target.value)} />
+            </Field>
+            <Field label="Subtitle">
+              <textarea className="form-input form-textarea" rows={2} value={c.subtitle || ''} onChange={(e) => set('subtitle', e.target.value)} />
+            </Field>
+            <div className="form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '1rem' }}>
+              <InlineColor label="Title Colour" value={c.titleColor || '#000000'} onChange={(val) => set('titleColor', val)} />
+              <InlineColor label="Subtitle Colour" value={c.subtitleColor || '#666666'} onChange={(val) => set('subtitleColor', val)} />
+            </div>
+            <div className="form-row" style={{ marginTop: '1rem' }}>
+              <Field label="Alignment">
+                <select className="form-input" value={c.align || 'center'} onChange={(e) => set('align', e.target.value)}>
+                  <option value="left">Left</option>
+                  <option value="center">Center</option>
+                  <option value="right">Right</option>
+                </select>
+              </Field>
+            </div>
+          </Card>
+
           <Card title="Questions">
             {(c.items || []).map((item: any, i: number) => (
               <div className="ub-settings-item-box" key={i}>
@@ -466,6 +536,10 @@ export function BlockEditor({ block, onChange, editingColumnIndex, onColumnStyle
                     set('items', items);
                   }} style={{ color: '#ef4444' }}>✕</button>
                 </div>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem', cursor: 'pointer' }}>
+                  <input type="checkbox" checked={item.defaultOpen === true} onChange={(e) => { const items = [...(c.items || [])]; items[i] = { ...items[i], defaultOpen: e.target.checked }; set('items', items); }} />
+                  <span className="text-sm">Loaded Open</span>
+                </label>
                 <input className="form-input" placeholder="Question" value={item.question || ''}
                   style={{ marginBottom: '0.5rem' }}
                   onChange={(e) => { const items = [...(c.items || [])]; items[i] = { ...items[i], question: e.target.value }; set('items', items); }} />
@@ -477,6 +551,51 @@ export function BlockEditor({ block, onChange, editingColumnIndex, onColumnStyle
             <button className="btn btn-secondary btn-sm" style={{ width: '100%' }} onClick={() => set('items', [...(c.items || []), { question: '', answer: '' }])}>
               <Plus size={14} style={{ marginRight: 6 }}/> Add Question
             </button>
+          </Card>
+
+          <Card title="FAQ Styling">
+            <div className="ub-settings-item-box">
+              <span style={{ fontWeight: 600, fontSize: '0.8125rem', display: 'block', marginBottom: '0.5rem' }}>Question Styling</span>
+              <InlineColor label="Text Colour" value={c.qColor || '#111827'} onChange={(val) => set('qColor', val)} />
+              <div style={{ margin: '0.5rem 0' }} />
+              <InlineColor label="Background Colour" value={c.qBgColor || 'transparent'} onChange={(val) => set('qBgColor', val)} />
+              <div className="form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '0.5rem' }}>
+                <Field label="Font Size (px)">
+                  <input className="form-input" type="number" value={c.qFontSize || 18} onChange={(e) => set('qFontSize', Number(e.target.value))} />
+                </Field>
+                <Field label="Font Weight">
+                  <select className="form-input" value={c.qFontWeight || '700'} onChange={(e) => set('qFontWeight', e.target.value)}>
+                    <option value="400">Regular (400)</option>
+                    <option value="500">Medium (500)</option>
+                    <option value="600">Semibold (600)</option>
+                    <option value="700">Bold (700)</option>
+                    <option value="800">Black (800)</option>
+                  </select>
+                </Field>
+              </div>
+            </div>
+
+            <div className="ub-settings-item-box" style={{ marginTop: '1rem' }}>
+              <span style={{ fontWeight: 600, fontSize: '0.8125rem', display: 'block', marginBottom: '0.5rem' }}>Answer Styling</span>
+              <InlineColor label="Text Colour" value={c.aColor || '#4b5563'} onChange={(val) => set('aColor', val)} />
+              <div style={{ margin: '0.5rem 0' }} />
+              <InlineColor label="Background Colour" value={c.aBgColor || 'transparent'} onChange={(val) => set('aBgColor', val)} />
+              <div className="form-row" style={{ marginTop: '0.5rem' }}>
+                <Field label="Font Size (px)">
+                  <input className="form-input" type="number" value={c.aFontSize || 16} onChange={(e) => set('aFontSize', Number(e.target.value))} />
+                </Field>
+              </div>
+            </div>
+
+            <div className="ub-settings-item-box" style={{ marginTop: '1rem' }}>
+              <span style={{ fontWeight: 600, fontSize: '0.8125rem', display: 'block', marginBottom: '0.5rem' }}>Accordion Border</span>
+              <InlineColor label="Border Colour" value={c.borderColor || '#e5e7eb'} onChange={(val) => set('borderColor', val)} />
+              <div className="form-row" style={{ marginTop: '0.5rem' }}>
+                <Field label="Border Radius">
+                  <input className="form-input" type="number" min="0" value={c.borderRadius ?? 0} onChange={(e) => set('borderRadius', Number(e.target.value))} />
+                </Field>
+              </div>
+            </div>
           </Card>
         </div>
       );
@@ -678,6 +797,29 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
       {label && <label className="form-label">{label}</label>}
       {children}
     </div>
+  );
+}
+
+function SpacingCard({ c, set }: { c: Record<string, any>; set: (k: string, v: any) => void }) {
+  return (
+    <Card title="Spacing">
+      <div className="form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+        <Field label="Margin Top (px)">
+          <input className="form-input" type="number" value={c.marginTop || 0} min="0" onChange={(e) => set('marginTop', Number(e.target.value))} />
+        </Field>
+        <Field label="Margin Bottom (px)">
+          <input className="form-input" type="number" value={c.marginBottom || 0} min="0" onChange={(e) => set('marginBottom', Number(e.target.value))} />
+        </Field>
+      </div>
+      <div className="form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '1rem' }}>
+        <Field label="Padding Top (px)">
+          <input className="form-input" type="number" value={c.paddingTop || 0} min="0" onChange={(e) => set('paddingTop', Number(e.target.value))} />
+        </Field>
+        <Field label="Padding Bottom (px)">
+          <input className="form-input" type="number" value={c.paddingBottom || 0} min="0" onChange={(e) => set('paddingBottom', Number(e.target.value))} />
+        </Field>
+      </div>
+    </Card>
   );
 }
 
@@ -1166,22 +1308,28 @@ function CategoryLinksEditor({ config: c, set }: { config: Record<string, any>; 
               {col.name}
             </label>
           ))}
-          {collections.length === 0 && <span style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>Loading collections...</span>}
+          {collections.length === 0 && <span style={{ color: 'var(--text-tertiary)', fontSize: '0.8125rem' }}>No collections found</span>}
+        </div>
+        <div className="form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+          <Field label="Limit (if none selected)">
+            <input className="form-input" type="number" value={c.limit || 3} min="1" max="10" onChange={(e) => set('limit', Number(e.target.value))} />
+          </Field>
         </div>
       </Card>
-      <Card title="Display Options">
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-          <Field label="Max Items">
-            <input className="form-input" type="number" value={c.limit || 3} min={1} max={12} onChange={(e) => set('limit', Number(e.target.value))} />
-          </Field>
-          <Field label="Columns (Desktop)">
+      <Card title="Layout">
+        <div className="form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+          <Field label="Columns">
             <select className="form-input" value={c.columns || 3} onChange={(e) => set('columns', Number(e.target.value))}>
-              {[2, 3, 4, 5, 6].map(n => <option key={n} value={n}>{n} Columns</option>)}
+              <option value="2">2 Columns</option>
+              <option value="3">3 Columns</option>
+              <option value="4">4 Columns</option>
+              <option value="5">5 Columns</option>
+              <option value="6">6 Columns</option>
             </select>
           </Field>
           <Field label="Image Aspect Ratio">
             <select className="form-input" value={c.aspectRatio || 'auto'} onChange={(e) => set('aspectRatio', e.target.value)}>
-              <option value="auto">Original (Auto)</option>
+              <option value="auto">Auto (Original)</option>
               <option value="square">Square (1:1)</option>
               <option value="portrait">Portrait (3:4)</option>
               <option value="landscape">Landscape (4:3)</option>
@@ -1743,3 +1891,390 @@ function VideoBlockEditor({ config: c, set }: { config: Record<string, any>; set
   );
 }
 
+function CollectionShowcaseEditor({ config: c, set }: { config: Record<string, any>; set: (key: string, value: any) => void }) {
+  const [collections, setCollections] = useState<Collection[]>([]);
+  useEffect(() => {
+    api.fetchCollections().then(setCollections).catch(console.error);
+  }, []);
+
+  return (
+    <div className="builder-panel-content">
+      <Card title="Content">
+        <Field label="Title">
+          <input className="form-input" value={c.title || ''} onChange={(e) => set('title', e.target.value)} />
+        </Field>
+        <div className="form-row" style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '1rem', marginTop: '0.5rem' }}>
+          <BlockFontPicker label="Title Font" value={c.titleFont || ''} onChange={(v) => set('titleFont', v)} />
+          <Field label="Size (px)">
+            <input className="form-input" type="number" value={c.titleFontSize ?? 32} min="10" max="150" onChange={(e) => set('titleFontSize', Number(e.target.value))} />
+          </Field>
+        </div>
+        <div className="form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '0.5rem' }}>
+          <Field label="Font Weight">
+            <select className="form-input" value={c.titleFontWeight || '800'} onChange={(e) => set('titleFontWeight', e.target.value)}>
+              <option value="400">Regular (400)</option>
+              <option value="500">Medium (500)</option>
+              <option value="600">Semi-Bold (600)</option>
+              <option value="700">Bold (700)</option>
+              <option value="800">Extra-Bold (800)</option>
+              <option value="900">Black (900)</option>
+            </select>
+          </Field>
+          <Field label="">
+            <div style={{ height: '1.25rem' }} />
+            <InlineColor label="Title Colour" value={c.titleColor || '#000000'} onChange={(val) => set('titleColor', val)} />
+          </Field>
+        </div>
+
+        <div style={{ marginTop: '1.5rem' }} />
+        <Field label="Subtitle">
+          <input className="form-input" value={c.subtitle || ''} onChange={(e) => set('subtitle', e.target.value)} />
+        </Field>
+        <div className="form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '0.5rem' }}>
+          <Field label="Size (px)">
+            <input className="form-input" type="number" value={c.subtitleFontSize ?? 16} min="10" max="100" onChange={(e) => set('subtitleFontSize', Number(e.target.value))} />
+          </Field>
+          <Field label="">
+            <div style={{ height: '1.25rem' }} />
+            <InlineColor label="Subtitle Colour" value={c.subtitleColor || '#666666'} onChange={(val) => set('subtitleColor', val)} />
+          </Field>
+        </div>
+      </Card>
+
+      <Card title="Collection">
+        <div className="form-row" style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '1rem' }}>
+          <Field label="Select Collection">
+            <select className="form-input" value={c.collectionId || ''} onChange={(e) => set('collectionId', e.target.value)}>
+              <option value="">-- All Products (Fallback) --</option>
+              {collections.map((col: any) => (
+                <option key={col.id} value={col.id}>{col.name}</option>
+              ))}
+            </select>
+          </Field>
+          <Field label="Limit">
+            <input className="form-input" type="number" value={c.limit || 5} onChange={(e) => set('limit', Number(e.target.value))} />
+          </Field>
+        </div>
+      </Card>
+
+      <Card title="Product Cards Styling">
+        <InlineColor label="Card Background" value={c.cardBgColor || '#ffffff'} onChange={(val) => set('cardBgColor', val)} />
+        <div style={{ margin: '0.5rem 0' }} />
+        <InlineColor label="Card Text Colour" value={c.cardTextColor || '#000000'} onChange={(val) => set('cardTextColor', val)} />
+        <div className="form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '1rem' }}>
+          <Field label="Border Radius">
+            <input className="form-input" type="number" value={c.cardRadius ?? 0} min="0" max="50" onChange={(e) => set('cardRadius', Number(e.target.value))} />
+          </Field>
+        </div>
+      </Card>
+
+      <Card title="Call to Action">
+        <div className="form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+          <Field label="CTA Text">
+            <input className="form-input" value={c.ctaText || ''} onChange={(e) => set('ctaText', e.target.value)} />
+          </Field>
+          <Field label="CTA Link">
+            <input className="form-input" value={c.ctaLink || ''} onChange={(e) => set('ctaLink', e.target.value)} />
+          </Field>
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+function ProductCarouselEditor({ config: c, set }: { config: Record<string, any>; set: (key: string, value: any) => void }) {
+  const [collections, setCollections] = useState<Collection[]>([]);
+  useEffect(() => {
+    api.fetchCollections().then(setCollections).catch(console.error);
+  }, []);
+
+  return (
+    <div className="builder-panel-content">
+      <Card title="Content">
+        <Field label="Title">
+          <input className="form-input" value={c.title || ''} onChange={(e) => set('title', e.target.value)} />
+        </Field>
+        <div className="form-row" style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '1rem', marginTop: '0.5rem' }}>
+          <BlockFontPicker label="Title Font" value={c.titleFont || ''} onChange={(v) => set('titleFont', v)} />
+          <Field label="Size (px)">
+            <input className="form-input" type="number" value={c.titleFontSize ?? 40} min="10" max="150" onChange={(e) => set('titleFontSize', Number(e.target.value))} />
+          </Field>
+        </div>
+        <div className="form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '0.5rem' }}>
+          <Field label="Font Weight">
+            <select className="form-input" value={c.titleFontWeight || '900'} onChange={(e) => set('titleFontWeight', e.target.value)}>
+              <option value="400">Regular (400)</option>
+              <option value="500">Medium (500)</option>
+              <option value="600">Semi-Bold (600)</option>
+              <option value="700">Bold (700)</option>
+              <option value="800">Extra-Bold (800)</option>
+              <option value="900">Black (900)</option>
+            </select>
+          </Field>
+          <Field label="">
+            <div style={{ height: '1.25rem' }} />
+            <InlineColor label="Title Colour" value={c.titleColor || '#000000'} onChange={(val) => set('titleColor', val)} />
+          </Field>
+        </div>
+
+        <div style={{ marginTop: '1.5rem' }} />
+        <Field label="Subtitle">
+          <input className="form-input" value={c.subtitle || ''} onChange={(e) => set('subtitle', e.target.value)} />
+        </Field>
+        <div className="form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '0.5rem' }}>
+          <Field label="Size (px)">
+            <input className="form-input" type="number" value={c.subtitleFontSize ?? 18} min="10" max="100" onChange={(e) => set('subtitleFontSize', Number(e.target.value))} />
+          </Field>
+          <Field label="">
+            <div style={{ height: '1.25rem' }} />
+            <InlineColor label="Subtitle Colour" value={c.subtitleColor || '#666666'} onChange={(val) => set('subtitleColor', val)} />
+          </Field>
+        </div>
+      </Card>
+
+      <Card title="Collection">
+        <div className="form-row" style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '1rem' }}>
+          <Field label="Select Collection">
+            <select className="form-input" value={c.collectionId || ''} onChange={(e) => set('collectionId', e.target.value)}>
+              <option value="">-- All Products (Fallback) --</option>
+              {collections.map((col: any) => (
+                <option key={col.id} value={col.id}>{col.name}</option>
+              ))}
+            </select>
+          </Field>
+          <Field label="Limit (Items shown)">
+            <input className="form-input" type="number" value={c.limit || 10} onChange={(e) => set('limit', Number(e.target.value))} />
+          </Field>
+        </div>
+      </Card>
+
+      <Card title="Product Cards Styling">
+        <InlineColor label="Card Background" value={c.cardBgColor || '#ffffff'} onChange={(val) => set('cardBgColor', val)} />
+        <div style={{ margin: '0.5rem 0' }} />
+        <InlineColor label="Card Text Colour" value={c.cardTextColor || '#000000'} onChange={(val) => set('cardTextColor', val)} />
+        <div className="form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '1rem' }}>
+          <Field label="Border Radius">
+            <input className="form-input" type="number" value={c.cardRadius ?? 16} min="0" max="50" onChange={(e) => set('cardRadius', Number(e.target.value))} />
+          </Field>
+        </div>
+      </Card>
+
+      <Card title="Call to Action (Left Sidebar)">
+        <div className="form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+          <Field label="CTA Text">
+            <input className="form-input" value={c.ctaText || ''} onChange={(e) => set('ctaText', e.target.value)} />
+          </Field>
+          <Field label="CTA Link">
+            <input className="form-input" value={c.ctaLink || ''} onChange={(e) => set('ctaLink', e.target.value)} />
+          </Field>
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+function ProductGridEditor({ config: c, set }: { config: Record<string, any>; set: (key: string, value: any) => void }) {
+  const [products, setProducts] = useState<any[]>([]);
+  useEffect(() => {
+    api.fetchVisibleProducts().then(setProducts).catch(console.error);
+  }, []);
+
+  const toggleProduct = (productId: string) => {
+    const current = c.productIds || [];
+    if (current.includes(productId)) {
+      set('productIds', current.filter((id: string) => id !== productId));
+    } else {
+      set('productIds', [...current, productId]);
+    }
+  };
+
+  return (
+    <div className="builder-panel-content">
+      <Card title="Products">
+        <Field label="Mode">
+          <select className="form-input" value={c.mode || 'auto'} onChange={(e) => set('mode', e.target.value)}>
+            <option value="auto">Auto — Show all visible products</option>
+            <option value="manual">Manual — Choose specific products</option>
+          </select>
+        </Field>
+        {c.mode === 'manual' && (
+          <div style={{ marginTop: '1rem' }}>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Select Products</label>
+            <div style={{ maxHeight: '200px', overflowY: 'auto', border: '1px solid #e5e7eb', borderRadius: '0.375rem', padding: '0.5rem' }}>
+              {products.map(p => (
+                <label key={p.id} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.25rem 0', cursor: 'pointer' }}>
+                  <input 
+                    type="checkbox" 
+                    checked={(c.productIds || []).includes(p.id)}
+                    onChange={() => toggleProduct(p.id)}
+                  />
+                  <span className="text-sm">{p.name}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+        )}
+      </Card>
+      
+      <Card title="Layout">
+        <div className="form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+          <Field label="Columns">
+            <select className="form-input" value={c.columns || 4} onChange={(e) => set('columns', Number(e.target.value))}>
+              <option value="2">2</option>
+              <option value="3">3</option>
+              <option value="4">4</option>
+            </select>
+          </Field>
+          <Field label="Max Products">
+            <input className="form-input" type="number" value={c.limit || 8} min="1" max="50"
+              onChange={(e) => set('limit', Number(e.target.value))} />
+          </Field>
+        </div>
+      </Card>
+
+      <Card title="Product Cards Styling">
+        <InlineColor label="Card Background" value={c.cardBgColor || '#ffffff'} onChange={(val) => set('cardBgColor', val)} />
+        <div style={{ margin: '0.5rem 0' }} />
+        <InlineColor label="Card Text Colour" value={c.cardTextColor || '#000000'} onChange={(val) => set('cardTextColor', val)} />
+        <div className="form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '1rem' }}>
+          <Field label="Border Radius">
+            <input className="form-input" type="number" value={c.cardRadius ?? 16} min="0" max="50" onChange={(e) => set('cardRadius', Number(e.target.value))} />
+          </Field>
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+function CollectionGridEditor({ config: c, set }: { config: Record<string, any>; set: (key: string, value: any) => void }) {
+  const [collections, setCollections] = useState<any[]>([]);
+  useEffect(() => {
+    api.fetchCollections().then(setCollections).catch(console.error);
+  }, []);
+
+  const toggleCollection = (collectionId: string) => {
+    const current = c.collectionIds || [];
+    if (current.includes(collectionId)) {
+      set('collectionIds', current.filter((id: string) => id !== collectionId));
+    } else {
+      set('collectionIds', [...current, collectionId]);
+    }
+  };
+
+  return (
+    <div className="builder-panel-content">
+      <Card title="Collections">
+        <Field label="Mode">
+          <select className="form-input" value={c.mode || 'auto'} onChange={(e) => set('mode', e.target.value)}>
+            <option value="auto">Auto — Show all collections</option>
+            <option value="manual">Manual — Choose specific collections</option>
+          </select>
+        </Field>
+        {c.mode === 'manual' && (
+          <div style={{ marginTop: '1rem' }}>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Select Collections</label>
+            <div style={{ maxHeight: '200px', overflowY: 'auto', border: '1px solid #e5e7eb', borderRadius: '0.375rem', padding: '0.5rem' }}>
+              {collections.map(col => (
+                <label key={col.id} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.25rem 0', cursor: 'pointer' }}>
+                  <input 
+                    type="checkbox" 
+                    checked={(c.collectionIds || []).includes(col.id)}
+                    onChange={() => toggleCollection(col.id)}
+                  />
+                  <span className="text-sm">{col.name}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+        )}
+      </Card>
+      
+      <Card title="Layout">
+        <div className="form-row" style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '1rem' }}>
+          <Field label="Columns">
+            <select className="form-input" value={c.columns || 3} onChange={(e) => set('columns', Number(e.target.value))}>
+              <option value="2">2</option>
+              <option value="3">3</option>
+              <option value="4">4</option>
+            </select>
+          </Field>
+        </div>
+      </Card>
+
+      <Card title="Collection Cards Styling">
+        <InlineColor label="Card Background" value={c.cardBgColor || '#ffffff'} onChange={(val) => set('cardBgColor', val)} />
+        <div style={{ margin: '0.5rem 0' }} />
+        <InlineColor label="Text Colour" value={c.cardTextColor || '#000000'} onChange={(val) => set('cardTextColor', val)} />
+        <div className="form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '1rem' }}>
+          <Field label="Border Radius">
+            <input className="form-input" type="number" value={c.cardRadius ?? 16} min="0" max="50" onChange={(e) => set('cardRadius', Number(e.target.value))} />
+          </Field>
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+function FeaturedProductEditor({ config: c, set }: { config: Record<string, any>; set: (key: string, value: any) => void }) {
+  const [products, setProducts] = useState<any[]>([]);
+  useEffect(() => {
+    api.fetchVisibleProducts().then(setProducts).catch(console.error);
+  }, []);
+
+  return (
+    <div className="builder-panel-content">
+      <Card title="Product" desc="Select the product to explicitly feature on the page.">
+        <Field label="Featured Product">
+          <select className="form-input" value={c.productId || ''} onChange={(e) => set('productId', e.target.value)}>
+            <option value="">Select a product...</option>
+            {products.map(p => (
+              <option key={p.id} value={p.id}>{p.name}</option>
+            ))}
+          </select>
+        </Field>
+      </Card>
+      
+      <Card title="Featured Layout">
+        <div className="form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+          <Field label="Image Alignment">
+            <select className="form-input" value={c.align || 'left'} onChange={(e) => set('align', e.target.value)}>
+              <option value="left">Image on Left</option>
+              <option value="right">Image on Right</option>
+            </select>
+          </Field>
+          <Field label="Show Description">
+            <select className="form-input" value={c.showDescription === false ? 'no' : 'yes'} onChange={(e) => set('showDescription', e.target.value === 'yes')}>
+              <option value="yes">Yes</option>
+              <option value="no">No</option>
+            </select>
+          </Field>
+        </div>
+      </Card>
+
+      <Card title="Card Styling">
+        <InlineColor label="Card Background" value={c.cardBgColor || '#f9fafb'} onChange={(val) => set('cardBgColor', val)} />
+        <div style={{ margin: '0.5rem 0' }} />
+        <InlineColor label="Card Text Colour" value={c.cardTextColor || '#111827'} onChange={(val) => set('cardTextColor', val)} />
+        <div className="form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '1rem' }}>
+          <Field label="Border Radius">
+            <input className="form-input" type="number" value={c.cardRadius ?? 24} min="0" max="50" onChange={(e) => set('cardRadius', Number(e.target.value))} />
+          </Field>
+        </div>
+      </Card>
+
+      <Card title="Button Styling">
+        <InlineColor label="Button Background" value={c.btnBgColor || 'var(--sf-primary)'} onChange={(val) => set('btnBgColor', val)} />
+        <div style={{ margin: '0.5rem 0' }} />
+        <InlineColor label="Button Text Colour" value={c.btnTextColor || '#ffffff'} onChange={(val) => set('btnTextColor', val)} />
+        <div className="form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '1rem' }}>
+          <Field label="Button Radius">
+            <input className="form-input" type="number" value={c.btnRadius ?? 8} min="0" max="50" onChange={(e) => set('btnRadius', Number(e.target.value))} />
+          </Field>
+          <Field label="Button Text">
+            <input className="form-input" value={c.btnText || 'View Product'} onChange={(e) => set('btnText', e.target.value)} />
+          </Field>
+        </div>
+      </Card>
+    </div>
+  );
+}

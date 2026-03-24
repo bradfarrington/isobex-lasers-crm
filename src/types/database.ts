@@ -231,6 +231,16 @@ export interface Product {
 export type ProductInsert = Omit<Product, 'id' | 'created_at' | 'updated_at' | 'labels' | 'collections' | 'media' | 'variants'>;
 export type ProductUpdate = Partial<Omit<ProductInsert, 'product_type'>>;
 
+export interface ProductReview {
+  id: string;
+  product_id: string;
+  author_name: string;
+  rating: number; // 1-5
+  content: string;
+  status: 'pending' | 'approved' | 'rejected';
+  created_at: string;
+}
+
 // ─── Online Store: Collections ──────────────────────────────
 
 export interface Collection {
@@ -321,6 +331,113 @@ export interface InventoryItem {
 
 // ─── Store Config ───────────────────────────────────────────
 
+export interface ProductsTemplateConfig {
+  pageTitle: string;
+  pageSubtitle: string;
+  titleAlign?: 'left' | 'center' | 'right';
+  titleColor?: string;
+  titleSize?: 'small' | 'medium' | 'large' | 'xlarge';
+  subtitleColor?: string;
+  subtitleSize?: 'small' | 'medium' | 'large' | 'xlarge';
+  columns: number;
+  cardBgColor: string;
+  cardTextColor: string;
+  cardRadius: number;
+  imageAspect: 'square' | 'portrait' | 'landscape';
+  showPrice: boolean;
+  showComparePrice: boolean;
+  priceColor: string;
+  showSortBar: boolean;
+  showSidebar: boolean;
+  sidebarPosition: 'left' | 'right';
+  enableCategoryFilter: boolean;
+  enableCompatibilityFilter: boolean;
+}
+
+export interface CollectionsTemplateConfig {
+  pageTitle: string;
+  pageSubtitle: string;
+  titleAlign?: 'left' | 'center' | 'right';
+  titleColor?: string;
+  titleSize?: 'small' | 'medium' | 'large' | 'xlarge';
+  subtitleColor?: string;
+  subtitleSize?: 'small' | 'medium' | 'large' | 'xlarge';
+  columns: number;
+  cardRadius: number;
+  overlayBgColor: string;
+  overlayTextColor: string;
+  overlayOpacity: number;
+  showProductCount: boolean;
+}
+
+export interface ProductDetailTemplateConfig {
+  imagePosition: 'left' | 'right';
+  showDescription: boolean;
+  showSku: boolean;
+  showCompatibility: boolean;
+  showRelatedProducts: boolean;
+  relatedProductsTitle?: string;
+  showReviews: boolean;
+  buttonBgColor: string;
+  buttonTextColor: string;
+  buttonRadius: number;
+  buttonText: string;
+  priceColor: string;
+  titleFontSize: number;
+  titleColor: string;
+  descriptionFontSize: number;
+  descriptionColor: string;
+  inputLabelColor: string;
+  inputBgColor: string;
+  inputTextColor: string;
+  inputBorderColor: string;
+  inputRadius: number;
+}
+
+export interface CollectionDetailTemplateConfig {
+  columns: number;
+  cardBgColor: string;
+  cardTextColor: string;
+  cardRadius: number;
+  imageAspect: 'square' | 'portrait' | 'landscape';
+  showPrice: boolean;
+  priceColor: string;
+}
+
+export interface CheckoutTemplateConfig {
+  sectionBgColor: string;
+  sectionTextColor: string;
+  sectionRadius: number;
+  headingColor: string;
+  buttonBgColor: string;
+  buttonTextColor: string;
+  buttonRadius: number;
+  buttonText: string;
+  inputRadius: number;
+  inputBorderColor: string;
+}
+
+export interface CartSidebarTemplateConfig {
+  headerBgColor: string;
+  headerTextColor: string;
+  bodyBgColor: string;
+  emptyText: string;
+  emptyButtonText: string;
+  checkoutButtonBgColor: string;
+  checkoutButtonTextColor: string;
+  checkoutButtonRadius: number;
+  checkoutButtonText: string;
+}
+
+export interface PageTemplates {
+  products: Partial<ProductsTemplateConfig>;
+  collections: Partial<CollectionsTemplateConfig>;
+  product_detail: Partial<ProductDetailTemplateConfig>;
+  collection_detail: Partial<CollectionDetailTemplateConfig>;
+  checkout: Partial<CheckoutTemplateConfig>;
+  cart_sidebar: Partial<CartSidebarTemplateConfig>;
+}
+
 export interface StoreConfig {
   id: string;
   store_name: string;
@@ -370,6 +487,8 @@ export interface StoreConfig {
   hero_cta_link: string;
   featured_collection_ids: string[];
   featured_product_ids: string[];
+  // Page Templates
+  page_templates: Partial<PageTemplates>;
   // SEO
   seo_title: string | null;
   seo_description: string | null;

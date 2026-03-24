@@ -27,6 +27,7 @@ import type {
   Product,
   ProductInsert,
   ProductUpdate,
+  ProductReview,
   Collection,
   CollectionInsert,
   CollectionUpdate,
@@ -987,6 +988,45 @@ export async function fetchProductCompatibilities(productId: string): Promise<Lo
   return types as LookupItem[];
 }
 
+// ─── Online Store: Product Reviews ──────────────────────────
+
+export async function fetchProductReviews(productId: string, statusFilter?: 'approved' | 'rejected' | 'pending'): Promise<ProductReview[]> {
+  let query = supabase
+    .from('product_reviews')
+    .select('*')
+    .eq('product_id', productId)
+    .order('created_at', { ascending: false });
+
+  if (statusFilter) {
+    query = query.eq('status', statusFilter);
+  }
+
+  const { data, error } = await query;
+
+  if (error) throw error;
+  return data as ProductReview[];
+}
+
+export async function updateProductReviewStatus(reviewId: string, status: 'approved' | 'rejected' | 'pending'): Promise<void> {
+  const { data, error } = await supabase
+    .from('product_reviews')
+    .update({ status })
+    .eq('id', reviewId)
+    .select();
+
+  if (error) throw error;
+  if (!data || data.length === 0) throw new Error('Review update failed — no rows affected. Check RLS policies.');
+}
+
+export async function deleteProductReview(reviewId: string): Promise<void> {
+  const { error } = await supabase
+    .from('product_reviews')
+    .delete()
+    .eq('id', reviewId);
+
+  if (error) throw error;
+}
+
 // ─── Online Store: Product ↔ Collection assignments ─────────
 
 export async function fetchProductCollectionIds(productId: string): Promise<string[]> {
@@ -1101,6 +1141,16 @@ export async function fetchVisibleProducts(): Promise<Product[]> {
     .select('product_id, option_values, stock_quantity, price_override');
   if (vErr) throw vErr;
 
+  const { data: compatAssignments, error: cErr } = await supabase
+    .from('product_compatibility_assignments')
+    .select('product_id, compatibility_type_id');
+  if (cErr) throw cErr;
+
+  const { data: colAssignments, error: colErr } = await supabase
+    .from('product_collection_assignments')
+    .select('product_id, collection_id');
+  if (colErr) throw colErr;
+
   const variantsByProduct = new Map<string, any[]>();
   (variants || []).forEach((v: any) => {
     const list = variantsByProduct.get(v.product_id) || [];
@@ -1108,20 +1158,37 @@ export async function fetchVisibleProducts(): Promise<Product[]> {
     variantsByProduct.set(v.product_id, list);
   });
 
+  const compatByProduct = new Map<string, string[]>();
+  (compatAssignments || []).forEach((ca: any) => {
+    const list = compatByProduct.get(ca.product_id) || [];
+    list.push(ca.compatibility_type_id);
+    compatByProduct.set(ca.product_id, list);
+  });
+
+  const colByProduct = new Map<string, string[]>();
+  (colAssignments || []).forEach((ca: any) => {
+    const list = colByProduct.get(ca.product_id) || [];
+    list.push(ca.collection_id);
+    colByProduct.set(ca.product_id, list);
+  });
+
   return products.map((p) => {
     const pvariants = variantsByProduct.get(p.id);
+    let extras: Partial<Product> = {
+      compatibilities: (compatByProduct.get(p.id) || []).map(id => ({ id } as any)),
+      collections: (colByProduct.get(p.id) || []).map(id => ({ id } as any)),
+    };
+
     if (pvariants && pvariants.length > 0) {
-      const prices = pvariants
-        .map((v: any) => v.price_override as number | null)
-        .filter((p): p is number => p != null && p > 0);
-      return {
-        ...p,
-        variant_count: pvariants.length,
-        variant_price_min: prices.length > 0 ? Math.min(...prices) : null,
-        variant_price_max: prices.length > 0 ? Math.max(...prices) : null,
-      };
+      const prices = pvariants.map((v: any) => v.price_override != null ? Number(v.price_override) : Number(p.price));
+      const minPrice = Math.min(...prices);
+      const maxPrice = Math.max(...prices);
+      extras.variant_count = pvariants.length;
+      extras.variant_price_min = minPrice;
+      extras.variant_price_max = maxPrice;
     }
-    return p;
+    
+    return { ...p, ...extras };
   });
 }
 
@@ -1134,18 +1201,38 @@ export async function fetchProductBySlug(slugOrId: string): Promise<Product> {
     .eq('is_visible', true)
     .maybeSingle();
 
-  if (bySlug) return bySlug as Product;
+  let baseProduct = bySlug || null;
 
-  // Fall back to ID
-  const { data: byId, error } = await supabase
-    .from('products')
-    .select('*')
-    .eq('id', slugOrId)
-    .eq('is_visible', true)
-    .single();
+  if (!baseProduct) {
+    // Fall back to ID
+    const { data: byId, error } = await supabase
+      .from('products')
+      .select('*')
+      .eq('id', slugOrId)
+      .eq('is_visible', true)
+      .single();
 
-  if (error) throw error;
-  return byId as Product;
+    if (error) throw error;
+    baseProduct = byId;
+  }
+
+  // Fetch variants for price range
+  const { data: variants } = await supabase
+    .from('product_variants')
+    .select('price_override')
+    .eq('product_id', baseProduct.id);
+
+  if (variants && variants.length > 0) {
+    const prices = variants.map(v => v.price_override != null ? Number(v.price_override) : Number(baseProduct!.price));
+    return {
+      ...baseProduct,
+      variant_count: variants.length,
+      variant_price_min: Math.min(...prices),
+      variant_price_max: Math.max(...prices)
+    } as Product;
+  }
+
+  return baseProduct as Product;
 }
 
 export async function fetchCollectionBySlug(slugOrId: string): Promise<Collection> {
@@ -1219,7 +1306,38 @@ export async function fetchProductsByCollectionId(collectionId: string): Promise
     .order('name', { ascending: true });
 
   if (error) throw error;
-  return data as Product[];
+  const products = data as Product[];
+
+  // Fetch variants for price range
+  const { data: variants, error: vErr } = await supabase
+    .from('product_variants')
+    .select('product_id, option_values, stock_quantity, price_override')
+    .in('product_id', ids);
+  
+  if (vErr) throw vErr;
+
+  const variantsByProduct = new Map<string, any[]>();
+  (variants || []).forEach((v: any) => {
+    const list = variantsByProduct.get(v.product_id) || [];
+    list.push(v);
+    variantsByProduct.set(v.product_id, list);
+  });
+
+  return products.map((p) => {
+    const pvariants = variantsByProduct.get(p.id);
+    if (pvariants && pvariants.length > 0) {
+      const prices = pvariants
+        .map((v: any) => v.price_override as number | null)
+        .filter((p): p is number => p != null && p > 0);
+      return {
+        ...p,
+        variant_count: pvariants.length,
+        variant_price_min: prices.length > 0 ? Math.min(...prices) : null,
+        variant_price_max: prices.length > 0 ? Math.max(...prices) : null,
+      };
+    }
+    return p;
+  });
 }
 
 // ─── Store Config ───────────────────────────────────────────
@@ -1238,9 +1356,15 @@ export async function fetchStoreConfig(): Promise<StoreConfig> {
 export async function updateStoreConfig(updates: StoreConfigUpdate): Promise<StoreConfig> {
   // Get existing config id first
   const config = await fetchStoreConfig();
+  
+  const safeUpdates = { ...updates };
+  delete (safeUpdates as any).id;
+  delete (safeUpdates as any).created_at;
+  delete (safeUpdates as any).updated_at;
+
   const { data, error } = await supabase
     .from('store_config')
-    .update(updates)
+    .update(safeUpdates)
     .eq('id', config.id)
     .select()
     .single();

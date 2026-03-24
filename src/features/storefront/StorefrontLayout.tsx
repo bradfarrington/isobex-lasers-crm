@@ -61,7 +61,7 @@ function StorefrontShell() {
   // Header Layout Overrides
   const headerLayout: any = config?.header_layout || { logo_position: 'left', nav_links: [] };
   const hBg = headerLayout.bg_color || 'var(--sf-bg)';
-  const hColor = headerLayout.nav_color || 'var(--sf-text)';
+  const hColor = headerLayout.nav_color || '#000000';
   const hFont = headerLayout.nav_font || 'inherit';
   const logoWidthDesktop = headerLayout.logo_width_desktop || 150;
   const logoWidthMobile = headerLayout.logo_width_mobile || 120;

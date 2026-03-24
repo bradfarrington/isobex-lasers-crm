@@ -37,6 +37,30 @@ function hexToHsv(hex: string): [number, number, number] {
   return [h, s, max];
 }
 
+/* ── Normalize any CSS color to a valid hex for the picker ── */
+function normalizeToHex(color: string): string {
+  if (!color) return '#000000';
+  const trimmed = color.trim().toLowerCase();
+  // Already a valid hex
+  if (/^#[0-9a-f]{6}$/i.test(trimmed)) return trimmed;
+  if (/^#[0-9a-f]{3}$/i.test(trimmed)) {
+    // Expand shorthand #abc → #aabbcc
+    return `#${trimmed[1]}${trimmed[1]}${trimmed[2]}${trimmed[2]}${trimmed[3]}${trimmed[3]}`;
+  }
+  // Handle rgb/rgba
+  const rgbMatch = trimmed.match(/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/);
+  if (rgbMatch) {
+    const r = Math.min(255, parseInt(rgbMatch[1])).toString(16).padStart(2, '0');
+    const g = Math.min(255, parseInt(rgbMatch[2])).toString(16).padStart(2, '0');
+    const b = Math.min(255, parseInt(rgbMatch[3])).toString(16).padStart(2, '0');
+    return `#${r}${g}${b}`;
+  }
+  // Named colors / var() / transparent — fall back
+  if (trimmed === 'transparent') return '#000000';
+  if (trimmed.startsWith('var(')) return '#000000';
+  return '#000000';
+}
+
 /* ── Component ── */
 interface ColorPickerProps {
   value: string;
@@ -48,10 +72,12 @@ export function ColorPicker({ value, onChange }: ColorPickerProps) {
   const triggerRef = useRef<HTMLButtonElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
 
+  const safeHex = normalizeToHex(value);
+
   // HSV state derived from the value prop
-  const [hue, setHue] = useState(() => hexToHsv(value)[0]);
-  const [sat, setSat] = useState(() => hexToHsv(value)[1]);
-  const [val, setVal] = useState(() => hexToHsv(value)[2]);
+  const [hue, setHue] = useState(() => hexToHsv(safeHex)[0]);
+  const [sat, setSat] = useState(() => hexToHsv(safeHex)[1]);
+  const [val, setVal] = useState(() => hexToHsv(safeHex)[2]);
 
   // Semi-controlled hex input buffer
   const display = hsvToHex(hue, sat, val);
@@ -64,7 +90,8 @@ export function ColorPicker({ value, onChange }: ColorPickerProps) {
 
   // Sync HSV when value prop changes externally
   useEffect(() => {
-    const [h, s, v] = hexToHsv(value);
+    const safe = normalizeToHex(value);
+    const [h, s, v] = hexToHsv(safe);
     setHue(h);
     setSat(s);
     setVal(v);
@@ -215,7 +242,7 @@ export function ColorPicker({ value, onChange }: ColorPickerProps) {
       <button
         ref={triggerRef}
         className="color-picker-trigger"
-        style={{ backgroundColor: value }}
+        style={{ backgroundColor: safeHex }}
         onClick={openPicker}
         type="button"
         aria-label="Pick a color"

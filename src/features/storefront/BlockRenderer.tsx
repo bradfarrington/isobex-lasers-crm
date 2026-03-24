@@ -5,6 +5,17 @@ import * as api from '@/lib/api';
 import * as Icons from 'lucide-react';
 import type { PageBlock, Product, Collection } from '@/types/database';
 
+// Helper to reliably format prices, checking for variant ranges gracefully
+const formatProductPrice = (product: Product, formatPriceFn: (p: number) => string) => {
+  if (product.variant_price_min != null && product.variant_price_min > 0) {
+    if (product.variant_price_max != null && product.variant_price_max !== product.variant_price_min) {
+      return `${formatPriceFn(product.variant_price_min)} – ${formatPriceFn(product.variant_price_max)}`;
+    }
+    return formatPriceFn(product.variant_price_min);
+  }
+  return formatPriceFn(product.price);
+};
+
 interface Props {
   block: PageBlock;
 }
@@ -34,6 +45,26 @@ export function BlockRenderer({ block }: Props) {
 }
 
 export function BlockContent({ block }: Props) {
+  const c = block.config;
+
+  const spacingStyle: React.CSSProperties = {
+    marginTop: c.marginTop ? `${c.marginTop}px` : undefined,
+    marginBottom: c.marginBottom ? `${c.marginBottom}px` : undefined,
+    paddingTop: c.paddingTop ? `${c.paddingTop}px` : undefined,
+    paddingBottom: c.paddingBottom ? `${c.paddingBottom}px` : undefined,
+  };
+
+  const hasSpacing = c.marginTop || c.marginBottom || c.paddingTop || c.paddingBottom;
+
+  const content = renderBlockContent(block);
+  
+  if (hasSpacing) {
+    return <div style={spacingStyle}>{content}</div>;
+  }
+  return content;
+}
+
+function renderBlockContent(block: PageBlock) {
   const c = block.config;
 
   switch (block.type) {
@@ -390,7 +421,7 @@ export function BlockContent({ block }: Props) {
       return <ProductCarouselBlock config={c} />;
 
     case 'featured_product':
-      return <FeaturedProductBlock productId={c.productId} />;
+      return <FeaturedProductBlock config={c} />;
 
     case 'spacer':
       return <div style={{ height: c.height || 40 }} />;
@@ -408,20 +439,11 @@ export function BlockContent({ block }: Props) {
       return <VideoBlock config={c} />;
 
     case 'testimonials':
-      return (
-        <div className="sf-block-testimonials">
-          {(c.items || []).map((item: any, i: number) => (
-            <div key={i} className="sf-testimonial-card">
-              <div className="sf-testimonial-stars">{'★'.repeat(item.rating || 5)}</div>
-              <p className="sf-testimonial-text">"{item.text}"</p>
-              <p className="sf-testimonial-name">— {item.name}</p>
-            </div>
-          ))}
-        </div>
-      );
+      const isPreview = typeof window !== 'undefined' && window.location.search.includes('preview=true');
+      return <TestimonialsBlock config={c} isPreview={isPreview} />;
 
     case 'faq':
-      return <FAQBlock items={c.items || []} />;
+      return <FAQBlock config={c} />;
 
     case 'banner': {
       const mode = c.mode || 'static';
@@ -493,20 +515,27 @@ export function BlockContent({ block }: Props) {
       );
     }
 
-    case 'ticker':
+    case 'ticker': {
+      const isFull = c.width !== 'container';
       return (
-        <div className="sf-block-ticker" style={{ backgroundColor: c.bgColor || '#000000', color: c.textColor || '#ffffff' }}>
+        <div className="sf-block-ticker" style={{ 
+          backgroundColor: c.bgColor || '#000000', 
+          color: c.textColor || '#ffffff',
+          width: isFull ? '100cqw' : undefined,
+          marginLeft: isFull ? 'calc(-50cqw + 50%)' : undefined
+        }}>
           <div className="sf-ticker-track" style={{ animationDuration: `${c.speed || 30}s` }}>
-            {Array.from({ length: 15 }).map((_, i) => (
+            {Array(10).fill(0).map((_, i) => (
               <span key={i} className="sf-ticker-item">{c.text}</span>
             ))}
           </div>
         </div>
       );
+    }
 
     case 'features':
       return (
-        <div className="sf-block-features">
+        <div className="sf-block-features" style={{ '--cols-desktop': c.columns || 3 } as any}>
           {(c.items || []).map((item: any, i: number) => {
             // dynamically get Icon component from string name
             // fall back to default icon or null if not found
@@ -517,13 +546,30 @@ export function BlockContent({ block }: Props) {
             }
             if (!IconComponent) IconComponent = Icons.Star;
 
+            const hasBg = c.cardBgColor && c.cardBgColor !== 'transparent';
+
             return (
-              <div key={i} className="sf-feature-card">
-                <div className="sf-feature-icon-wrap">
+              <div key={i} className="sf-feature-card" style={{
+                backgroundColor: c.cardBgColor || 'transparent',
+                borderRadius: c.cardRadius ? `${c.cardRadius}px` : 0,
+                padding: hasBg || c.cardRadius ? '2rem' : '0',
+                boxShadow: c.cardShadow !== false ? '0 4px 24px rgba(0,0,0,0.08)' : 'none'
+              }}>
+                <div className="sf-feature-icon-wrap" style={{ color: c.iconColor || 'var(--sf-primary)', backgroundColor: c.iconBgColor || 'rgba(22,163,74,0.1)', marginBottom: '1rem' }}>
                   <IconComponent size={32} />
                 </div>
-                <h4 className="sf-feature-title">{item.title}</h4>
-                <p className="sf-feature-desc">{item.description}</p>
+                <h4 className="sf-feature-title" style={{
+                  color: c.titleColor || 'var(--sf-text)',
+                  fontSize: c.titleFontSize ? `${c.titleFontSize}px` : '1.25rem',
+                  fontWeight: c.titleFontWeight || '700',
+                  marginBottom: '0.5rem'
+                }}>{item.title}</h4>
+                <p className="sf-feature-desc" style={{
+                  color: c.descColor || 'var(--sf-text-secondary)',
+                  fontSize: c.descFontSize ? `${c.descFontSize}px` : '1rem',
+                  lineHeight: 1.5,
+                  margin: 0
+                }}>{item.description}</p>
               </div>
             );
           })}
@@ -548,8 +594,12 @@ function ProductGridBlock({ config }: { config: Record<string, any> }) {
   useEffect(() => {
     const load = async () => {
       try {
-        const prods = await api.fetchVisibleProducts();
-        const limited = prods.slice(0, config.limit || 8);
+        const _products = await api.fetchVisibleProducts();
+        let filtered = _products;
+        if (config.mode === 'manual' && config.productIds && config.productIds.length > 0) {
+          filtered = _products.filter(p => config.productIds.includes(p.id));
+        }
+        const limited = filtered.slice(0, config.limit || 8);
         setProducts(limited);
         const thumbs = await api.fetchProductThumbnails(limited.map(p => p.id));
         setThumbnails(thumbs);
@@ -558,20 +608,25 @@ function ProductGridBlock({ config }: { config: Record<string, any> }) {
       }
     };
     load();
-  }, [config.limit]);
+  }, [config.limit, config.mode, config.productIds]);
+
+  const cardStyle: React.CSSProperties = {
+    background: config.cardBgColor || 'var(--sf-surface)',
+    borderRadius: config.cardRadius !== undefined ? `${config.cardRadius}px` : 'var(--sf-radius-lg)',
+  };
 
   return (
     <div className="sf-product-grid" style={{ gridTemplateColumns: `repeat(${config.columns || 4}, 1fr)` }}>
       {products.map(product => (
-        <Link key={product.id} to={`/shop/products/${product.slug || product.id}`} className="sf-product-card">
+        <Link key={product.id} to={`/shop/products/${product.slug || product.id}`} className="sf-product-card" style={cardStyle}>
           {thumbnails[product.id] ? (
             <img src={thumbnails[product.id]} alt={product.name} className="sf-product-card-image" />
           ) : (
             <div className="sf-product-card-placeholder">No Image</div>
           )}
-          <div className="sf-product-card-info">
-            <div className="sf-product-card-name">{product.name}</div>
-            <div className="sf-product-card-price">{formatPrice(product.price)}</div>
+          <div className="sf-product-card-info" style={{ background: 'transparent' }}>
+            <div className="sf-product-card-name" style={config.cardTextColor && config.cardTextColor !== '#000000' ? { color: config.cardTextColor } : undefined}>{product.name}</div>
+            <div className="sf-product-card-price">{formatProductPrice(product, formatPrice)}</div>
           </div>
         </Link>
       ))}
@@ -584,20 +639,35 @@ function CollectionGridBlock({ config }: { config: Record<string, any> }) {
 
   useEffect(() => {
     api.fetchCollections()
-      .then(setCollections)
+      .then(cols => {
+        let filtered = cols;
+        if (config.mode === 'manual' && config.collectionIds && config.collectionIds.length > 0) {
+          filtered = cols.filter(c => config.collectionIds.includes(c.id));
+        }
+        setCollections(filtered);
+      })
       .catch(console.error);
-  }, []);
+  }, [config.mode, config.collectionIds]);
+
+  const cardStyle: React.CSSProperties = {
+    background: config.cardBgColor || 'var(--sf-surface)',
+    borderRadius: config.cardRadius !== undefined ? `${config.cardRadius}px` : 'var(--sf-radius-lg)',
+  };
 
   return (
     <div className="sf-collection-grid" style={{ gridTemplateColumns: `repeat(${config.columns || 3}, 1fr)` }}>
       {collections.map(col => (
-        <Link key={col.id} to={`/shop/collections/${col.slug || col.id}`} className="sf-collection-card">
-          {col.cover_image_url && <img src={col.cover_image_url} alt={col.name} className="sf-collection-card-cover" />}
-          <div className="sf-collection-card-overlay">
-            <div>
-              <div className="sf-collection-card-name">{col.name}</div>
-              {col.product_count != null && <div className="sf-collection-card-count">{col.product_count} products</div>}
-            </div>
+        <Link key={col.id} to={`/shop/collections/${col.slug || col.id}`} className="sf-collection-card" style={cardStyle}>
+          <div className="sf-collection-card-img-wrap">
+            {col.cover_image_url ? (
+              <img src={col.cover_image_url} alt={col.name} className="sf-collection-card-cover" />
+            ) : (
+              <div className="sf-collection-card-placeholder">No Image</div>
+            )}
+          </div>
+          <div className="sf-collection-card-info">
+            <div className="sf-collection-card-name" style={config.cardTextColor && config.cardTextColor !== '#000000' ? { color: config.cardTextColor } : undefined}>{col.name}</div>
+            {col.product_count != null && <div className="sf-collection-card-count" style={config.cardTextColor && config.cardTextColor !== '#000000' ? { color: config.cardTextColor, opacity: 0.8 } : undefined}>{col.product_count} products</div>}
           </div>
         </Link>
       ))}
@@ -605,33 +675,130 @@ function CollectionGridBlock({ config }: { config: Record<string, any> }) {
   );
 }
 
-function FeaturedProductBlock({ productId }: { productId: string }) {
+function FeaturedProductBlock({ config }: { config: Record<string, any> }) {
   const { formatPrice } = useStoreConfig();
   const [product, setProduct] = useState<Product | null>(null);
   const [thumbnail, setThumbnail] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!productId) return;
-    api.fetchProductBySlug(productId).then(p => {
+    if (!config.productId) return;
+    api.fetchProductBySlug(config.productId).then(p => {
       setProduct(p);
       api.fetchProductThumbnails([p.id]).then(t => setThumbnail(t[p.id] || null));
     }).catch(console.error);
-  }, [productId]);
+  }, [config.productId]);
 
   if (!product) return null;
 
+  const cardStyle: React.CSSProperties = {
+    background: config.cardBgColor || 'var(--sf-surface)',
+    borderRadius: config.cardRadius !== undefined ? `${config.cardRadius}px` : 'var(--sf-radius-xl)',
+    color: config.cardTextColor || 'var(--sf-text)',
+  };
+
+  const isRight = config.align === 'right';
+
   return (
-    <div className="sf-block-featured-product">
-      {thumbnail && <img src={thumbnail} alt={product.name} className="sf-block-featured-image" />}
-      <div className="sf-block-featured-info">
-        <h2>{product.name}</h2>
-        <p className="sf-block-featured-price">{formatPrice(product.price)}</p>
-        {product.description && <p>{product.description}</p>}
-        <Link to={`/shop/products/${product.slug || product.id}`} className="sf-btn sf-btn-primary sf-btn-md">View Product</Link>
+    <div className={`sf-featured-card ${isRight ? 'sf-featured-right' : ''}`} style={cardStyle}>
+      <div className="sf-featured-card-img-col">
+        {thumbnail ? (
+          <img src={thumbnail} alt={product.name} className="sf-featured-card-image" />
+        ) : (
+          <div className="sf-featured-card-placeholder">No Image</div>
+        )}
+      </div>
+      <div className="sf-featured-card-info-col">
+        <h2 style={config.cardTextColor ? { color: config.cardTextColor } : undefined}>{product.name}</h2>
+        <p className="sf-featured-card-price" style={config.cardTextColor ? { color: config.cardTextColor } : undefined}>
+          {formatProductPrice(product, formatPrice)}
+        </p>
+        {config.showDescription !== false && product.description && (
+          <p className="sf-featured-card-desc" style={config.cardTextColor ? { color: config.cardTextColor, opacity: 0.8 } : undefined}>
+            {product.description}
+          </p>
+        )}
+        <div className="sf-featured-card-action">
+          <Link 
+            to={`/shop/products/${product.slug || product.id}`} 
+            className="sf-btn sf-btn-lg"
+            style={{
+              background: config.btnBgColor || 'var(--sf-primary)',
+              color: config.btnTextColor || '#ffffff',
+              borderRadius: config.btnRadius !== undefined ? `${config.btnRadius}px` : undefined,
+              borderColor: config.btnBgColor || 'transparent'
+            }}
+          >
+            {config.btnText || 'View Product'}
+          </Link>
+        </div>
       </div>
     </div>
   );
 }
+
+function TestimonialsBlock({ config, isPreview }: { config: Record<string, any>; isPreview: boolean }) {
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (config.layout !== 'carousel' || config.autoScroll === false) return;
+    
+    const intervalMs = config.scrollInterval || 3000;
+    const autoScrollTimer = setInterval(() => {
+      if (!scrollRef.current) return;
+      const el = scrollRef.current;
+      
+      // Pause if user is hovering
+      if (el.matches(':hover')) return;
+
+      const maxScroll = el.scrollWidth - el.clientWidth;
+      if (el.scrollLeft >= maxScroll - 10) {
+        // Reset gracefully
+        el.scrollTo({ left: 0, behavior: 'smooth' });
+      } else {
+        // Move ahead roughly one card
+        el.scrollBy({ left: 340, behavior: 'smooth' });
+      }
+    }, intervalMs);
+
+    return () => clearInterval(autoScrollTimer);
+  }, [config.layout, config.autoScroll, config.scrollInterval]);
+
+  const layoutClass = config.layout === 'carousel' ? 'sf-testimonials-carousel' : config.layout === 'list' ? 'sf-testimonials-list' : 'sf-testimonials-grid';
+  const itemsToRender = config.showManual !== false ? (config.items || []) : [];
+
+  if (itemsToRender.length === 0) {
+    return isPreview ? <div style={{ padding: '2rem', textAlign: 'center', color: '#9ca3af' }}>No testimonials to display. Enable a source or add manual reviews.</div> : null;
+  }
+
+  const content = (
+    <div className={layoutClass} style={{ direction: config.rtl ? 'rtl' : 'ltr' }} ref={scrollRef}>
+      {itemsToRender.map((item: any, i: number) => (
+        <div 
+          key={i} 
+          className="sf-testimonial-card"
+          style={{ 
+            background: config.cardBgColor || 'var(--sf-surface)', 
+            borderRadius: config.cardRadius !== undefined ? `${config.cardRadius}px` : 'var(--sf-radius)',
+            color: config.textColor || 'var(--sf-text)',
+            direction: 'ltr' 
+          }}
+        >
+          <div className="sf-testimonial-stars" style={{ color: config.starColor || '#fbbf24' }}>
+            {'★'.repeat(item.rating || 5)}{'☆'.repeat(5 - (item.rating || 5))}
+          </div>
+          <p className="sf-testimonial-text" style={{ fontStyle: 'italic' }}>"{item.text}"</p>
+          <p className="sf-testimonial-name" style={{ fontWeight: 700, opacity: 0.8, marginTop: 'auto' }}>— {item.name}</p>
+        </div>
+      ))}
+    </div>
+  );
+
+  if (config.layout === 'carousel') {
+    return <div className="sf-testimonials-carousel-wrapper">{content}</div>;
+  }
+  return content;
+}
+
 
 function VideoBlock({ config: c }: { config: Record<string, any> }) {
   const source = c.source || 'url';
@@ -760,20 +927,79 @@ function CustomVideoPlayer({ src, autoplay, defaultMuted, showControls }: { src:
   );
 }
 
-function FAQBlock({ items }: { items: { question: string; answer: string }[] }) {
-  const [openIndex, setOpenIndex] = useState<number | null>(null);
+function FAQBlock({ config }: { config: Record<string, any> }) {
+  const items = config.items || [];
+  
+  // Track ONLY manual toggles. If undefined, we fallback to the config's `defaultOpen`.
+  // This allows the builder preview to instantly react to "Loaded Open" checkbox changes.
+  const [manualStates, setManualStates] = useState<Record<number, boolean>>({});
+
+  const toggleOpen = (i: number) => {
+    setManualStates(prev => {
+      const isCurrentlyOpen = prev[i] !== undefined ? prev[i] : !!items[i]?.defaultOpen;
+      return { ...prev, [i]: !isCurrentlyOpen };
+    });
+  };
+
+  const align = config.align || 'center';
+  const hasQBg = config.qBgColor && config.qBgColor !== 'transparent';
+  const hasABg = config.aBgColor && config.aBgColor !== 'transparent';
+
+  // Used a solid hex to prevent webkit antialiasing bleed on strong background colors
+  const defaultBorder = config.borderColor || '#e5e7eb';
 
   return (
-    <div className="sf-block-faq">
-      {items.map((item, i) => (
-        <div key={i} className={`sf-faq-item ${openIndex === i ? 'open' : ''}`}>
-          <button className="sf-faq-question" onClick={() => setOpenIndex(openIndex === i ? null : i)}>
-            <span>{item.question}</span>
-            <span className="sf-faq-arrow">{openIndex === i ? '−' : '+'}</span>
-          </button>
-          {openIndex === i && <div className="sf-faq-answer">{item.answer}</div>}
+    <div className="sf-block-faq" style={{ textAlign: align }}>
+      {(config.title || config.subtitle) && (
+        <div style={{ marginBottom: '2rem' }}>
+          {config.title && <h2 style={{ color: config.titleColor || '#000000', fontSize: '2rem', fontWeight: 800, marginBottom: '1rem' }}>{config.title}</h2>}
+          {config.subtitle && <p style={{ color: config.subtitleColor || '#666666', fontSize: '1.25rem', opacity: 0.9 }}>{config.subtitle}</p>}
         </div>
-      ))}
+      )}
+      <div style={{ 
+        textAlign: 'left', 
+        display: 'flex', 
+        flexDirection: 'column', 
+        border: config.borderRadius ? `1px solid ${defaultBorder}` : 'none',
+        borderRadius: config.borderRadius ? `${config.borderRadius}px` : 0,
+        overflow: 'hidden'
+      }}>
+        {items.map((item: any, i: number) => {
+          const isOpen = manualStates[i] !== undefined ? manualStates[i] : !!item.defaultOpen;
+          const isLast = i === items.length - 1;
+          return (
+          <div key={i} className={`sf-faq-item ${isOpen ? 'open' : ''}`} 
+               style={{ 
+                 borderBottom: !isLast ? `1px solid ${defaultBorder}` : 'none',
+                 marginBottom: 0
+               }}>
+            <button className="sf-faq-question" onClick={() => toggleOpen(i)}
+                    style={{
+                      color: config.qColor || 'var(--sf-text)',
+                      backgroundColor: config.qBgColor || 'transparent',
+                      fontSize: config.qFontSize ? `${config.qFontSize}px` : '18px',
+                      fontWeight: config.qFontWeight || '700',
+                      padding: hasQBg || config.borderRadius ? '1.5rem' : '1.5rem 0',
+                      border: 'none',
+                    }}>
+              <span>{item.question}</span>
+              <span className="sf-faq-arrow">{isOpen ? '−' : '+'}</span>
+            </button>
+            {isOpen && (
+              <div className="sf-faq-answer"
+                   style={{
+                     color: config.aColor || 'var(--sf-text-secondary)',
+                     backgroundColor: config.aBgColor || 'transparent',
+                     fontSize: config.aFontSize ? `${config.aFontSize}px` : '16px',
+                     padding: hasABg || config.borderRadius ? '0 1.5rem 1.5rem' : '0 0 1.5rem',
+                     margin: 0
+                   }}>
+                {item.answer}
+              </div>
+            )}
+          </div>
+        )})}
+      </div>
     </div>
   );
 }
@@ -782,6 +1008,24 @@ function CollectionShowcaseBlock({ config }: { config: Record<string, any> }) {
   const { formatPrice } = useStoreConfig();
   const [products, setProducts] = useState<Product[]>([]);
   const [thumbnails, setThumbnails] = useState<Record<string, string>>({});
+
+  const titleStyle: React.CSSProperties = {
+    fontFamily: config.titleFont ? `'${config.titleFont}', sans-serif` : undefined,
+    color: config.titleColor || '#000000',
+    fontWeight: config.titleFontWeight || 800,
+    fontSize: config.titleFontSize ? `${config.titleFontSize}px` : undefined,
+  };
+
+  const subtitleStyle: React.CSSProperties = {
+    color: config.subtitleColor || '#666666',
+    fontSize: config.subtitleFontSize ? `${config.subtitleFontSize}px` : undefined,
+  };
+
+  const cardStyle: React.CSSProperties = {
+    backgroundColor: config.cardBgColor || '#ffffff',
+    color: config.cardTextColor || '#000000',
+    borderRadius: config.cardRadius ? `${config.cardRadius}px` : undefined,
+  };
 
   useEffect(() => {
     const load = async () => {
@@ -807,8 +1051,8 @@ function CollectionShowcaseBlock({ config }: { config: Record<string, any> }) {
     <div className="sf-showcase-block">
       <div className="sf-showcase-header">
         <div className="sf-showcase-text">
-          {config.title && <h2 className="sf-showcase-title">{config.title}</h2>}
-          {config.subtitle && <p className="sf-showcase-subtitle">{config.subtitle}</p>}
+          {config.title && <h2 className="sf-showcase-title" style={titleStyle}>{config.title}</h2>}
+          {config.subtitle && <p className="sf-showcase-subtitle" style={subtitleStyle}>{config.subtitle}</p>}
         </div>
         {config.ctaText && (
           <Link to={config.ctaLink || '#'} className="sf-showcase-cta">
@@ -818,7 +1062,7 @@ function CollectionShowcaseBlock({ config }: { config: Record<string, any> }) {
       </div>
       <div className="sf-showcase-grid" style={{ gridTemplateColumns: `repeat(${config.limit || 5}, 1fr)` }}>
         {products.map(product => (
-          <Link key={product.id} to={`/shop/products/${product.slug || product.id}`} className="sf-showcase-card">
+          <Link key={product.id} to={`/shop/products/${product.slug || product.id}`} className="sf-showcase-card" style={cardStyle}>
             <div className="sf-showcase-img-wrap">
               {thumbnails[product.id] ? (
                 <img src={thumbnails[product.id]} alt={product.name} className="sf-showcase-img" />
@@ -827,16 +1071,9 @@ function CollectionShowcaseBlock({ config }: { config: Record<string, any> }) {
               )}
             </div>
             <div className="sf-showcase-info">
-              <div className="sf-showcase-name">{product.name}</div>
-              <div className="sf-showcase-price">{formatPrice(product.price)}</div>
+              <div className="sf-showcase-name" style={{ color: config.cardTextColor || '#000000' }}>{product.name}</div>
+              <div className="sf-showcase-price">{formatProductPrice(product, formatPrice)}</div>
             </div>
-            {config.showSwatches && (
-              <div className="sf-showcase-swatches">
-                <div className="sf-swatch sf-swatch-1"></div>
-                <div className="sf-swatch sf-swatch-2"></div>
-                <div className="sf-swatch sf-swatch-3"></div>
-              </div>
-            )}
           </Link>
         ))}
       </div>
@@ -958,10 +1195,30 @@ function ProductCarouselBlock({ config }: { config: Record<string, any> }) {
     load();
   }, [config.collectionId, config.limit]);
 
+  // Apply typography
+  const titleStyle: React.CSSProperties = {
+    fontFamily: config.titleFont ? `"${config.titleFont}", sans-serif` : undefined,
+    color: config.titleColor || '#000000',
+    fontSize: config.titleFontSize ? `${config.titleFontSize}px` : undefined,
+    fontWeight: config.titleFontWeight || '900',
+  };
+
+  const subtitleStyle: React.CSSProperties = {
+    color: config.subtitleColor || '#666666',
+    fontSize: config.subtitleFontSize ? `${config.subtitleFontSize}px` : undefined,
+  };
+
+  // Apply card styles
+  const cardStyle: React.CSSProperties = {
+    background: config.cardBgColor || 'var(--sf-surface)',
+    borderRadius: config.cardRadius !== undefined ? `${config.cardRadius}px` : 'var(--sf-radius-lg)',
+  };
+
   return (
     <div className="sf-carousel-block">
       <div className="sf-carousel-sidebar">
-        {config.title && <h2 className="sf-carousel-title">{config.title}</h2>}
+        {config.title && <h2 className="sf-carousel-title" style={titleStyle}>{config.title}</h2>}
+        {config.subtitle && <p className="sf-carousel-subtitle" style={subtitleStyle}>{config.subtitle}</p>}
         {config.ctaText && (
           <Link to={config.ctaLink || '#'} className="sf-carousel-cta">
             {config.ctaText}
@@ -970,7 +1227,7 @@ function ProductCarouselBlock({ config }: { config: Record<string, any> }) {
       </div>
       <div className="sf-carousel-track">
         {products.map(product => (
-          <Link key={product.id} to={`/shop/products/${product.slug || product.id}`} className="sf-carousel-card">
+          <Link key={product.id} to={`/shop/products/${product.slug || product.id}`} className="sf-carousel-card" style={cardStyle}>
             <div className="sf-carousel-img-wrap">
               {thumbnails[product.id] ? (
                 <img src={thumbnails[product.id]} alt={product.name} className="sf-carousel-img" />
@@ -979,8 +1236,8 @@ function ProductCarouselBlock({ config }: { config: Record<string, any> }) {
               )}
             </div>
             <div className="sf-carousel-info">
-              <div className="sf-carousel-name">{product.name}</div>
-              <div className="sf-carousel-price">{formatPrice(product.price)}</div>
+              <div className="sf-carousel-name" style={config.cardTextColor && config.cardTextColor !== '#000000' ? { color: config.cardTextColor } : undefined}>{product.name}</div>
+              <div className="sf-carousel-price">{formatProductPrice(product, formatPrice)}</div>
             </div>
           </Link>
         ))}

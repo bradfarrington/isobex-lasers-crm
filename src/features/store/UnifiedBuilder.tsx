@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, Component } from 'react';
+import type { ErrorInfo, ReactNode } from 'react';
 import { useAlert } from '@/components/ui/AlertDialog';
 import { useNavigate } from 'react-router-dom';
 import { BlockEditor } from './BlockEditor';
@@ -8,7 +9,7 @@ import {
   ArrowLeft, Save, Trash2, Plus,
   GripVertical, X, Monitor, Smartphone, Layout, Paintbrush,
   Type, ShoppingCart, ShoppingBag, ShoppingBasket, Menu,
-  Layers, ChevronRight, Eye, EyeOff
+  Layers, ChevronRight, Eye, EyeOff, Undo2, Redo2, Info
 } from 'lucide-react';
 import './UnifiedBuilder.css';
 import '../storefront/StorefrontLayout.css';
@@ -17,9 +18,13 @@ import { BLOCK_OPTIONS, CATEGORIES } from './BlockLibrary';
 import { StoreConfigContext } from '../storefront/useStoreConfig';
 import { BlockContent } from '../storefront/BlockRenderer';
 import { SocialIcon } from '../storefront/SocialIcons';
+import { StorefrontProducts } from '../storefront/StorefrontProducts';
+import { StorefrontCollections } from '../storefront/StorefrontCollections';
+import { StorefrontProductDetail } from '../storefront/StorefrontProductDetail';
+import { StorefrontCollectionDetail } from '../storefront/StorefrontCollectionDetail';
 
 type LeftTab = 'library' | 'layers' | 'settings';
-type BuilderPanel = 'brand' | 'typography' | 'header' | 'footer';
+type BuilderPanel = 'brand' | 'typography' | 'header' | 'footer' | 'products_template' | 'collections_template' | 'product_detail_template' | 'collection_detail_template' | 'checkout_template' | 'cart_sidebar_template';
 
 const SETTINGS_PANELS: { key: BuilderPanel; label: string; icon: any }[] = [
   { key: 'brand', label: 'Brand & Colours', icon: Paintbrush },
@@ -27,6 +32,40 @@ const SETTINGS_PANELS: { key: BuilderPanel; label: string; icon: any }[] = [
   { key: 'header', label: 'Header', icon: Layout },
   { key: 'footer', label: 'Footer', icon: Layout },
 ];
+
+// Virtual "system" pages that render live storefront components instead of block editors
+
+export class PreviewErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean, error: Error | null }> {
+  constructor(props: { children: ReactNode }) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+  static getDerivedStateFromError(error: Error) { return { hasError: true, error }; }
+  componentDidCatch(error: Error, errorInfo: ErrorInfo) { console.error('Preview error:', error, errorInfo); }
+  render() {
+    if (this.state.hasError) return <div style={{ padding: 20, color: 'red', zIndex: 9999, position: 'relative' }}><h2>Preview Crashed</h2><pre style={{ whiteSpace: 'pre-wrap' }}>{this.state.error?.message}</pre></div>;
+    return this.props.children;
+  }
+}
+
+const SYSTEM_PAGES: { id: string; page_key: string; title: string; templatePanel: BuilderPanel }[] = [
+  { id: '__sys_products', page_key: 'products', title: 'Products', templatePanel: 'products_template' },
+  { id: '__sys_collections', page_key: 'collections', title: 'Collections', templatePanel: 'collections_template' },
+  { id: '__sys_product_detail', page_key: 'product_detail', title: 'Product Detail', templatePanel: 'product_detail_template' },
+  { id: '__sys_collection_detail', page_key: 'collection_detail', title: 'Collection Detail', templatePanel: 'collection_detail_template' },
+  { id: '__sys_checkout', page_key: 'checkout', title: 'Checkout', templatePanel: 'checkout_template' },
+  { id: '__sys_cart_sidebar', page_key: 'cart_sidebar', title: 'Cart Sidebar', templatePanel: 'cart_sidebar_template' },
+];
+
+function isSystemPage(pageId: string | undefined): boolean {
+  return !!pageId && pageId.startsWith('__sys_');
+}
+
+function getSystemPageTemplatePanel(pageId: string | undefined): BuilderPanel | null {
+  if (!pageId) return null;
+  const sp = SYSTEM_PAGES.find(s => s.id === pageId);
+  return sp?.templatePanel || null;
+}
 
 function generateId() {
   return Math.random().toString(36).slice(2, 10);
@@ -50,6 +89,69 @@ export function UnifiedBuilder() {
   const [pages, setPages] = useState<StorePage[]>([]);
   const [selectedPage, setSelectedPage] = useState<StorePage | null>(null);
   const [blocks, setBlocks] = useState<PageBlock[]>([]);
+
+  // ─── Undo / Redo History ───
+  const historyRef = useRef<PageBlock[][]>([]);
+  const futureRef = useRef<PageBlock[][]>([]);
+  const [canUndo, setCanUndo] = useState(false);
+  const [canRedo, setCanRedo] = useState(false);
+
+  const pushHistory = useCallback((currentBlocks: PageBlock[]) => {
+    historyRef.current.push(JSON.parse(JSON.stringify(currentBlocks)));
+    if (historyRef.current.length > 50) historyRef.current.shift(); // cap at 50
+    futureRef.current = [];
+    setCanUndo(true);
+    setCanRedo(false);
+  }, []);
+
+  const updateBlocks = useCallback((updater: (prev: PageBlock[]) => PageBlock[]) => {
+    setBlocks(prev => {
+      pushHistory(prev);
+      const next = updater(prev);
+      return next;
+    });
+    setHasChanges(true);
+  }, [pushHistory]);
+
+  const handleUndo = useCallback(() => {
+    if (historyRef.current.length === 0) return;
+    setBlocks(prev => {
+      futureRef.current.push(JSON.parse(JSON.stringify(prev)));
+      const restored = historyRef.current.pop()!;
+      setCanUndo(historyRef.current.length > 0);
+      setCanRedo(true);
+      return restored;
+    });
+    setHasChanges(true);
+  }, []);
+
+  const handleRedo = useCallback(() => {
+    if (futureRef.current.length === 0) return;
+    setBlocks(prev => {
+      historyRef.current.push(JSON.parse(JSON.stringify(prev)));
+      const restored = futureRef.current.pop()!;
+      setCanUndo(true);
+      setCanRedo(futureRef.current.length > 0);
+      return restored;
+    });
+    setHasChanges(true);
+  }, []);
+
+  // Keyboard shortcuts for undo/redo
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'z' && !e.shiftKey) {
+        e.preventDefault();
+        handleUndo();
+      }
+      if ((e.metaKey || e.ctrlKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) {
+        e.preventDefault();
+        handleRedo();
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [handleUndo, handleRedo]);
   
   // UI Selection State
   const [editingBlockId, setEditingBlockId] = useState<string | null>(null);
@@ -71,16 +173,36 @@ export function UnifiedBuilder() {
   const blocksWrapperRef = useRef<HTMLDivElement>(null);
 
   // Settings State
-  const [config, setConfig] = useState<StoreConfig | null>(null);
+  const [, setConfig] = useState<StoreConfig | null>(null);
   const [draftConfig, setDraftConfig] = useState<Partial<StoreConfig>>({});
 
   useEffect(() => {
     Promise.all([api.fetchStorePages(), api.fetchStoreConfig()])
       .then(([p, cfg]) => {
-        setPages(p);
-        if (p.length > 0) {
-          setSelectedPage(p[0]);
-          setBlocks(p[0].blocks || []);
+        // Filter out database pages whose page_key or title duplicates a system page
+        const systemKeys = new Set(SYSTEM_PAGES.map(sp => sp.page_key));
+        const systemTitles = new Set(SYSTEM_PAGES.map(sp => sp.title.toLowerCase()));
+        // Also filter common title variants
+        const extraTitles = new Set(['products list', 'thank you']);
+        const filteredDbPages = p.filter(pg => {
+          if (systemKeys.has(pg.page_key)) return false;
+          const lowerTitle = pg.title.toLowerCase();
+          if (systemTitles.has(lowerTitle)) return false;
+          if (extraTitles.has(lowerTitle)) return false;
+          return true;
+        });
+        // Merge system pages into the pages list
+        const allPages = [...filteredDbPages, ...SYSTEM_PAGES.map(sp => ({
+          ...sp,
+          blocks: [],
+          is_published: true,
+          created_at: '',
+          updated_at: '',
+        } as StorePage))];
+        setPages(allPages);
+        if (allPages.length > 0) {
+          setSelectedPage(allPages[0]);
+          setBlocks(allPages[0].blocks || []);
         }
         setConfig(cfg);
         setDraftConfig(cfg);
@@ -101,13 +223,15 @@ export function UnifiedBuilder() {
     setBlocks(page.blocks || []);
     setEditingBlockId(null);
     setHasChanges(false);
-    setActivePanel(null);
+    // If it's a system page, auto-open the template editor panel
+    const tplPanel = getSystemPageTemplatePanel(pageId);
+    setActivePanel(tplPanel);
   }, [hasChanges, pages, showConfirm]);
 
   const handleSave = async () => {
     setSaving(true);
     try {
-      if (selectedPage) {
+      if (selectedPage && !isSystemPage(selectedPage.id)) {
         const updatedPage = await api.updateStorePage(selectedPage.id, { blocks });
         setPages(prev => prev.map(p => p.id === updatedPage.id ? updatedPage : p));
         setSelectedPage(updatedPage);
@@ -130,7 +254,7 @@ export function UnifiedBuilder() {
   // ─── Block Operations ───
   const addBlock = (type: BlockType, index?: number) => {
     const newBlock: PageBlock = { id: generateId(), type, config: getDefaultConfig(type) };
-    setBlocks(prev => {
+    updateBlocks(prev => {
       const copy = [...prev];
       if (index !== undefined) copy.splice(index, 0, newBlock);
       else copy.push(newBlock);
@@ -138,14 +262,12 @@ export function UnifiedBuilder() {
     });
     setEditingBlockId(newBlock.id);
     setActivePanel(null);
-    setHasChanges(true);
   };
 
   const removeBlock = (id: string, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
-    setBlocks(prev => prev.filter(b => b.id !== id));
+    updateBlocks(prev => prev.filter(b => b.id !== id));
     if (editingBlockId === id) setEditingBlockId(null);
-    setHasChanges(true);
   };
 
   // ─── Native Canvas Drag & Drop ───
@@ -285,8 +407,7 @@ export function UnifiedBuilder() {
   ) : null;
 
   const updateBlockConfig = (id: string, c: Record<string, any>) => {
-    setBlocks(prev => prev.map(b => (b.id === id ? { ...b, config: c } : b)));
-    setHasChanges(true);
+    updateBlocks(prev => prev.map(b => (b.id === id ? { ...b, config: c } : b)));
   };
 
   // ─── Column Operations ───
@@ -649,7 +770,10 @@ export function UnifiedBuilder() {
           <div className="ub-canvas-controls">
             <div className="ub-page-selector" style={{ margin: 0, width: '200px' }}>
               <select value={selectedPage?.id || ''} onChange={(e) => selectPage(e.target.value)} style={{ padding: '6px 10px' }}>
-                {pages.map(p => <option key={p.id} value={p.id}>{p.title}</option>)}
+                {pages.filter(p => !isSystemPage(p.id)).map(p => <option key={p.id} value={p.id}>{p.title}</option>)}
+                <optgroup label="System Pages">
+                  {pages.filter(p => isSystemPage(p.id)).map(p => <option key={p.id} value={p.id}>{p.title}</option>)}
+                </optgroup>
               </select>
             </div>
             <div className="ub-device-toggles">
@@ -659,6 +783,12 @@ export function UnifiedBuilder() {
           </div>
           <div className="ub-canvas-actions">
             {hasChanges && <span className="ub-unsaved-badge">Unsaved changes</span>}
+            <button className="ub-preview-btn" onClick={handleUndo} disabled={!canUndo} title="Undo (Ctrl+Z)" style={{ opacity: canUndo ? 1 : 0.4 }}>
+              <Undo2 size={14} />
+            </button>
+            <button className="ub-preview-btn" onClick={handleRedo} disabled={!canRedo} title="Redo (Ctrl+Y)" style={{ opacity: canRedo ? 1 : 0.4 }}>
+              <Redo2 size={14} />
+            </button>
             <button className="ub-preview-btn" onClick={() => setIsPreviewMode(p => !p)}>
               {isPreviewMode ? <EyeOff size={14} /> : <Eye size={14} />}
               {isPreviewMode ? 'Exit Preview' : 'Preview'}
@@ -731,11 +861,120 @@ export function UnifiedBuilder() {
                 <main
                   className="sf-main"
                   style={{ minHeight: '400px', backgroundColor: 'var(--sf-bg)' }}
-                  onDragOver={e => { e.preventDefault(); setIsCanvasDragOver(true); }}
-                  onDragLeave={e => { if (!e.currentTarget.contains(e.relatedTarget as Node)) { setIsCanvasDragOver(false); setDragTargetIndex(null); } }}
-                  onDrop={e => { e.preventDefault(); e.stopPropagation(); handleWrapperDrop(e); setIsCanvasDragOver(false); }}
+                  onDragOver={!isSystemPage(selectedPage?.id) ? (e => { e.preventDefault(); setIsCanvasDragOver(true); }) : undefined}
+                  onDragLeave={!isSystemPage(selectedPage?.id) ? (e => { if (!e.currentTarget.contains(e.relatedTarget as Node)) { setIsCanvasDragOver(false); setDragTargetIndex(null); } }) : undefined}
+                  onDrop={!isSystemPage(selectedPage?.id) ? (e => { e.preventDefault(); e.stopPropagation(); handleWrapperDrop(e); setIsCanvasDragOver(false); }) : undefined}
                 >
-                  {blocks.length === 0 ? (
+                  {isSystemPage(selectedPage?.id) ? (
+                    /* ─── System Page Preview ─── */
+                    <div className="ub-system-page-preview">
+                      <div className="ub-system-page-banner">
+                        <Info size={16} />
+                        <span>This is a system-generated page. Use the settings panel on the right to customise its template.</span>
+                      </div>
+                      <PreviewErrorBoundary>
+                        <div style={{ pointerEvents: 'none' }}>
+                          {selectedPage?.page_key === 'products' && <StorefrontProducts />}
+                          {selectedPage?.page_key === 'collections' && <StorefrontCollections />}
+                          {selectedPage?.page_key === 'product_detail' && <StorefrontProductDetail previewSlug="preview" />}
+                          {selectedPage?.page_key === 'collection_detail' && <StorefrontCollectionDetail previewSlug="preview" />}
+                          {selectedPage?.page_key === 'checkout' && (
+                          <div className="ub-checkout-preview">
+                            <div className="sf-checkout" style={{ pointerEvents: 'auto' }}>
+                              <div className="sf-checkout-form">
+                                <div className="sf-checkout-section">
+                                  <h3>Contact Information</h3>
+                                  <div className="sf-checkout-field"><label>Email *</label><input type="email" placeholder="email@example.com" readOnly /></div>
+                                  <div className="form-row">
+                                    <div className="sf-checkout-field"><label>Full Name *</label><input type="text" placeholder="John Doe" readOnly /></div>
+                                    <div className="sf-checkout-field"><label>Phone</label><input type="tel" placeholder="+44 7700 900000" readOnly /></div>
+                                  </div>
+                                </div>
+                                <div className="sf-checkout-section">
+                                  <h3>Shipping Address</h3>
+                                  <div className="sf-checkout-field"><label>Address Line 1 *</label><input type="text" placeholder="123 Main Street" readOnly /></div>
+                                  <div className="sf-checkout-field"><label>Address Line 2</label><input type="text" placeholder="" readOnly /></div>
+                                  <div className="form-row">
+                                    <div className="sf-checkout-field"><label>City *</label><input type="text" placeholder="London" readOnly /></div>
+                                    <div className="sf-checkout-field"><label>Postcode *</label><input type="text" placeholder="SW1A 1AA" readOnly /></div>
+                                  </div>
+                                </div>
+                                <div className="sf-checkout-section">
+                                  <h3>Shipping Method</h3>
+                                  <div className="sf-shipping-options">
+                                    <div className="sf-shipping-option selected">
+                                      <input type="radio" checked readOnly />
+                                      <div className="sf-shipping-option-info">
+                                        <div className="sf-shipping-option-name">Standard Shipping</div>
+                                        <div className="sf-shipping-option-est">3–5 business days</div>
+                                      </div>
+                                      <div className="sf-shipping-option-price">{draftConfig?.currency_symbol || '£'}4.99</div>
+                                    </div>
+                                  </div>
+                                </div>
+                                <div className="sf-checkout-section">
+                                  <h3>Payment</h3>
+                                  <p style={{ fontSize: '0.875rem', color: 'var(--sf-text-secondary)' }}>Payment processing via Stripe is coming soon.</p>
+                                </div>
+                                <button className="sf-place-order-btn">Place Order — {draftConfig?.currency_symbol || '£'}24.98</button>
+                              </div>
+                              <div className="sf-order-summary">
+                                <h3>Order Summary</h3>
+                                <div className="sf-summary-item">
+                                  <div className="sf-summary-item-image" style={{ background: 'var(--sf-surface, #1a1a2e)' }} />
+                                  <div className="sf-summary-item-info">
+                                    <div className="sf-summary-item-name">Sample Product</div>
+                                    <div className="sf-summary-item-qty">Qty: 1</div>
+                                  </div>
+                                  <div className="sf-summary-item-total">{draftConfig?.currency_symbol || '£'}19.99</div>
+                                </div>
+                                <div className="sf-summary-totals">
+                                  <div className="sf-summary-row"><span>Subtotal</span><span>{draftConfig?.currency_symbol || '£'}19.99</span></div>
+                                  <div className="sf-summary-row"><span>Shipping</span><span>{draftConfig?.currency_symbol || '£'}4.99</span></div>
+                                  <div className="sf-summary-row total"><span>Total</span><span>{draftConfig?.currency_symbol || '£'}24.98</span></div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                        {selectedPage?.page_key === 'cart_sidebar' && (
+                          <div className="ub-cart-sidebar-preview">
+                            <div className="cart-panel" style={{ position: 'relative', transform: 'none', width: '100%', maxWidth: 420, margin: '16px auto', boxShadow: '0 4px 20px rgba(0,0,0,0.12)', borderRadius: 12 }}>
+                              <div className="cart-header">
+                                <h3>Your Cart (2)</h3>
+                                <button className="cart-close-btn"><X size={20} /></button>
+                              </div>
+                              <div className="cart-items">
+                                <div className="cart-item">
+                                  <div className="cart-item-image-placeholder" />
+                                  <div className="cart-item-info">
+                                    <div className="cart-item-name">Sample Product</div>
+                                    <div className="cart-item-variant">Variant A</div>
+                                    <div className="cart-item-bottom">
+                                      <div className="cart-qty-controls">
+                                        <button className="cart-qty-btn">−</button>
+                                        <span className="cart-qty-val">1</span>
+                                        <button className="cart-qty-btn">+</button>
+                                      </div>
+                                      <span className="cart-item-price">{draftConfig?.currency_symbol || '£'}19.99</span>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="cart-footer">
+                                <div className="cart-subtotal">
+                                  <span>Subtotal</span>
+                                  <span>{draftConfig?.currency_symbol || '£'}19.99</span>
+                                </div>
+                                <button className="cart-checkout-btn">Proceed to Checkout</button>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                      </PreviewErrorBoundary>
+                    </div>
+                  ) : blocks.length === 0 ? (
                     <div className={`ub-canvas-empty${isCanvasDragOver ? ' drag-over' : ''}`}>
                       {isPaletteDrag ? <DropGhost /> : <div className="ub-canvas-empty-text">Drag blocks here from the Library to build your page.</div>}
                     </div>
@@ -945,7 +1184,7 @@ export function UnifiedBuilder() {
           {activePanel && (
             <>
               <div className="ub-right-header">
-                <h3>{SETTINGS_PANELS.find(p => p.key === activePanel)?.label} Settings</h3>
+                <h3>{SETTINGS_PANELS.find(p => p.key === activePanel)?.label || SYSTEM_PAGES.find(sp => sp.templatePanel === activePanel)?.title || 'Template'} Settings</h3>
                 <button className="ub-close-btn" onClick={() => setActivePanel(null)}><X size={16} /></button>
               </div>
               <div className="ub-right-content">
@@ -986,9 +1225,25 @@ function getDefaultConfig(type: BlockType): Record<string, any> {
     case 'button': return { text: 'Click Me', link: '', style: 'primary', align: 'center', size: 'md', fontFamily: '', fontSize: '', fontWeight: '', textColor: '', bgColor: '', borderRadius: '' };
     case 'product_grid': return { mode: 'auto', productIds: [], columns: 4, limit: 8 };
     case 'collection_grid': return { mode: 'auto', collectionIds: [], columns: 3 };
-    case 'collection_showcase': return { title: 'INTRODUCING THE COLLECTION', subtitle: 'Built for a life in constant motion.', collectionId: '', limit: 5, showSwatches: true, ctaText: 'SHOP NOW', ctaLink: '/shop/products' };
+    case 'collection_showcase': return { title: 'INTRODUCING THE COLLECTION', subtitle: 'Built for a life in constant motion.', collectionId: '', limit: 5, ctaText: 'SHOP NOW', ctaLink: '/shop/products', titleFont: '', titleColor: '#000000', titleFontSize: 32, titleFontWeight: '800', subtitleColor: '#666666', subtitleFontSize: 16, cardBgColor: '#ffffff', cardTextColor: '#000000', cardRadius: 0 };
     case 'category_links': return { collectionIds: [], limit: 3, columns: 3, stackOnMobile: true, aspectRatio: 'auto', textPosition: 'below' };
-    case 'product_carousel': return { title: 'BEST SELLERS', ctaText: 'SHOP NOW', ctaLink: '/shop/products', collectionId: '', limit: 10 };
+    case 'product_carousel': return {
+      title: 'Product Carousel',
+      subtitle: 'Featured selection of top products.',
+      collectionId: '',
+      limit: 10,
+      ctaText: 'View All',
+      ctaLink: '/shop',
+      titleFont: '',
+      titleFontSize: 40,
+      titleFontWeight: '900',
+      titleColor: '#000000',
+      subtitleFontSize: 18,
+      subtitleColor: '#666666',
+      cardBgColor: '#ffffff',
+      cardTextColor: '#000000',
+      cardRadius: 16
+    };
     case 'featured_product': return { productId: '' };
     case 'spacer': return { height: 40 };
     case 'divider': return { style: 'solid', color: '#e5e7eb', thickness: 1 };

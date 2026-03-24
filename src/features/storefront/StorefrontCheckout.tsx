@@ -9,8 +9,9 @@ import type { ShippingRate, DiscountCode, GiftCard } from '@/types/database';
 export function StorefrontCheckout() {
   const { showAlert } = useAlert();
   const navigate = useNavigate();
-  const { formatPrice } = useStoreConfig();
+  const { formatPrice, config } = useStoreConfig();
   const { items, cartTotal, cartWeight, clearCart } = useCart();
+  const tpl = config?.page_templates?.checkout || {};
 
   const [shippingRates, setShippingRates] = useState<ShippingRate[]>([]);
   const [selectedShipping, setSelectedShipping] = useState<ShippingRate | null>(null);
@@ -154,6 +155,22 @@ export function StorefrontCheckout() {
     }
   };
 
+  // Template config values with defaults
+  const sectionRadius = tpl.sectionRadius ?? 16;
+  const buttonRadius = tpl.buttonRadius ?? 12;
+  const buttonText = tpl.buttonText || 'Place Order';
+  const inputRadius = tpl.inputRadius ?? 8;
+  const inputBorderColor = tpl.inputBorderColor || '';
+
+  const sectionStyle: React.CSSProperties = {
+    borderRadius: `${sectionRadius}px`,
+  };
+
+  const inputStyle: React.CSSProperties = {
+    borderRadius: `${inputRadius}px`,
+    ...(inputBorderColor ? { borderColor: inputBorderColor } : {}),
+  };
+
   if (items.length === 0) {
     return (
       <div className="sf-thank-you">
@@ -167,53 +184,53 @@ export function StorefrontCheckout() {
     <div className="sf-checkout">
       <div className="sf-checkout-form">
         {/* Contact */}
-        <div className="sf-checkout-section">
+        <div className="sf-checkout-section" style={sectionStyle}>
           <h3>Contact Information</h3>
           <div className="sf-checkout-field">
             <label>Email *</label>
-            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required style={inputStyle} />
           </div>
           <div className="form-row">
             <div className="sf-checkout-field">
               <label>Full Name *</label>
-              <input type="text" value={name} onChange={(e) => setName(e.target.value)} required />
+              <input type="text" value={name} onChange={(e) => setName(e.target.value)} required style={inputStyle} />
             </div>
             <div className="sf-checkout-field">
               <label>Phone</label>
-              <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} />
+              <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} style={inputStyle} />
             </div>
           </div>
         </div>
 
         {/* Shipping Address */}
-        <div className="sf-checkout-section">
+        <div className="sf-checkout-section" style={sectionStyle}>
           <h3>Shipping Address</h3>
           <div className="sf-checkout-field">
             <label>Address Line 1 *</label>
-            <input type="text" value={line1} onChange={(e) => setLine1(e.target.value)} required />
+            <input type="text" value={line1} onChange={(e) => setLine1(e.target.value)} required style={inputStyle} />
           </div>
           <div className="sf-checkout-field">
             <label>Address Line 2</label>
-            <input type="text" value={line2} onChange={(e) => setLine2(e.target.value)} />
+            <input type="text" value={line2} onChange={(e) => setLine2(e.target.value)} style={inputStyle} />
           </div>
           <div className="form-row">
             <div className="sf-checkout-field">
               <label>City *</label>
-              <input type="text" value={city} onChange={(e) => setCity(e.target.value)} required />
+              <input type="text" value={city} onChange={(e) => setCity(e.target.value)} required style={inputStyle} />
             </div>
             <div className="sf-checkout-field">
               <label>County</label>
-              <input type="text" value={county} onChange={(e) => setCounty(e.target.value)} />
+              <input type="text" value={county} onChange={(e) => setCounty(e.target.value)} style={inputStyle} />
             </div>
           </div>
           <div className="form-row">
             <div className="sf-checkout-field">
               <label>Postcode *</label>
-              <input type="text" value={postcode} onChange={(e) => setPostcode(e.target.value)} required />
+              <input type="text" value={postcode} onChange={(e) => setPostcode(e.target.value)} required style={inputStyle} />
             </div>
             <div className="sf-checkout-field">
               <label>Country</label>
-              <select value={country} onChange={(e) => setCountry(e.target.value)}>
+              <select value={country} onChange={(e) => setCountry(e.target.value)} style={inputStyle}>
                 <option value="GB">United Kingdom</option>
               </select>
             </div>
@@ -221,7 +238,7 @@ export function StorefrontCheckout() {
         </div>
 
         {/* Shipping method */}
-        <div className="sf-checkout-section">
+        <div className="sf-checkout-section" style={sectionStyle}>
           <h3>Shipping Method</h3>
           <div className="sf-shipping-options">
             {shippingRates.map((rate) => (
@@ -255,9 +272,9 @@ export function StorefrontCheckout() {
         </div>
 
         {/* Payment placeholder */}
-        <div className="sf-checkout-section">
+        <div className="sf-checkout-section" style={sectionStyle}>
           <h3>Payment</h3>
-          <p style={{ fontSize: '0.875rem', color: 'var(--sf-text-secondary)' }}>
+          <p style={{ fontSize: '0.875rem', color: '#6b7280' }}>
             Payment processing via Stripe is coming soon. Orders placed now will be marked as pending.
           </p>
         </div>
@@ -267,8 +284,11 @@ export function StorefrontCheckout() {
           className="sf-place-order-btn"
           onClick={handlePlaceOrder}
           disabled={placing || !email || !name || !line1 || !city || !postcode}
+          style={{
+            borderRadius: `${buttonRadius}px`,
+          }}
         >
-          {placing ? 'Placing Order...' : `Place Order — ${formatPrice(total)}`}
+          {placing ? 'Placing Order...' : `${buttonText} — ${formatPrice(total)}`}
         </button>
       </div>
 

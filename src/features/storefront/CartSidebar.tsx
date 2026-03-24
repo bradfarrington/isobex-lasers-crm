@@ -5,17 +5,29 @@ import { X, Trash2 } from 'lucide-react';
 
 export function CartSidebar() {
   const { items, isOpen, closeCart, removeItem, updateQuantity, cartTotal } = useCart();
-  const { formatPrice } = useStoreConfig();
+  const { formatPrice, config } = useStoreConfig();
+  const tpl = config?.page_templates?.cart_sidebar || {};
+
+  // Template config values with defaults
+  const headerBgColor = tpl.headerBgColor || '';
+  const headerTextColor = tpl.headerTextColor || '';
+  const bodyBgColor = tpl.bodyBgColor || '';
+  const emptyText = tpl.emptyText || 'Your cart is empty';
+  const emptyButtonText = tpl.emptyButtonText || 'Start Shopping';
+  const checkoutBtnBg = tpl.checkoutButtonBgColor || '';
+  const checkoutBtnText = tpl.checkoutButtonTextColor || '';
+  const checkoutBtnRadius = tpl.checkoutButtonRadius ?? 8;
+  const checkoutBtnLabel = tpl.checkoutButtonText || 'Proceed to Checkout';
 
   if (!isOpen) return null;
 
   return (
     <div className="cart-overlay">
       <div className="cart-backdrop" onClick={closeCart} />
-      <div className="cart-panel">
-        <div className="cart-header">
-          <h3>Your Cart ({items.length})</h3>
-          <button className="cart-close-btn" onClick={closeCart}>
+      <div className="cart-panel" style={bodyBgColor ? { backgroundColor: bodyBgColor } : undefined}>
+        <div className="cart-header" style={{ ...(headerBgColor ? { backgroundColor: headerBgColor } : {}), ...(headerTextColor ? { color: headerTextColor } : {}) }}>
+          <h3 style={headerTextColor ? { color: headerTextColor } : undefined}>Your Cart ({items.length})</h3>
+          <button className="cart-close-btn" onClick={closeCart} style={headerTextColor ? { color: headerTextColor } : undefined}>
             <X size={20} />
           </button>
         </div>
@@ -23,9 +35,9 @@ export function CartSidebar() {
         <div className="cart-items">
           {items.length === 0 ? (
             <div className="cart-empty">
-              <p>Your cart is empty</p>
-              <Link to="/shop/products" onClick={closeCart} className="sf-hero-cta" style={{ marginTop: '1rem', display: 'inline-block' }}>
-                Start Shopping
+              <p>{emptyText}</p>
+              <Link to="/shop/products" onClick={closeCart} className="sf-hero-cta" style={{ marginTop: '1rem', display: 'inline-block', background: '#dc2626', color: '#ffffff', borderRadius: '6px', padding: '0.75rem 2rem', textDecoration: 'none' }}>
+                {emptyButtonText}
               </Link>
             </div>
           ) : (
@@ -75,8 +87,17 @@ export function CartSidebar() {
               <span>Subtotal</span>
               <span>{formatPrice(cartTotal)}</span>
             </div>
-            <Link to="/shop/checkout" className="cart-checkout-btn" onClick={closeCart}>
-              Proceed to Checkout
+            <Link
+              to="/shop/checkout"
+              className="cart-checkout-btn"
+              onClick={closeCart}
+              style={{
+                ...(checkoutBtnBg ? { backgroundColor: checkoutBtnBg } : {}),
+                ...(checkoutBtnText ? { color: checkoutBtnText } : {}),
+                borderRadius: `${checkoutBtnRadius}px`,
+              }}
+            >
+              {checkoutBtnLabel}
             </Link>
           </div>
         )}

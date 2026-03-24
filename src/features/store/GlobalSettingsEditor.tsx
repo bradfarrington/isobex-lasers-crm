@@ -671,8 +671,575 @@ export function GlobalSettingsEditor({ panel, draft, updateDraft }: Props) {
       </div>
     );
   }
+  if (panel === 'products_template') {
+    const pt = (draft as any)?.page_templates?.products || {};
+    const updatePT = (updates: Record<string, any>) => {
+      updateDraft({ page_templates: { ...((draft as any)?.page_templates || {}), products: { ...pt, ...updates } } } as any);
+    };
+    return (
+      <div className="builder-panel-content">
+        <div className="ub-settings-card">
+          <div className="ub-settings-card-header">
+            <h3 className="ub-settings-card-title">Page Header</h3>
+          </div>
+          <div className="form-group">
+            <label className="form-label">Page Title</label>
+            <input type="text" className="form-input" value={pt.pageTitle ?? ''} placeholder="All Products" onChange={(e) => updatePT({ pageTitle: e.target.value })} />
+          </div>
+          <div className="form-group">
+            <label className="form-label">Subtitle</label>
+            <input type="text" className="form-input" value={pt.pageSubtitle ?? ''} placeholder="Browse our complete range of products" onChange={(e) => updatePT({ pageSubtitle: e.target.value })} />
+          </div>
+          <div className="form-group">
+            <label className="form-label">Alignment</label>
+            <div className="ub-radio-group" style={{ display: 'flex', gap: '1rem' }}>
+              <label><input type="radio" name="pt_align" checked={pt.titleAlign === 'left'} onChange={() => updatePT({ titleAlign: 'left' })} /> Left</label>
+              <label><input type="radio" name="pt_align" checked={pt.titleAlign === 'center'} onChange={() => updatePT({ titleAlign: 'center' })} /> Centre</label>
+              <label><input type="radio" name="pt_align" checked={pt.titleAlign === 'right'} onChange={() => updatePT({ titleAlign: 'right' })} /> Right</label>
+            </div>
+          </div>
+          <div className="form-group" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <label className="form-label" style={{ margin: 0 }}>Title Colour</label>
+            <ColorPicker value={pt.titleColor || '#111827'} onChange={(val) => updatePT({ titleColor: val })} />
+          </div>
+          <div className="form-group">
+            <label className="form-label">Title Size</label>
+            <select className="form-input" value={pt.titleSize || 'large'} onChange={(e) => updatePT({ titleSize: e.target.value })}>
+              <option value="small">Small</option>
+              <option value="medium">Medium</option>
+              <option value="large">Large</option>
+              <option value="xlarge">Extra Large</option>
+            </select>
+          </div>
+          <div className="form-group" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <label className="form-label" style={{ margin: 0 }}>Subtitle Colour</label>
+            <ColorPicker value={pt.subtitleColor || '#4b5563'} onChange={(val) => updatePT({ subtitleColor: val })} />
+          </div>
+        </div>
 
+        <div className="ub-settings-card">
+          <div className="ub-settings-card-header">
+            <h3 className="ub-settings-card-title">Product Grid</h3>
+          </div>
+          <div className="form-group">
+            <label className="form-label">Columns</label>
+            <select className="form-input" value={pt.columns || 3} onChange={(e) => updatePT({ columns: Number(e.target.value) })}>
+              <option value={2}>2 Columns</option>
+              <option value={3}>3 Columns</option>
+              <option value={4}>4 Columns</option>
+            </select>
+          </div>
+          <div className="form-group">
+            <label className="form-label">Image Aspect Ratio</label>
+            <select className="form-input" value={pt.imageAspect || 'square'} onChange={(e) => updatePT({ imageAspect: e.target.value })}>
+              <option value="square">Square (1:1)</option>
+              <option value="portrait">Portrait (3:4)</option>
+              <option value="landscape">Landscape (4:3)</option>
+            </select>
+          </div>
+        </div>
 
+        <div className="ub-settings-card">
+          <div className="ub-settings-card-header">
+            <h3 className="ub-settings-card-title">Card Styling</h3>
+          </div>
+          <div className="form-group" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <label className="form-label" style={{ margin: 0 }}>Card Background</label>
+            <ColorPicker value={pt.cardBgColor || '#000000'} onChange={(val) => updatePT({ cardBgColor: val })} />
+          </div>
+          <div className="form-group" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <label className="form-label" style={{ margin: 0 }}>Card Text Colour</label>
+            <ColorPicker value={pt.cardTextColor || '#ffffff'} onChange={(val) => updatePT({ cardTextColor: val })} />
+          </div>
+          <div className="form-group">
+            <label className="form-label">Card Border Radius (px)</label>
+            <input type="number" className="form-input" value={pt.cardRadius ?? 16} min={0} max={50} onChange={(e) => updatePT({ cardRadius: Number(e.target.value) })} />
+          </div>
+        </div>
+
+        <div className="ub-settings-card">
+          <div className="ub-settings-card-header">
+            <h3 className="ub-settings-card-title">Display Options</h3>
+          </div>
+          <div className="form-group" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <label className="form-label" style={{ margin: 0 }}>Price Colour</label>
+            <ColorPicker value={pt.priceColor || '#dc2626'} onChange={(val) => updatePT({ priceColor: val })} />
+          </div>
+          <div className="form-group">
+            <label style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', cursor: 'pointer', fontSize: '0.8125rem' }}>
+              <input type="checkbox" checked={pt.showPrice !== false} onChange={(e) => updatePT({ showPrice: e.target.checked })} />
+              <span>Show Price</span>
+            </label>
+          </div>
+          <div className="form-group">
+            <label style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', cursor: 'pointer', fontSize: '0.8125rem' }}>
+              <input type="checkbox" checked={pt.showComparePrice !== false} onChange={(e) => updatePT({ showComparePrice: e.target.checked })} />
+              <span>Show Compare-at Price</span>
+            </label>
+          </div>
+          <div className="form-group">
+            <label style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', cursor: 'pointer', fontSize: '0.8125rem' }}>
+              <input type="checkbox" checked={pt.showSortBar !== false} onChange={(e) => updatePT({ showSortBar: e.target.checked })} />
+              <span>Show Sort Bar</span>
+            </label>
+          </div>
+        </div>
+
+        <div className="ub-settings-card">
+          <div className="ub-settings-card-header">
+            <h3 className="ub-settings-card-title">Sidebar & Filters</h3>
+          </div>
+          <div className="form-group">
+            <label style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', cursor: 'pointer', fontSize: '0.8125rem' }}>
+              <input type="checkbox" checked={pt.showSidebar || false} onChange={(e) => updatePT({ showSidebar: e.target.checked })} />
+              <span>Show Sidebar</span>
+            </label>
+          </div>
+          {pt.showSidebar && (
+            <>
+              <div className="form-group">
+                <label className="form-label">Sidebar Position</label>
+                <select className="form-input" value={pt.sidebarPosition || 'left'} onChange={(e) => updatePT({ sidebarPosition: e.target.value })}>
+                  <option value="left">Left</option>
+                  <option value="right">Right</option>
+                </select>
+              </div>
+              <div className="form-group">
+                <label style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', cursor: 'pointer', fontSize: '0.8125rem' }}>
+                  <input type="checkbox" checked={pt.enableCategoryFilter || false} onChange={(e) => updatePT({ enableCategoryFilter: e.target.checked })} />
+                  <span>Enable Category Filter</span>
+                </label>
+              </div>
+              <div className="form-group">
+                <label style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', cursor: 'pointer', fontSize: '0.8125rem' }}>
+                  <input type="checkbox" checked={pt.enableCompatibilityFilter || false} onChange={(e) => updatePT({ enableCompatibilityFilter: e.target.checked })} />
+                  <span>Enable "Compatible With" Filter</span>
+                </label>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  if (panel === 'collections_template') {
+    const ct = (draft as any)?.page_templates?.collections || {};
+    const updateCT = (updates: Record<string, any>) => {
+      updateDraft({ page_templates: { ...((draft as any)?.page_templates || {}), collections: { ...ct, ...updates } } } as any);
+    };
+    return (
+      <div className="builder-panel-content">
+        <div className="ub-settings-card">
+          <div className="ub-settings-card-header">
+            <h3 className="ub-settings-card-title">Page Header</h3>
+          </div>
+          <div className="form-group">
+            <label className="form-label">Page Title</label>
+            <input type="text" className="form-input" value={ct.pageTitle ?? ''} placeholder="Collections" onChange={(e) => updateCT({ pageTitle: e.target.value })} />
+          </div>
+          <div className="form-group">
+            <label className="form-label">Subtitle</label>
+            <input type="text" className="form-input" value={ct.pageSubtitle ?? ''} placeholder="Browse our curated collections" onChange={(e) => updateCT({ pageSubtitle: e.target.value })} />
+          </div>
+          <div className="form-group">
+            <label className="form-label">Alignment</label>
+            <div className="ub-radio-group" style={{ display: 'flex', gap: '1rem' }}>
+              <label><input type="radio" name="ct_align" checked={ct.titleAlign === 'left'} onChange={() => updateCT({ titleAlign: 'left' })} /> Left</label>
+              <label><input type="radio" name="ct_align" checked={ct.titleAlign === 'center'} onChange={() => updateCT({ titleAlign: 'center' })} /> Centre</label>
+              <label><input type="radio" name="ct_align" checked={ct.titleAlign === 'right'} onChange={() => updateCT({ titleAlign: 'right' })} /> Right</label>
+            </div>
+          </div>
+          <div className="form-group" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <label className="form-label" style={{ margin: 0 }}>Title Colour</label>
+            <ColorPicker value={ct.titleColor || '#111827'} onChange={(val) => updateCT({ titleColor: val })} />
+          </div>
+          <div className="form-group">
+            <label className="form-label">Title Size</label>
+            <select className="form-input" value={ct.titleSize || 'large'} onChange={(e) => updateCT({ titleSize: e.target.value })}>
+              <option value="small">Small</option>
+              <option value="medium">Medium</option>
+              <option value="large">Large</option>
+              <option value="xlarge">Extra Large</option>
+            </select>
+          </div>
+          <div className="form-group" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <label className="form-label" style={{ margin: 0 }}>Subtitle Colour</label>
+            <ColorPicker value={ct.subtitleColor || '#4b5563'} onChange={(val) => updateCT({ subtitleColor: val })} />
+          </div>
+        </div>
+
+        <div className="ub-settings-card">
+          <div className="ub-settings-card-header">
+            <h3 className="ub-settings-card-title">Grid Layout</h3>
+          </div>
+          <div className="form-group">
+            <label className="form-label">Columns</label>
+            <select className="form-input" value={ct.columns || 3} onChange={(e) => updateCT({ columns: Number(e.target.value) })}>
+              <option value={2}>2 Columns</option>
+              <option value={3}>3 Columns</option>
+              <option value={4}>4 Columns</option>
+            </select>
+          </div>
+          <div className="form-group">
+            <label className="form-label">Card Border Radius (px)</label>
+            <input type="number" className="form-input" value={ct.cardRadius ?? 16} min={0} max={50} onChange={(e) => updateCT({ cardRadius: Number(e.target.value) })} />
+          </div>
+        </div>
+
+        <div className="ub-settings-card">
+          <div className="ub-settings-card-header">
+            <h3 className="ub-settings-card-title">Overlay Styling</h3>
+          </div>
+          <div className="form-group" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <label className="form-label" style={{ margin: 0 }}>Overlay Background</label>
+            <ColorPicker value={ct.overlayBgColor || '#000000'} onChange={(val) => updateCT({ overlayBgColor: val })} />
+          </div>
+          <div className="form-group" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <label className="form-label" style={{ margin: 0 }}>Overlay Text Colour</label>
+            <ColorPicker value={ct.overlayTextColor || '#ffffff'} onChange={(val) => updateCT({ overlayTextColor: val })} />
+          </div>
+          <div className="form-group">
+            <label className="form-label">Overlay Opacity</label>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <input type="range" min={0} max={1} step={0.05} value={ct.overlayOpacity ?? 0.7} onChange={(e) => updateCT({ overlayOpacity: Number(e.target.value) })} style={{ flex: 1 }} />
+              <span className="pb-range-val">{((ct.overlayOpacity ?? 0.7) * 100).toFixed(0)}%</span>
+            </div>
+          </div>
+          <div className="form-group">
+            <label style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', cursor: 'pointer', fontSize: '0.8125rem' }}>
+              <input type="checkbox" checked={ct.showProductCount !== false} onChange={(e) => updateCT({ showProductCount: e.target.checked })} />
+              <span>Show Product Count</span>
+            </label>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (panel === 'product_detail_template') {
+    const pd = (draft as any)?.page_templates?.product_detail || {};
+    const updatePD = (updates: Record<string, any>) => {
+      updateDraft({ page_templates: { ...((draft as any)?.page_templates || {}), product_detail: { ...pd, ...updates } } } as any);
+    };
+    return (
+      <div className="builder-panel-content">
+        <div className="ub-settings-card">
+          <div className="ub-settings-card-header">
+            <h3 className="ub-settings-card-title">Typography & Layout</h3>
+          </div>
+          <div className="form-group">
+            <label className="form-label">Image Position</label>
+            <select className="form-input" value={pd.imagePosition || 'left'} onChange={(e) => updatePD({ imagePosition: e.target.value })}>
+              <option value="left">Left</option>
+              <option value="right">Right</option>
+            </select>
+          </div>
+          <div className="form-group">
+            <label className="form-label">Title Font Size (px)</label>
+            <input type="number" className="form-input" value={pd.titleFontSize || 32} min={16} max={72} onChange={(e) => updatePD({ titleFontSize: Number(e.target.value) })} />
+          </div>
+          <div className="form-group" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <label className="form-label" style={{ margin: 0 }}>Title Colour</label>
+            <ColorPicker value={pd.titleColor || '#111827'} onChange={(val) => updatePD({ titleColor: val })} />
+          </div>
+          <div className="form-group" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <label className="form-label" style={{ margin: 0 }}>Price Colour</label>
+            <ColorPicker value={pd.priceColor || '#dc2626'} onChange={(val) => updatePD({ priceColor: val })} />
+          </div>
+          <div className="form-group">
+            <label className="form-label">Description Font Size (px)</label>
+            <input type="number" className="form-input" value={pd.descriptionFontSize || 16} min={12} max={32} onChange={(e) => updatePD({ descriptionFontSize: Number(e.target.value) })} />
+          </div>
+          <div className="form-group" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <label className="form-label" style={{ margin: 0 }}>Description Colour</label>
+            <ColorPicker value={pd.descriptionColor || '#4b5563'} onChange={(val) => updatePD({ descriptionColor: val })} />
+          </div>
+        </div>
+
+        <div className="ub-settings-card">
+          <div className="ub-settings-card-header">
+            <h3 className="ub-settings-card-title">Inputs & Selectors</h3>
+          </div>
+          <div className="form-group" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <label className="form-label" style={{ margin: 0 }}>Label Text Colour</label>
+            <ColorPicker value={pd.inputLabelColor || '#111827'} onChange={(val) => updatePD({ inputLabelColor: val })} />
+          </div>
+          <div className="form-group" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <label className="form-label" style={{ margin: 0 }}>Input Background</label>
+            <ColorPicker value={pd.inputBgColor || '#ffffff'} onChange={(val) => updatePD({ inputBgColor: val })} />
+          </div>
+          <div className="form-group" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <label className="form-label" style={{ margin: 0 }}>Input Text Colour</label>
+            <ColorPicker value={pd.inputTextColor || '#111827'} onChange={(val) => updatePD({ inputTextColor: val })} />
+          </div>
+          <div className="form-group" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <label className="form-label" style={{ margin: 0 }}>Input Border Colour</label>
+            <ColorPicker value={pd.inputBorderColor || '#e5e7eb'} onChange={(val) => updatePD({ inputBorderColor: val })} />
+          </div>
+          <div className="form-group">
+            <label className="form-label">Input Border Radius (px)</label>
+            <input type="number" className="form-input" value={pd.inputRadius ?? 8} min={0} max={24} onChange={(e) => updatePD({ inputRadius: Number(e.target.value) })} />
+          </div>
+        </div>
+
+        <div className="ub-settings-card">
+          <div className="ub-settings-card-header">
+            <h3 className="ub-settings-card-title">Add to Cart Button</h3>
+          </div>
+          <div className="form-group">
+            <label className="form-label">Button Text</label>
+            <input type="text" className="form-input" value={pd.buttonText || 'Add to Cart'} onChange={(e) => updatePD({ buttonText: e.target.value })} />
+          </div>
+          <div className="form-group" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <label className="form-label" style={{ margin: 0 }}>Button Background</label>
+            <ColorPicker value={pd.buttonBgColor || '#dc2626'} onChange={(val) => updatePD({ buttonBgColor: val })} />
+          </div>
+          <div className="form-group" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <label className="form-label" style={{ margin: 0 }}>Button Text Colour</label>
+            <ColorPicker value={pd.buttonTextColor || '#ffffff'} onChange={(val) => updatePD({ buttonTextColor: val })} />
+          </div>
+          <div className="form-group">
+            <label className="form-label">Button Border Radius (px)</label>
+            <input type="number" className="form-input" value={pd.buttonRadius ?? 12} min={0} max={50} onChange={(e) => updatePD({ buttonRadius: Number(e.target.value) })} />
+          </div>
+        </div>
+
+        <div className="ub-settings-card">
+          <div className="ub-settings-card-header">
+            <h3 className="ub-settings-card-title">Visibility</h3>
+          </div>
+          <div className="form-group">
+            <label style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', cursor: 'pointer', fontSize: '0.8125rem' }}>
+              <input type="checkbox" checked={pd.showDescription !== false} onChange={(e) => updatePD({ showDescription: e.target.checked })} />
+              <span>Show Description</span>
+            </label>
+          </div>
+          <div className="form-group">
+            <label style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', cursor: 'pointer', fontSize: '0.8125rem' }}>
+              <input type="checkbox" checked={pd.showSku !== false} onChange={(e) => updatePD({ showSku: e.target.checked })} />
+              <span>Show SKU</span>
+            </label>
+          </div>
+          <div className="form-group">
+            <label style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', cursor: 'pointer', fontSize: '0.8125rem' }}>
+              <input type="checkbox" checked={pd.showCompatibility !== false} onChange={(e) => updatePD({ showCompatibility: e.target.checked })} />
+              <span>Show Compatibility Tags</span>
+            </label>
+          </div>
+          <div className="form-group">
+            <label style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', cursor: 'pointer', fontSize: '0.8125rem' }}>
+              <input type="checkbox" checked={pd.showRelatedProducts !== false} onChange={(e) => updatePD({ showRelatedProducts: e.target.checked })} />
+              <span>Show Related Products</span>
+            </label>
+          </div>
+          {pd.showRelatedProducts !== false && (
+            <div className="form-group">
+              <label className="form-label">Related Products Title</label>
+              <input type="text" className="form-input" value={pd.relatedProductsTitle || 'You may also like'} onChange={(e) => updatePD({ relatedProductsTitle: e.target.value })} />
+            </div>
+          )}
+          <div className="form-group">
+            <label style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', cursor: 'pointer', fontSize: '0.8125rem' }}>
+              <input type="checkbox" checked={pd.showReviews !== false} onChange={(e) => updatePD({ showReviews: e.target.checked })} />
+              <span>Show Customer Reviews</span>
+            </label>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (panel === 'collection_detail_template') {
+    const cd = (draft as any)?.page_templates?.collection_detail || {};
+    const updateCD = (updates: Record<string, any>) => {
+      updateDraft({ page_templates: { ...((draft as any)?.page_templates || {}), collection_detail: { ...cd, ...updates } } } as any);
+    };
+    return (
+      <div className="builder-panel-content">
+        <div className="ub-settings-card">
+          <div className="ub-settings-card-header">
+            <h3 className="ub-settings-card-title">Product Grid</h3>
+          </div>
+          <div className="form-group">
+            <label className="form-label">Columns</label>
+            <select className="form-input" value={cd.columns || 3} onChange={(e) => updateCD({ columns: Number(e.target.value) })}>
+              <option value={2}>2 Columns</option>
+              <option value={3}>3 Columns</option>
+              <option value={4}>4 Columns</option>
+            </select>
+          </div>
+          <div className="form-group">
+            <label className="form-label">Image Aspect Ratio</label>
+            <select className="form-input" value={cd.imageAspect || 'square'} onChange={(e) => updateCD({ imageAspect: e.target.value })}>
+              <option value="square">Square (1:1)</option>
+              <option value="portrait">Portrait (3:4)</option>
+              <option value="landscape">Landscape (4:3)</option>
+            </select>
+          </div>
+        </div>
+
+        <div className="ub-settings-card">
+          <div className="ub-settings-card-header">
+            <h3 className="ub-settings-card-title">Card Styling</h3>
+          </div>
+          <div className="form-group" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <label className="form-label" style={{ margin: 0 }}>Card Background</label>
+            <ColorPicker value={cd.cardBgColor || '#000000'} onChange={(val) => updateCD({ cardBgColor: val })} />
+          </div>
+          <div className="form-group" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <label className="form-label" style={{ margin: 0 }}>Card Text Colour</label>
+            <ColorPicker value={cd.cardTextColor || '#ffffff'} onChange={(val) => updateCD({ cardTextColor: val })} />
+          </div>
+          <div className="form-group">
+            <label className="form-label">Card Border Radius (px)</label>
+            <input type="number" className="form-input" value={cd.cardRadius ?? 16} min={0} max={50} onChange={(e) => updateCD({ cardRadius: Number(e.target.value) })} />
+          </div>
+          <div className="form-group" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <label className="form-label" style={{ margin: 0 }}>Price Colour</label>
+            <ColorPicker value={cd.priceColor || '#dc2626'} onChange={(val) => updateCD({ priceColor: val })} />
+          </div>
+          <div className="form-group">
+            <label style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', cursor: 'pointer', fontSize: '0.8125rem' }}>
+              <input type="checkbox" checked={cd.showPrice !== false} onChange={(e) => updateCD({ showPrice: e.target.checked })} />
+              <span>Show Price</span>
+            </label>
+          </div>
+        </div>
+      </div>
+    );
+  }
+  if (panel === 'checkout_template') {
+    const co = (draft as any)?.page_templates?.checkout || {};
+    const updateCO = (updates: Record<string, any>) => {
+      updateDraft({ page_templates: { ...((draft as any)?.page_templates || {}), checkout: { ...co, ...updates } } } as any);
+    };
+    return (
+      <div className="builder-panel-content">
+        <div className="ub-settings-card">
+          <div className="ub-settings-card-header">
+            <h3 className="ub-settings-card-title">Section Styling</h3>
+          </div>
+          <div className="form-group" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <label className="form-label" style={{ margin: 0 }}>Section Background</label>
+            <ColorPicker value={co.sectionBgColor || '#1a1a2e'} onChange={(val) => updateCO({ sectionBgColor: val })} />
+          </div>
+          <div className="form-group" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <label className="form-label" style={{ margin: 0 }}>Section Text Colour</label>
+            <ColorPicker value={co.sectionTextColor || '#ffffff'} onChange={(val) => updateCO({ sectionTextColor: val })} />
+          </div>
+          <div className="form-group" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <label className="form-label" style={{ margin: 0 }}>Heading Colour</label>
+            <ColorPicker value={co.headingColor || '#e0a060'} onChange={(val) => updateCO({ headingColor: val })} />
+          </div>
+          <div className="form-group">
+            <label className="form-label">Section Border Radius (px)</label>
+            <input type="number" className="form-input" value={co.sectionRadius ?? 16} min={0} max={50} onChange={(e) => updateCO({ sectionRadius: Number(e.target.value) })} />
+          </div>
+        </div>
+
+        <div className="ub-settings-card">
+          <div className="ub-settings-card-header">
+            <h3 className="ub-settings-card-title">Form Inputs</h3>
+          </div>
+          <div className="form-group">
+            <label className="form-label">Input Border Radius (px)</label>
+            <input type="number" className="form-input" value={co.inputRadius ?? 8} min={0} max={30} onChange={(e) => updateCO({ inputRadius: Number(e.target.value) })} />
+          </div>
+          <div className="form-group" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <label className="form-label" style={{ margin: 0 }}>Input Border Colour</label>
+            <ColorPicker value={co.inputBorderColor || '#333333'} onChange={(val) => updateCO({ inputBorderColor: val })} />
+          </div>
+        </div>
+
+        <div className="ub-settings-card">
+          <div className="ub-settings-card-header">
+            <h3 className="ub-settings-card-title">Place Order Button</h3>
+          </div>
+          <div className="form-group">
+            <label className="form-label">Button Text</label>
+            <input type="text" className="form-input" value={co.buttonText || 'Place Order'} onChange={(e) => updateCO({ buttonText: e.target.value })} />
+          </div>
+          <div className="form-group" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <label className="form-label" style={{ margin: 0 }}>Button Background</label>
+            <ColorPicker value={co.buttonBgColor || '#dc2626'} onChange={(val) => updateCO({ buttonBgColor: val })} />
+          </div>
+          <div className="form-group" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <label className="form-label" style={{ margin: 0 }}>Button Text Colour</label>
+            <ColorPicker value={co.buttonTextColor || '#ffffff'} onChange={(val) => updateCO({ buttonTextColor: val })} />
+          </div>
+          <div className="form-group">
+            <label className="form-label">Button Border Radius (px)</label>
+            <input type="number" className="form-input" value={co.buttonRadius ?? 12} min={0} max={50} onChange={(e) => updateCO({ buttonRadius: Number(e.target.value) })} />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (panel === 'cart_sidebar_template') {
+    const cs = (draft as any)?.page_templates?.cart_sidebar || {};
+    const updateCS = (updates: Record<string, any>) => {
+      updateDraft({ page_templates: { ...((draft as any)?.page_templates || {}), cart_sidebar: { ...cs, ...updates } } } as any);
+    };
+    return (
+      <div className="builder-panel-content">
+        <div className="ub-settings-card">
+          <div className="ub-settings-card-header">
+            <h3 className="ub-settings-card-title">Header</h3>
+          </div>
+          <div className="form-group" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <label className="form-label" style={{ margin: 0 }}>Header Background</label>
+            <ColorPicker value={cs.headerBgColor || '#ffffff'} onChange={(val) => updateCS({ headerBgColor: val })} />
+          </div>
+          <div className="form-group" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <label className="form-label" style={{ margin: 0 }}>Header Text Colour</label>
+            <ColorPicker value={cs.headerTextColor || '#111827'} onChange={(val) => updateCS({ headerTextColor: val })} />
+          </div>
+        </div>
+
+        <div className="ub-settings-card">
+          <div className="ub-settings-card-header">
+            <h3 className="ub-settings-card-title">Body</h3>
+          </div>
+          <div className="form-group" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <label className="form-label" style={{ margin: 0 }}>Body Background</label>
+            <ColorPicker value={cs.bodyBgColor || '#ffffff'} onChange={(val) => updateCS({ bodyBgColor: val })} />
+          </div>
+          <div className="form-group">
+            <label className="form-label">Empty Cart Text</label>
+            <input type="text" className="form-input" value={cs.emptyText || 'Your cart is empty'} onChange={(e) => updateCS({ emptyText: e.target.value })} />
+          </div>
+          <div className="form-group">
+            <label className="form-label">Empty Cart Button Text</label>
+            <input type="text" className="form-input" value={cs.emptyButtonText || 'Start Shopping'} onChange={(e) => updateCS({ emptyButtonText: e.target.value })} />
+          </div>
+        </div>
+
+        <div className="ub-settings-card">
+          <div className="ub-settings-card-header">
+            <h3 className="ub-settings-card-title">Checkout Button</h3>
+          </div>
+          <div className="form-group">
+            <label className="form-label">Button Text</label>
+            <input type="text" className="form-input" value={cs.checkoutButtonText || 'Proceed to Checkout'} onChange={(e) => updateCS({ checkoutButtonText: e.target.value })} />
+          </div>
+          <div className="form-group" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <label className="form-label" style={{ margin: 0 }}>Button Background</label>
+            <ColorPicker value={cs.checkoutButtonBgColor || '#111827'} onChange={(val) => updateCS({ checkoutButtonBgColor: val })} />
+          </div>
+          <div className="form-group" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <label className="form-label" style={{ margin: 0 }}>Button Text Colour</label>
+            <ColorPicker value={cs.checkoutButtonTextColor || '#ffffff'} onChange={(val) => updateCS({ checkoutButtonTextColor: val })} />
+          </div>
+          <div className="form-group">
+            <label className="form-label">Button Border Radius (px)</label>
+            <input type="number" className="form-input" value={cs.checkoutButtonRadius ?? 8} min={0} max={50} onChange={(e) => updateCS({ checkoutButtonRadius: Number(e.target.value) })} />
+          </div>
+        </div>
+      </div>
+    );
+  }
 
 
   // Not implemented or unknown panel falls back to this message

@@ -9,6 +9,7 @@ import type {
   Collection,
   ProductMedia as ProductMediaType,
   VariantOptionEntry,
+  ProductReview,
 } from '@/types/database';
 import {
   ArrowLeft,
@@ -70,6 +71,7 @@ export function ProductEditorPage() {
   // ─── Options & Variants ────────────────────
   const [optionGroups, setOptionGroups] = useState<OptionGroupDraft[]>([]);
   const [variants, setVariants] = useState<VariantDraft[]>([]);
+  const [reviews, setReviews] = useState<ProductReview[]>([]);
   const [newOptionName, setNewOptionName] = useState('');
   const [selectedVariants, setSelectedVariants] = useState<Set<number>>(new Set());
   const [bulkPrice, setBulkPrice] = useState('');
@@ -84,7 +86,7 @@ export function ProductEditorPage() {
     if (!id) return;
     setLoading(true);
     try {
-      const [product, labelIds, collectionIds, compatibilityIds, imageItems, docItems, options, existingVariants, collections] =
+      const [product, labelIds, collectionIds, compatibilityIds, imageItems, docItems, options, existingVariants, collections, existingReviews] =
         await Promise.all([
           api.fetchProduct(id),
           api.fetchProductLabelIds(id),
@@ -95,6 +97,7 @@ export function ProductEditorPage() {
           api.fetchProductOptions(id),
           api.fetchProductVariants(id),
           api.fetchCollections(),
+          api.fetchProductReviews(id),
         ]);
 
       setName(product.name);
@@ -131,6 +134,7 @@ export function ProductEditorPage() {
         stock_quantity: String(v.stock_quantity),
       }));
       setVariants(varDrafts);
+      setReviews(existingReviews);
     } catch (err) {
       console.error('Failed to load product:', err);
       showAlert({ title: 'Error', message: 'Failed to load product.', variant: 'danger' });
@@ -464,6 +468,34 @@ export function ProductEditorPage() {
       navigate('/store');
     } catch (err) {
       console.error('Failed to delete product:', err);
+    }
+  };
+
+  const handleDeleteReview = async (reviewId: string) => {
+    const ok = await showConfirm({
+      title: 'Delete Review',
+      message: 'Are you sure you want to delete this review?',
+      confirmLabel: 'Delete',
+    });
+    if (!ok) return;
+    try {
+      await api.deleteProductReview(reviewId);
+      setReviews(prev => prev.filter(r => r.id !== reviewId));
+      showAlert({ title: 'Deleted', message: 'Review deleted successfully.', variant: 'success' });
+    } catch (err) {
+      console.error(err);
+      showAlert({ title: 'Error', message: 'Failed to delete review.', variant: 'danger' });
+    }
+  };
+
+  const handleUpdateReviewStatus = async (reviewId: string, status: 'approved' | 'rejected' | 'pending') => {
+    try {
+      await api.updateProductReviewStatus(reviewId, status);
+      setReviews(prev => prev.map(r => r.id === reviewId ? { ...r, status } : r));
+      showAlert({ title: 'Updated', message: `Review marked as ${status}.`, variant: 'success' });
+    } catch (err) {
+      console.error(err);
+      showAlert({ title: 'Error', message: 'Failed to update review.', variant: 'danger' });
     }
   };
 
@@ -841,6 +873,68 @@ export function ProductEditorPage() {
               </div>
             )}
           </div>
+
+          {/* Customer Reviews Admin */}
+          {!isNew && (
+            <div className="editor-card">
+              <h3 className="editor-card-title">Customer Reviews</h3>
+              <p className="form-hint">Manage reviews left by customers on the storefront.</p>
+              {reviews.length === 0 ? (
+                <p className="form-hint" style={{ marginTop: '1rem' }}>No reviews yet.</p>
+              ) : (
+                <div className="products-table-wrap" style={{ marginTop: '1rem' }}>
+                  <table className="products-table">
+                    <thead>
+                      <tr>
+                        <th>Date</th>
+                        <th>Author</th>
+                        <th>Rating</th>
+                        <th>Status</th>
+                        <th>Review</th>
+                        <th style={{ width: '120px', textAlign: 'right' }}>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {reviews.map((r) => (
+                        <tr key={r.id}>
+                          <td>{new Date(r.created_at).toLocaleDateString()}</td>
+                          <td>{r.author_name}</td>
+                          <td>
+                            <div style={{ display: 'flex', color: '#fbbf24' }}>
+                              {'★'.repeat(r.rating)}{'☆'.repeat(5 - r.rating)}
+                            </div>
+                          </td>
+                          <td>
+                            <select 
+                              className="form-input form-input-sm" 
+                              value={r.status} 
+                              onChange={(e) => handleUpdateReviewStatus(r.id, e.target.value as any)}
+                              style={{ 
+                                borderColor: r.status === 'approved' ? '#86efac' : r.status === 'rejected' ? '#fca5a5' : '#fcd34d',
+                                backgroundColor: r.status === 'approved' ? '#f0fdf4' : r.status === 'rejected' ? '#fef2f2' : '#fffbeb'
+                              }}
+                            >
+                              <option value="pending">Pending</option>
+                              <option value="approved">Approved</option>
+                              <option value="rejected">Rejected</option>
+                            </select>
+                          </td>
+                          <td style={{ maxWidth: '300px', whiteSpace: 'normal', fontSize: '0.875rem', lineHeight: 1.4, color: 'var(--color-text-secondary)' }}>
+                            {r.content}
+                          </td>
+                          <td style={{ textAlign: 'right' }}>
+                            <button className="btn btn-ghost btn-icon-sm danger" onClick={() => handleDeleteReview(r.id)} title="Delete Review">
+                              <Trash2 size={16} />
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Right column — sidebar */}

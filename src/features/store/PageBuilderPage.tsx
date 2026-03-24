@@ -301,9 +301,7 @@ function getDefaultConfig(type: BlockType): Record<string, any> {
     case 'image_gallery': return { images: [], columns: 3, gap: 16 };
     case 'button': return { text: 'Click Me', link: '', style: 'primary', align: 'center', size: 'md' };
     case 'product_grid': return { mode: 'auto', productIds: [], columns: 4, limit: 8 };
-    case 'collection_grid': return { mode: 'auto', collectionIds: [], columns: 3 };
-    case 'collection_showcase': return { title: 'INTRODUCING THE COLLECTION', subtitle: 'Built for a life in constant motion.', collectionId: '', limit: 5, showSwatches: true, ctaText: 'SHOP NOW', ctaLink: '/shop/products' };
-    case 'category_links': return { collectionIds: [], limit: 3, columns: 3, stackOnMobile: true, aspectRatio: 'auto', textPosition: 'below' };
+    case 'collection_showcase': return { title: 'INTRODUCING THE COLLECTION', subtitle: 'Built for a life in constant motion.', collectionId: '', limit: 5, ctaText: 'SHOP NOW', ctaLink: '/shop/products', titleFont: '', titleColor: '#000000', titleFontSize: 32, titleFontWeight: '800', subtitleColor: '#666666', subtitleFontSize: 16, cardBgColor: '#ffffff', cardTextColor: '#000000', cardRadius: 0 };
     case 'product_carousel': return { title: 'BEST SELLERS', ctaText: 'SHOP NOW', ctaLink: '/shop/products', collectionId: '', limit: 10 };
     case 'featured_product': return { productId: '' };
     case 'spacer': return { height: 40 };
