@@ -351,7 +351,7 @@ export function StorefrontProductDetail({ previewSlug }: { previewSlug?: string 
         <div className="sf-reviews-section" style={{ gridColumn: '1 / -1', marginTop: '4rem', paddingTop: '4rem', borderTop: '1px solid var(--sf-border, rgba(0,0,0,0.1))' }}>
           <h2 style={{ fontSize: '2rem', fontWeight: 800, marginBottom: '2rem', color: titleColor || undefined }}>Customer Reviews</h2>
           
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4rem' }}>
+          <div className="sf-reviews-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4rem' }}>
             {/* Reviews List */}
             <div>
               {reviews.length === 0 ? (
@@ -454,7 +454,7 @@ export function StorefrontProductDetail({ previewSlug }: { previewSlug?: string 
       {showRelatedProducts && relatedProducts.length > 0 && (
         <div className="sf-related-products" style={{ gridColumn: '1 / -1', marginTop: '6rem', paddingTop: '4rem', borderTop: '1px solid var(--sf-border, rgba(0,0,0,0.1))' }}>
           <h2 style={{ fontSize: '2.5rem', fontWeight: 800, marginBottom: '3rem', color: titleColor || undefined, textAlign: 'center', letterSpacing: '-0.02em' }}>{relatedProductsTitle}</h2>
-          <div className="sf-collection-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '2rem' }}>
+          <div className="sf-related-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '2rem' }}>
             {relatedProducts.map(p => (
               <Link to={`/shop/products/${p.slug || p.id}`} key={p.id} className="sf-related-product-card">
                 <div className="sf-related-product-image">

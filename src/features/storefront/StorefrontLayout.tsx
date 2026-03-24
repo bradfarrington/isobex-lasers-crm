@@ -69,6 +69,7 @@ function StorefrontShell() {
   const cartIconColor = headerLayout.cart_icon_color || hColor;
   
   // Apply theme CSS vars
+  const mobileCfg = (config as any)?.mobile_settings || {};
   const themeVars: Record<string, string> = {
     '--sf-primary': config?.color_primary || '#2563eb',
     '--sf-secondary': config?.color_secondary || '#1e40af',
@@ -82,6 +83,11 @@ function StorefrontShell() {
     // Dynamic Header sizes injected as vars
     '--sf-logo-desktop': `${logoWidthDesktop}px`,
     '--sf-logo-mobile': `${logoWidthMobile}px`,
+    // Mobile config vars
+    '--sf-mobile-product-cols': String(mobileCfg.mobileProductColumns || 2),
+    '--sf-phone-product-cols': String(mobileCfg.phoneProductColumns || 1),
+    '--sf-mobile-collection-cols': String(mobileCfg.mobileCollectionColumns || 2),
+    '--sf-mobile-padding': mobileCfg.mobilePadding === 'compact' ? '0.75rem' : mobileCfg.mobilePadding === 'spacious' ? '1.5rem' : '1rem',
   };
 
   const annBg = headerLayout.announcement_bg_color || '#000000';
@@ -128,7 +134,7 @@ function StorefrontShell() {
       <header className={`sf-header logo-${headerLayout.logo_position || 'left'}`} style={{ backgroundColor: hBg, color: hColor, fontFamily: hFont }}>
         <div className="sf-header-inner">
           <button className="sf-mobile-menu-btn" style={{ color: hColor }} onClick={() => setMenuOpen(!menuOpen)}>
-            {menuOpen ? <X size={24} /> : <Menu size={24} />}
+            <Menu size={24} />
           </button>
 
           <Link to="/shop" className="sf-logo">
@@ -139,12 +145,20 @@ function StorefrontShell() {
             )}
           </Link>
 
-          <nav className={`sf-nav ${menuOpen ? 'open' : ''}`} style={{ backgroundColor: menuOpen ? hBg : 'transparent' }}>
-            <Link to="/shop" className="sf-nav-link" style={{ color: hColor }}>Home</Link>
-            <Link to="/shop/products" className="sf-nav-link" style={{ color: hColor }}>Products</Link>
-            <Link to="/shop/collections" className="sf-nav-link" style={{ color: hColor }}>Collections</Link>
+          <nav className={`sf-nav ${menuOpen ? 'open' : ''}`}>
+            {menuOpen && (
+              <div className="sf-nav-close-header" style={{ backgroundColor: hBg }}>
+                <span style={{ fontWeight: 700, fontSize: '1.125rem', color: hColor }}>Menu</span>
+                <button onClick={() => setMenuOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: hColor, padding: 4 }}>
+                  <X size={22} />
+                </button>
+              </div>
+            )}
+            <Link to="/shop" className="sf-nav-link" style={{ color: menuOpen ? 'var(--sf-text)' : hColor }} onClick={() => setMenuOpen(false)}>Home</Link>
+            <Link to="/shop/products" className="sf-nav-link" style={{ color: menuOpen ? 'var(--sf-text)' : hColor }} onClick={() => setMenuOpen(false)}>Products</Link>
+            <Link to="/shop/collections" className="sf-nav-link" style={{ color: menuOpen ? 'var(--sf-text)' : hColor }} onClick={() => setMenuOpen(false)}>Collections</Link>
             {navLinks.map((link, i) => (
-              <Link key={i} to={link.url} className="sf-nav-link" style={{ color: hColor }}>{link.label}</Link>
+              <Link key={i} to={link.url} className="sf-nav-link" style={{ color: menuOpen ? 'var(--sf-text)' : hColor }} onClick={() => setMenuOpen(false)}>{link.label}</Link>
             ))}
           </nav>
 
@@ -154,6 +168,9 @@ function StorefrontShell() {
           </button>
         </div>
       </header>
+
+      {/* Mobile menu overlay */}
+      <div className={`sf-mobile-menu-overlay ${menuOpen ? 'open' : ''}`} onClick={() => setMenuOpen(false)} />
 
       {/* Main content */}
       <main className="sf-main">

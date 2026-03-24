@@ -1240,6 +1240,90 @@ export function GlobalSettingsEditor({ panel, draft, updateDraft }: Props) {
       </div>
     );
   }
+  if (panel === 'mobile') {
+    const ms = (draft as any)?.mobile_settings || {};
+    const updateMS = (updates: Record<string, any>) => {
+      updateDraft({ mobile_settings: { ...ms, ...updates } } as any);
+    };
+    return (
+      <div className="builder-panel-content">
+        <div className="ub-settings-card">
+          <div className="ub-settings-card-header">
+            <h3 className="ub-settings-card-title">Mobile Product Grid</h3>
+            <p className="ub-settings-card-desc">How product grids display on mobile devices.</p>
+          </div>
+          <div className="form-group">
+            <label className="form-label">Columns on Mobile (≤768px)</label>
+            <select className="form-input" value={ms.mobileProductColumns || 2} onChange={(e) => updateMS({ mobileProductColumns: Number(e.target.value) })}>
+              <option value={1}>1 Column</option>
+              <option value={2}>2 Columns</option>
+            </select>
+          </div>
+          <div className="form-group">
+            <label className="form-label">Columns on Phone (≤520px)</label>
+            <select className="form-input" value={ms.phoneProductColumns || 1} onChange={(e) => updateMS({ phoneProductColumns: Number(e.target.value) })}>
+              <option value={1}>1 Column</option>
+              <option value={2}>2 Columns</option>
+            </select>
+          </div>
+        </div>
+
+        <div className="ub-settings-card">
+          <div className="ub-settings-card-header">
+            <h3 className="ub-settings-card-title">Mobile Collection Grid</h3>
+          </div>
+          <div className="form-group">
+            <label className="form-label">Columns on Mobile (≤768px)</label>
+            <select className="form-input" value={ms.mobileCollectionColumns || 2} onChange={(e) => updateMS({ mobileCollectionColumns: Number(e.target.value) })}>
+              <option value={1}>1 Column</option>
+              <option value={2}>2 Columns</option>
+            </select>
+          </div>
+        </div>
+
+        <div className="ub-settings-card">
+          <div className="ub-settings-card-header">
+            <h3 className="ub-settings-card-title">Mobile Typography</h3>
+            <p className="ub-settings-card-desc">Scale down text sizes on smaller screens.</p>
+          </div>
+          <div className="form-group">
+            <label className="form-label">Hero Title Size (Mobile)</label>
+            <select className="form-input" value={ms.heroTitleSize || 'auto'} onChange={(e) => updateMS({ heroTitleSize: e.target.value })}>
+              <option value="auto">Auto Scale</option>
+              <option value="xl">Extra Large (2.5rem)</option>
+              <option value="lg">Large (2rem)</option>
+              <option value="md">Medium (1.75rem)</option>
+              <option value="sm">Small (1.5rem)</option>
+            </select>
+          </div>
+          <div className="form-group">
+            <label className="form-label">Page Title Size (Mobile)</label>
+            <select className="form-input" value={ms.pageTitleSize || 'auto'} onChange={(e) => updateMS({ pageTitleSize: e.target.value })}>
+              <option value="auto">Auto Scale</option>
+              <option value="xl">Extra Large (2.5rem)</option>
+              <option value="lg">Large (2rem)</option>
+              <option value="md">Medium (1.75rem)</option>
+              <option value="sm">Small (1.5rem)</option>
+            </select>
+          </div>
+        </div>
+
+        <div className="ub-settings-card">
+          <div className="ub-settings-card-header">
+            <h3 className="ub-settings-card-title">Mobile Spacing</h3>
+          </div>
+          <div className="form-group">
+            <label className="form-label">Content Side Padding</label>
+            <select className="form-input" value={ms.mobilePadding || 'normal'} onChange={(e) => updateMS({ mobilePadding: e.target.value })}>
+              <option value="compact">Compact (0.75rem)</option>
+              <option value="normal">Normal (1rem)</option>
+              <option value="spacious">Spacious (1.5rem)</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
 
   // Not implemented or unknown panel falls back to this message

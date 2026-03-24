@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { useStoreConfig } from './useStoreConfig';
 import * as api from '@/lib/api';
 import type { Product, Collection, LookupItem } from '@/types/database';
-import { X } from 'lucide-react';
+import { X, SlidersHorizontal } from 'lucide-react';
 
 const ASPECT_MAP = { square: '1/1', portrait: '3/4', landscape: '4/3' } as const;
 
@@ -111,6 +111,8 @@ export function StorefrontProducts() {
   const sidebarPosition = tpl.sidebarPosition || 'left';
   const enableCategoryFilter = tpl.enableCategoryFilter === true;
   const enableCompatibilityFilter = tpl.enableCompatibilityFilter === true;
+  const hasFilters = (enableCategoryFilter && collections.length > 0) || (enableCompatibilityFilter && compatibilities.length > 0);
+  const activeFilterCount = selectedCols.length + selectedComps.length;
 
   if (loading) {
     return <div className="sf-loading">Loading products...</div>;
@@ -193,6 +195,13 @@ export function StorefrontProducts() {
         {showSidebar && sidebarPosition === 'left' && renderSidebar()}
         
         <div className="sf-products-main">
+          {/* Mobile filter button — shows only on mobile when filters are available */}
+          {hasFilters && (
+            <button className="sf-mobile-filter-btn" onClick={() => setMobileFiltersOpen(true)}>
+              <SlidersHorizontal size={16} />
+              Filters{activeFilterCount > 0 ? ` (${activeFilterCount})` : ''}
+            </button>
+          )}
           <div
             className="sf-product-grid"
             style={{ gridTemplateColumns: `repeat(${columns}, 1fr)` }}
@@ -255,6 +264,9 @@ export function StorefrontProducts() {
 
         {showSidebar && sidebarPosition === 'right' && renderSidebar()}
       </div>
+
+      {/* Mobile-only: render sidebar + overlay even if showSidebar is off, when filters exist */}
+      {!showSidebar && hasFilters && renderSidebar()}
       
       {mobileFiltersOpen && (
         <div className="sf-sidebar-overlay" onClick={() => setMobileFiltersOpen(false)} />

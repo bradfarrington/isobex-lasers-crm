@@ -1154,12 +1154,13 @@
 
 /* Active state for the preview button when in preview mode */
 .unified-builder-root.preview-mode .ub-preview-btn {
-  background: var(--primary);
+  background: #4f46e5;
   color: #ffffff;
-  border-color: var(--primary);
+  border-color: #4f46e5;
+  opacity: 1 !important;
 }
 .unified-builder-root.preview-mode .ub-preview-btn:hover {
-  background: var(--primary-dark, #4338ca);
+  background: #4338ca;
   color: #ffffff;
 }
 

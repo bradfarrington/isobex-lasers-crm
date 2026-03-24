@@ -24,13 +24,14 @@ import { StorefrontProductDetail } from '../storefront/StorefrontProductDetail';
 import { StorefrontCollectionDetail } from '../storefront/StorefrontCollectionDetail';
 
 type LeftTab = 'library' | 'layers' | 'settings';
-type BuilderPanel = 'brand' | 'typography' | 'header' | 'footer' | 'products_template' | 'collections_template' | 'product_detail_template' | 'collection_detail_template' | 'checkout_template' | 'cart_sidebar_template';
+type BuilderPanel = 'brand' | 'typography' | 'header' | 'footer' | 'mobile' | 'products_template' | 'collections_template' | 'product_detail_template' | 'collection_detail_template' | 'checkout_template' | 'cart_sidebar_template';
 
 const SETTINGS_PANELS: { key: BuilderPanel; label: string; icon: any }[] = [
   { key: 'brand', label: 'Brand & Colours', icon: Paintbrush },
   { key: 'typography', label: 'Typography', icon: Type },
   { key: 'header', label: 'Header', icon: Layout },
   { key: 'footer', label: 'Footer', icon: Layout },
+  { key: 'mobile', label: 'Mobile', icon: Smartphone },
 ];
 
 // Virtual "system" pages that render live storefront components instead of block editors
@@ -532,6 +533,7 @@ export function UnifiedBuilder() {
   const CartIconCmp = headerLayout.cart_icon_type === 'ShoppingBag' ? ShoppingBag :
                       headerLayout.cart_icon_type === 'ShoppingBasket' ? ShoppingBasket : ShoppingCart;
 
+  const builderMobileCfg = (draftConfig as any)?.mobile_settings || {};
   const themeVars: Record<string, string> = {
     '--sf-primary': draftConfig?.color_primary || '#2563eb',
     '--sf-secondary': draftConfig?.color_secondary || '#1e40af',
@@ -542,6 +544,11 @@ export function UnifiedBuilder() {
     '--sf-text-secondary': draftConfig?.color_text_secondary || '#64748b',
     '--sf-font-heading': draftConfig?.font_heading || 'Inter',
     '--sf-font-body': draftConfig?.font_body || 'Inter',
+    // Mobile config vars
+    '--sf-mobile-product-cols': String(builderMobileCfg.mobileProductColumns || 2),
+    '--sf-phone-product-cols': String(builderMobileCfg.phoneProductColumns || 1),
+    '--sf-mobile-collection-cols': String(builderMobileCfg.mobileCollectionColumns || 2),
+    '--sf-mobile-padding': builderMobileCfg.mobilePadding === 'compact' ? '0.75rem' : builderMobileCfg.mobilePadding === 'spacious' ? '1.5rem' : '1rem',
   };
 
   return (
