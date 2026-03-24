@@ -159,23 +159,6 @@ export function CrmPage() {
     setModalOpen(true);
   };
 
-  const openEditModal = (contact: Contact) => {
-    setEditingContact(contact);
-    setForm({
-      first_name: contact.first_name,
-      last_name: contact.last_name,
-      email: contact.email,
-      phone: contact.phone,
-      company_id: contact.company_id,
-      notes: contact.notes,
-      contact_type: contact.contact_type,
-      source: contact.source,
-      message: contact.message,
-      status: contact.status,
-      unsubscribed: contact.unsubscribed ?? false,
-    });
-    setModalOpen(true);
-  };
 
   const closeModal = () => {
     setModalOpen(false);

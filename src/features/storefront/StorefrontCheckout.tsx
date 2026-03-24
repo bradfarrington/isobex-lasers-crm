@@ -101,6 +101,7 @@ export function StorefrontCheckout() {
       // Create order
       const order = await api.createOrder({
         contact_id: contact.id,
+        company_id: null,
         customer_email: email,
         customer_name: name,
         customer_phone: phone || null,
@@ -117,6 +118,9 @@ export function StorefrontCheckout() {
         status: 'pending',
         payment_intent_id: null,
         payment_status: 'unpaid',
+        tracking_number: null,
+        tracking_url: null,
+        shipping_carrier: null,
         notes: null,
       });
 

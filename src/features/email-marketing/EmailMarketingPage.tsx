@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAlert } from '@/components/ui/AlertDialog';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { PageShell } from '@/components/layout/PageShell';
 import { CampaignsTab } from './CampaignsTab';
 import {
   fetchEmailTemplates,
@@ -11,7 +10,7 @@ import {
 import type { EmailTemplate } from '@/types/database';
 import {
   Mail, FileText, BarChart3, Plus, Pencil, Copy, Trash2,
-  Loader2, Layers,
+  Layers,
 } from 'lucide-react';
 import './EmailMarketingPage.css';
 
