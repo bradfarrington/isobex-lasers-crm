@@ -22,9 +22,10 @@ import { StorefrontProducts } from '../storefront/StorefrontProducts';
 import { StorefrontCollections } from '../storefront/StorefrontCollections';
 import { StorefrontProductDetail } from '../storefront/StorefrontProductDetail';
 import { StorefrontCollectionDetail } from '../storefront/StorefrontCollectionDetail';
+import { StorefrontGiftCards } from '../storefront/StorefrontGiftCards';
 
 type LeftTab = 'library' | 'layers' | 'settings';
-type BuilderPanel = 'brand' | 'typography' | 'header' | 'footer' | 'mobile' | 'products_template' | 'collections_template' | 'product_detail_template' | 'collection_detail_template' | 'checkout_template' | 'cart_sidebar_template';
+type BuilderPanel = 'brand' | 'typography' | 'header' | 'footer' | 'mobile' | 'products_template' | 'collections_template' | 'product_detail_template' | 'collection_detail_template' | 'checkout_template' | 'cart_sidebar_template' | 'gift_cards_template';
 
 const SETTINGS_PANELS: { key: BuilderPanel; label: string; icon: any }[] = [
   { key: 'brand', label: 'Brand & Colours', icon: Paintbrush },
@@ -56,6 +57,7 @@ const SYSTEM_PAGES: { id: string; page_key: string; title: string; templatePanel
   { id: '__sys_collection_detail', page_key: 'collection_detail', title: 'Collection Detail', templatePanel: 'collection_detail_template' },
   { id: '__sys_checkout', page_key: 'checkout', title: 'Checkout', templatePanel: 'checkout_template' },
   { id: '__sys_cart_sidebar', page_key: 'cart_sidebar', title: 'Cart Sidebar', templatePanel: 'cart_sidebar_template' },
+  { id: '__sys_gift_cards', page_key: 'gift_cards', title: 'Gift Cards', templatePanel: 'gift_cards_template' },
 ];
 
 function isSystemPage(pageId: string | undefined): boolean {
@@ -856,6 +858,7 @@ export function UnifiedBuilder() {
                       <span className="sf-nav-link" style={{ color: hColor }}>Home</span>
                       <span className="sf-nav-link" style={{ color: hColor }}>Products</span>
                       <span className="sf-nav-link" style={{ color: hColor }}>Collections</span>
+                      <span className="sf-nav-link" style={{ color: hColor }}>Gift Cards</span>
                       {navLinks.map((link: any, i: number) => (
                          <span key={i} className="sf-nav-link" style={{ color: hColor }}>{link.label}</span>
                       ))}
@@ -921,7 +924,9 @@ export function UnifiedBuilder() {
                                 </div>
                                 <div className="sf-checkout-section">
                                   <h3>Payment</h3>
-                                  <p style={{ fontSize: '0.875rem', color: 'var(--sf-text-secondary)' }}>Payment processing via Stripe is coming soon.</p>
+                                  <div className="sf-stripe-card-wrapper" style={{ minHeight: 44, display: 'flex', alignItems: 'center', color: '#9ca3af', fontSize: '0.9375rem' }}>
+                                    •••• •••• •••• •••• &nbsp;&nbsp; MM/YY &nbsp;&nbsp; CVC
+                                  </div>
                                 </div>
                                 <button className="sf-place-order-btn">Place Order — {draftConfig?.currency_symbol || '£'}24.98</button>
                               </div>
@@ -944,6 +949,7 @@ export function UnifiedBuilder() {
                             </div>
                           </div>
                         )}
+                          {selectedPage?.page_key === 'gift_cards' && <StorefrontGiftCards />}
                         {selectedPage?.page_key === 'cart_sidebar' && (
                           <div className="ub-cart-sidebar-preview">
                             <div className="cart-panel" style={{ position: 'relative', transform: 'none', width: '100%', maxWidth: 420, margin: '16px auto', boxShadow: '0 4px 20px rgba(0,0,0,0.12)', borderRadius: 12 }}>

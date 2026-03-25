@@ -6,17 +6,39 @@ import { useCart } from './useCart';
 import * as api from '@/lib/api';
 import type { ShippingRate, DiscountCode, GiftCard } from '@/types/database';
 import { sfPath } from './storefrontPaths';
+import { loadStripe } from '@stripe/stripe-js';
+import { Elements, CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
+import { supabase } from '@/lib/supabase';
+
+const stripePublishableKey = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY;
+const stripePromise = stripePublishableKey ? loadStripe(stripePublishableKey) : null;
 
 export function StorefrontCheckout() {
+  if (!stripePromise) {
+    return <StorefrontCheckoutInner />;
+  }
+
+  return (
+    <Elements stripe={stripePromise}>
+      <StorefrontCheckoutInner />
+    </Elements>
+  );
+}
+
+function StorefrontCheckoutInner() {
   const { showAlert } = useAlert();
   const navigate = useNavigate();
   const { formatPrice, config } = useStoreConfig();
   const { items, cartTotal, cartWeight, clearCart } = useCart();
   const tpl = config?.page_templates?.checkout || {};
 
+  const stripe = useStripe();
+  const elements = useElements();
+
   const [shippingRates, setShippingRates] = useState<ShippingRate[]>([]);
   const [selectedShipping, setSelectedShipping] = useState<ShippingRate | null>(null);
   const [placing, setPlacing] = useState(false);
+  const [paymentError, setPaymentError] = useState('');
 
   // Customer info
   const [email, setEmail] = useState('');
@@ -63,10 +85,12 @@ export function StorefrontCheckout() {
 
   const afterDiscount = cartTotal - discountAmount;
   const shippingCost = selectedShipping?.price || 0;
+  const vatableAmount = afterDiscount + shippingCost;
+  const vatAmount = Math.round(vatableAmount * 0.2 * 100) / 100;
   const giftCardAmount = appliedGiftCard
-    ? Math.min(appliedGiftCard.current_balance, afterDiscount + shippingCost)
+    ? Math.min(appliedGiftCard.current_balance, vatableAmount + vatAmount)
     : 0;
-  const total = Math.max(0, afterDiscount + shippingCost - giftCardAmount);
+  const total = Math.max(0, vatableAmount + vatAmount - giftCardAmount);
 
   const applyDiscount = async () => {
     setDiscountError('');
@@ -90,11 +114,14 @@ export function StorefrontCheckout() {
     }
   };
 
+  const stripeEnabled = !!stripePromise && !!stripe && !!elements;
+
   const handlePlaceOrder = async () => {
     if (!email || !name || !line1 || !city || !postcode) return;
     if (items.length === 0) return;
 
     setPlacing(true);
+    setPaymentError('');
     try {
       // Find or create contact
       const contact = await api.findOrCreateContact(email, name, phone || undefined);
@@ -114,7 +141,7 @@ export function StorefrontCheckout() {
         discount_code: appliedDiscount?.code || null,
         gift_card_amount: giftCardAmount,
         gift_card_code: appliedGiftCard?.code || null,
-        tax_amount: 0,
+        tax_amount: vatAmount,
         total,
         status: 'pending',
         payment_intent_id: null,
@@ -150,11 +177,56 @@ export function StorefrontCheckout() {
         await api.deductGiftCardBalance(appliedGiftCard.id, giftCardAmount);
       }
 
+      // --- Stripe Payment ---
+      if (stripeEnabled && total > 0) {
+        // Call stripe-checkout edge function to create PaymentIntent
+        const { data: piData, error: piError } = await supabase.functions.invoke('stripe-checkout', {
+          body: { orderId: order.id },
+        });
+
+        if (piError || piData?.error) {
+          throw new Error(piData?.error || piError?.message || 'Failed to create payment');
+        }
+
+        const { clientSecret } = piData;
+
+        // Confirm the card payment
+        const cardElement = elements!.getElement(CardElement);
+        if (!cardElement) throw new Error('Card element not found');
+
+        const { error: confirmError } = await stripe!.confirmCardPayment(clientSecret, {
+          payment_method: {
+            card: cardElement,
+            billing_details: {
+              name,
+              email,
+              phone: phone || undefined,
+              address: {
+                line1,
+                line2: line2 || undefined,
+                city,
+                postal_code: postcode,
+                country,
+              },
+            },
+          },
+        });
+
+        if (confirmError) {
+          setPaymentError(confirmError.message || 'Payment failed. Please try again.');
+          setPlacing(false);
+          return;
+        }
+      } else if (!stripeEnabled && total > 0) {
+        // Stripe not configured — order stays pending (legacy behaviour)
+      }
+
       clearCart();
       navigate(sfPath(`/thank-you/${order.id}`));
-    } catch (err) {
+    } catch (err: any) {
       console.error('Order failed:', err);
-      showAlert({ title: 'Order Failed', message: 'Something went wrong placing your order. Please try again.', variant: 'danger' });
+      setPaymentError('');
+      showAlert({ title: 'Order Failed', message: err?.message || 'Something went wrong placing your order. Please try again.', variant: 'danger' });
     } finally {
       setPlacing(false);
     }
@@ -276,12 +348,34 @@ export function StorefrontCheckout() {
           </div>
         </div>
 
-        {/* Payment placeholder */}
+        {/* Payment */}
         <div className="sf-checkout-section" style={sectionStyle}>
           <h3>Payment</h3>
-          <p style={{ fontSize: '0.875rem', color: '#6b7280' }}>
-            Payment processing via Stripe is coming soon. Orders placed now will be marked as pending.
-          </p>
+          {stripeEnabled ? (
+            <div className="sf-stripe-card-wrapper">
+              <CardElement
+                options={{
+                  style: {
+                    base: {
+                      fontSize: '16px',
+                      color: '#1a1a1a',
+                      fontFamily: 'inherit',
+                      '::placeholder': { color: '#9ca3af' },
+                    },
+                    invalid: { color: '#ef4444' },
+                  },
+                  hidePostalCode: true,
+                }}
+              />
+            </div>
+          ) : (
+            <p style={{ fontSize: '0.875rem', color: '#6b7280' }}>
+              Payment processing is not configured yet. Orders placed now will be marked as pending.
+            </p>
+          )}
+          {paymentError && (
+            <p style={{ color: '#ef4444', fontSize: '0.875rem', marginTop: '0.5rem' }}>{paymentError}</p>
+          )}
         </div>
 
         {/* Place order */}
@@ -293,7 +387,7 @@ export function StorefrontCheckout() {
             borderRadius: `${buttonRadius}px`,
           }}
         >
-          {placing ? 'Placing Order...' : `${buttonText} — ${formatPrice(total)}`}
+          {placing ? 'Processing Payment...' : `${buttonText} — ${formatPrice(total)}`}
         </button>
       </div>
 
@@ -372,6 +466,11 @@ export function StorefrontCheckout() {
           <div className="sf-summary-row">
             <span>Shipping</span>
             <span>{shippingCost > 0 ? formatPrice(shippingCost) : 'Free'}</span>
+          </div>
+
+          <div className="sf-summary-row">
+            <span>VAT (20%)</span>
+            <span>{formatPrice(vatAmount)}</span>
           </div>
 
           <div className="sf-summary-row total">

@@ -3,23 +3,26 @@ import { useParams, Link } from 'react-router-dom';
 import { PageShell } from '@/components/layout/PageShell';
 import { useAlert } from '@/components/ui/AlertDialog';
 import * as api from '@/lib/api';
+import { supabase } from '@/lib/supabase';
 import type { Order, OrderItem } from '@/types/database';
-import { ArrowLeft, Package, User, MapPin, Truck, Building, Printer, ExternalLink, Save } from 'lucide-react';
+import { ArrowLeft, Package, User, MapPin, Truck, Building, Printer, ExternalLink, Save, RotateCcw, Mail, Loader2 } from 'lucide-react';
 
 
 
-const ORDER_STATUSES = ['pending', 'paid', 'processing', 'shipped', 'delivered', 'cancelled', 'refunded'] as const;
-const PAYMENT_STATUSES = ['unpaid', 'paid', 'refunded', 'failed'] as const;
+const ORDER_STATUSES = ['pending', 'paid', 'processing', 'shipped', 'delivered', 'cancelled', 'refunded', 'partially_refunded'] as const;
+const PAYMENT_STATUSES = ['unpaid', 'paid', 'refunded', 'partially_refunded', 'failed'] as const;
 
 export function OrderDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const { showAlert } = useAlert();
+  const { showAlert, showConfirm } = useAlert();
   const [order, setOrder] = useState<Order | null>(null);
   const [items, setItems] = useState<OrderItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [trackingNumber, setTrackingNumber] = useState('');
   const [trackingUrl, setTrackingUrl] = useState('');
   const [shippingCarrier, setShippingCarrier] = useState('');
+  const [refunding, setRefunding] = useState(false);
+  const [sendingEmail, setSendingEmail] = useState<string | null>(null);
   const [trackingSaving, setTrackingSaving] = useState(false);
 
   const packingSlipRef = useRef<HTMLDivElement>(null);
@@ -79,6 +82,47 @@ export function OrderDetailPage() {
       showAlert({ title: 'Error', message: 'Failed to save tracking info.', variant: 'danger' });
     } finally {
       setTrackingSaving(false);
+    }
+  };
+
+  const handleRefund = async () => {
+    if (!order || !order.payment_intent_id) return;
+    const ok = await showConfirm({
+      title: 'Issue Refund',
+      message: `Are you sure you want to refund this order (£${Number(order.total).toFixed(2)})? This will refund the customer via Stripe and restore inventory.`,
+      confirmLabel: 'Issue Refund',
+    });
+    if (!ok) return;
+
+    setRefunding(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('stripe-refund', {
+        body: { orderId: order.id },
+      });
+      if (error || data?.error) throw new Error(data?.error || error?.message || 'Refund failed');
+      const updated = await api.fetchOrder(order.id);
+      setOrder(updated);
+      showAlert({ title: 'Refunded', message: 'Refund processed successfully. Inventory has been restored.', variant: 'success' });
+    } catch (err: any) {
+      showAlert({ title: 'Error', message: err?.message || 'Failed to process refund.', variant: 'danger' });
+    } finally {
+      setRefunding(false);
+    }
+  };
+
+  const handleSendEmail = async (action: string, label: string) => {
+    if (!order) return;
+    setSendingEmail(action);
+    try {
+      const { data, error } = await supabase.functions.invoke('send-email', {
+        body: { action, orderId: order.id },
+      });
+      if (error || data?.error) throw new Error(data?.error || error?.message || 'Failed to send email');
+      showAlert({ title: 'Sent', message: `${label} sent to ${data?.sentTo || order.customer_email}.`, variant: 'success' });
+    } catch (err: any) {
+      showAlert({ title: 'Error', message: err?.message || `Failed to send ${label.toLowerCase()}.`, variant: 'danger' });
+    } finally {
+      setSendingEmail(null);
     }
   };
 
@@ -335,6 +379,41 @@ export function OrderDetailPage() {
                   <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>
                 ))}
               </select>
+            </div>
+          </div>
+
+          {/* Actions */}
+          <div className="order-section">
+            <div className="order-section-header">
+              <Mail size={18} />
+              <h3>Actions</h3>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+              <button
+                className="btn btn-ghost btn-sm"
+                style={{ width: '100%', justifyContent: 'flex-start' }}
+                onClick={() => handleSendEmail('send_order_confirmation', 'Order Confirmation')}
+                disabled={sendingEmail === 'send_order_confirmation'}
+              >
+                {sendingEmail === 'send_order_confirmation' ? <Loader2 size={14} className="spin" /> : <Mail size={14} />}
+                Send Confirmation
+              </button>
+              {order.payment_intent_id && order.payment_status === 'paid' && (
+                <button
+                  className="btn btn-sm"
+                  style={{ width: '100%', justifyContent: 'flex-start', background: '#ef4444', color: '#fff', border: 'none' }}
+                  onClick={handleRefund}
+                  disabled={refunding}
+                >
+                  {refunding ? <Loader2 size={14} className="spin" /> : <RotateCcw size={14} />}
+                  {refunding ? 'Processing Refund…' : 'Issue Refund'}
+                </button>
+              )}
+              {order.payment_status === 'refunded' && (
+                <div style={{ padding: '0.5rem 0.75rem', background: 'rgba(239, 68, 68, 0.08)', borderRadius: 8, fontSize: '0.8125rem', color: '#dc2626', fontWeight: 600 }}>
+                  ✓ This order has been refunded
+                </div>
+              )}
             </div>
           </div>
 

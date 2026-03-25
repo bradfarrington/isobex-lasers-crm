@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import ReactQuill from 'react-quill-new';
-import { Image as ImageIcon, Tag, Monitor, Smartphone, EyeOff, Settings, Code, Play, ShoppingBag } from 'lucide-react';
+import { Image as ImageIcon, Tag, Monitor, Smartphone, EyeOff, Settings, Code, Play, ShoppingBag, Receipt } from 'lucide-react';
 import DOMPurify from 'dompurify';
 import { BRAND, MERGE_TAGS, SOCIAL_PLATFORMS, cleanHtml, replaceMergeTags, loadGoogleFont, tagLabel } from './constants';
 import type { BlockData } from './constants';
@@ -173,17 +173,45 @@ function CountdownPreview({ data }: { data: Record<string, any>; isPreview?: boo
 }
 
 
+/* ── Order Details Preview ── */
+function OrderDetailsPreview({ customData }: { customData?: Record<string, string> }) {
+  const itemsHtml = customData?.['{{order_items_table}}'] || '';
+  const breakdownHtml = customData?.['{{order_price_breakdown}}'] || '';
+
+  if (!itemsHtml) {
+    return (
+      <div className="eb-placeholder" style={{ textAlign: 'center', padding: 24 }}>
+        <Receipt size={24} /><br/>
+        Select an order from the dropdown to preview
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ padding: '8px 0' }}>
+      <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(itemsHtml, { ADD_TAGS: ['table', 'thead', 'tbody', 'tr', 'td', 'th', 'img', 'br', 'span', 'strong', 'div'], ADD_ATTR: ['style', 'src', 'alt', 'width', 'height', 'colspan', 'rowspan'] }) }} />
+      {breakdownHtml && (
+        <>
+          <hr style={{ border: 'none', borderTop: '1px solid #e5e7eb', margin: '16px 0' }} />
+          <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(breakdownHtml, { ADD_TAGS: ['table', 'thead', 'tbody', 'tr', 'td', 'th', 'br', 'span', 'strong', 'div'], ADD_ATTR: ['style', 'colspan', 'rowspan'] }) }} />
+        </>
+      )}
+    </div>
+  );
+}
+
+
 /* ═══════════════════════════════════════
    BLOCK PREVIEW (Canvas rendering)
    ═══════════════════════════════════════ */
-export function BlockPreview({ block, isPreview = false, isMobile = false, onColumnDrop, onSubBlockSelect, selectedSubBlockId, globalSettings = {} }: {
+export function BlockPreview({ block, isPreview = false, isMobile = false, onColumnDrop, onSubBlockSelect, selectedSubBlockId, globalSettings = {}, customData }: {
   block: BlockData; isPreview?: boolean; isMobile?: boolean;
   onColumnDrop?: (parentId: string, colIdx: number, type: string) => void;
   onSubBlockSelect?: (parentId: string, colIdx: number, blockId: string) => void;
-  selectedSubBlockId?: string; globalSettings?: Record<string, any>;
+  selectedSubBlockId?: string; globalSettings?: Record<string, any>; customData?: Record<string, string>;
 }) {
   const { type, data } = block;
-  const resolve = (t: string) => isPreview ? replaceMergeTags(t || '') : (t || '');
+  const resolve = (t: string) => replaceMergeTags(t || '', false, customData);
   const p = data.padding || {};
   const pad = `${p.top||0}px ${p.right||0}px ${p.bottom||0}px ${p.left||0}px`;
   const tc = globalSettings.textColor || '#1f2937';
@@ -194,10 +222,10 @@ export function BlockPreview({ block, isPreview = false, isMobile = false, onCol
   switch (type) {
     case 'heading': {
       const sz = data.level === 'h1' ? '28px' : data.level === 'h3' ? '18px' : '22px';
-      return <div style={{ color: data.color||tc, padding: pad, fontSize: sz, fontWeight: 700, lineHeight: 1.3, fontFamily: font, background: data.bgColor || 'transparent' }} dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(cleanHtml(resolve(data.content)) || '<p>Heading</p>') }} />;
+      return <div style={{ color: data.color||tc, padding: pad, fontSize: sz, fontWeight: 700, lineHeight: 1.3, fontFamily: font, background: data.bgColor || 'transparent' }} dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(cleanHtml(resolve(data.content)) || '<p>Heading</p>', { ADD_TAGS: ['table', 'thead', 'tbody', 'tr', 'td', 'th', 'img', 'br', 'span', 'strong', 'div'], ADD_ATTR: ['style', 'src', 'alt', 'width', 'height', 'colspan', 'rowspan'] }) }} />;
     }
     case 'text':
-      return <div style={{ color: data.color||tc, fontSize: '15px', lineHeight: 1.7, padding: pad, fontFamily: font, background: data.bgColor || 'transparent' }} dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(cleanHtml(resolve(data.content)) || '<p>Text block</p>') }} />;
+      return <div style={{ color: data.color||tc, fontSize: '15px', lineHeight: 1.7, padding: pad, fontFamily: font, background: data.bgColor || 'transparent' }} dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(cleanHtml(resolve(data.content)) || '<p>Text block</p>', { ADD_TAGS: ['table', 'thead', 'tbody', 'tr', 'td', 'th', 'img', 'br', 'span', 'strong', 'div'], ADD_ATTR: ['style', 'src', 'alt', 'width', 'height', 'colspan', 'rowspan'] }) }} />;
     case 'image': {
       if (!data.src) return !isPreview ? <div className="eb-placeholder"><ImageIcon size={24} /><br/>Click to add an image</div> : null;
       const imgMargin = data.align === 'left' ? '0 auto 0 0' : data.align === 'right' ? '0 0 0 auto' : '0 auto';
@@ -217,9 +245,13 @@ export function BlockPreview({ block, isPreview = false, isMobile = false, onCol
       return <div style={{ padding: `${data.marginTop||8}px 0 ${data.marginBottom||8}px` }}><hr style={{ width: `${data.width||100}%`, border: 'none', borderTop: `${data.thickness||1}px ${data.style||'solid'} ${data.color||'#e5e7eb'}`, margin: '0 auto' }} /></div>;
     case 'spacer':
       return <div style={{ height: `${data.height||32}px`, background: data.bgColor||'transparent' }} />;
-    case 'merge_tag':
-      if (!isPreview) return <div style={{ padding: '4px 0' }}><span className="eb-merge-badge"><Tag size={12} /> {tagLabel(data.tag)}</span></div>;
-      return <div style={{ padding: pad, fontSize: `${data.fontSize||15}px`, fontWeight: data.fontWeight||400, color: data.color||tc, fontFamily: font }}>{replaceMergeTags(data.tag||'')}</div>;
+    case 'merge_tag': {
+      const resolvedTag = replaceMergeTags(data.tag||'', false, customData);
+      const isHtml = resolvedTag.includes('<');
+      if (!isPreview && !isHtml) return <div style={{ padding: '4px 0' }}><span className="eb-merge-badge"><Tag size={12} /> {tagLabel(data.tag)}</span></div>;
+      if (isHtml) return <div style={{ padding: pad, fontFamily: font }} dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(resolvedTag, { ADD_TAGS: ['table', 'thead', 'tbody', 'tr', 'td', 'th', 'img', 'br', 'span', 'strong', 'div'], ADD_ATTR: ['style', 'src', 'alt', 'width', 'height', 'colspan', 'rowspan'] }) }} />;
+      return <div style={{ padding: pad, fontSize: `${data.fontSize||15}px`, fontWeight: data.fontWeight||400, color: data.color||tc, fontFamily: font }}>{resolvedTag}</div>;
+    }
 
     /* ── Social Links ── */
     case 'social': {
@@ -272,6 +304,10 @@ export function BlockPreview({ block, isPreview = false, isMobile = false, onCol
     case 'product':
       return <ProductPreview data={data} isPreview={isPreview} globalSettings={globalSettings} />;
 
+    /* ── Order Details ── */
+    case 'order_details':
+      return <OrderDetailsPreview customData={customData} />;
+
     case 'columns': {
       const cols = data.columns || [];
       const gap = data.gap !== undefined ? Number(data.gap) : 16;
@@ -290,7 +326,7 @@ export function BlockPreview({ block, isPreview = false, isMobile = false, onCol
                 {col.blocks?.length > 0 ? col.blocks.map((b: BlockData) => (
                   <div key={b.id} onClick={onSubBlockSelect ? (e: React.MouseEvent) => { e.stopPropagation(); onSubBlockSelect(block.id, i, b.id); } : undefined}
                     style={{ cursor: 'pointer', outline: selectedSubBlockId === b.id ? `2px solid ${BRAND}` : 'none', borderRadius: 4, position: 'relative' }}>
-                    <BlockPreview block={b} isPreview={false} globalSettings={globalSettings} />
+                    <BlockPreview block={b} isPreview={false} globalSettings={globalSettings} customData={customData} />
                   </div>
                 )) : <div style={{ textAlign: 'center', color: 'var(--color-text-tertiary)', fontSize: 12, padding: 16 }}>Drop blocks here</div>}
               </div>
@@ -302,7 +338,7 @@ export function BlockPreview({ block, isPreview = false, isMobile = false, onCol
         <div style={{ display: 'flex', flexDirection: stack?'column':'row', gap: `${gap}px`, padding: pad }}>
           {cols.map((col: any, i: number) => (
             <div key={i} style={{ flex: parts[i]||1, padding: 12, background: col.bgColor||'transparent' }}>
-              {(col.blocks||[]).map((b: BlockData) => <BlockPreview key={b.id} block={b} isPreview isMobile={isMobile} globalSettings={globalSettings} />)}
+              {(col.blocks||[]).map((b: BlockData) => <BlockPreview key={b.id} block={b} isPreview isMobile={isMobile} globalSettings={globalSettings} customData={customData} />)}
             </div>
           ))}
         </div>
@@ -320,8 +356,8 @@ function extractYoutubeId(url: string): string {
 /* ═══════════════════════════════════════
    PREVIEW MODE
    ═══════════════════════════════════════ */
-export function PreviewMode({ blocks, settings, onExit }: {
-  blocks: BlockData[]; settings: Record<string, any>; onExit: () => void;
+export function PreviewMode({ blocks, settings, onExit, sampleDataOverride }: {
+  blocks: BlockData[]; settings: Record<string, any>; onExit: () => void; sampleDataOverride?: Record<string, string>;
 }) {
   const [isMobile, setIsMobile] = useState(false);
   const emailWidth = settings.width || 600;
@@ -342,10 +378,10 @@ export function PreviewMode({ blocks, settings, onExit }: {
         <div style={{ maxWidth: isMobile ? 375 : emailWidth, margin: '0 auto', background: settings.contentBg || '#fff', borderRadius: 8, overflow: 'hidden', boxShadow: '0 2px 16px rgba(0,0,0,0.08)', fontFamily: font, color: settings.textColor || '#1f2937' }}>
           {settings.logoUrl && <div style={{ padding: 24, textAlign: 'center', borderBottom: '1px solid #e5e7eb' }}><img src={settings.logoUrl} alt="Logo" style={{ maxHeight: 48, maxWidth: '60%' }} /></div>}
           <div className="eb-email-content" style={{ padding: '24px 20px' }}>
-            {blocks.map(b => <div key={b.id} style={{ marginBottom: 16 }}><BlockPreview block={b} isPreview isMobile={isMobile} globalSettings={settings} /></div>)}
+            {blocks.map(b => <div key={b.id} style={{ marginBottom: 16 }}><BlockPreview block={b} isPreview isMobile={isMobile} globalSettings={settings} customData={sampleDataOverride} /></div>)}
             {blocks.length === 0 && <p style={{ color: '#9ca3af', textAlign: 'center', padding: '48px 0' }}>No content blocks yet</p>}
           </div>
-          {settings.footerText && <div style={{ padding: '16px 24px', borderTop: '1px solid #e5e7eb', textAlign: 'center', fontSize: 12, color: '#9ca3af' }} dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(cleanHtml(replaceMergeTags(settings.footerText))) }} />}
+          {settings.footerText && <div style={{ padding: '16px 24px', borderTop: '1px solid #e5e7eb', textAlign: 'center', fontSize: 12, color: '#9ca3af' }} dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(cleanHtml(replaceMergeTags(settings.footerText, false, sampleDataOverride))) }} />}
         </div>
       </div>
     </div>

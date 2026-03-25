@@ -27,9 +27,17 @@ Deno.serve(async (req: Request) => {
             Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
         );
 
-        const apiKey = Deno.env.get('GOOGLE_PLACES_API_KEY');
+        // Get API key: prefer DB-stored key, fall back to env var
+        const { data: settingsRow } = await supabase
+            .from('google_settings')
+            .select('google_api_key')
+            .order('updated_at', { ascending: false })
+            .limit(1)
+            .single();
+
+        const apiKey = (settingsRow?.google_api_key || '').trim() || Deno.env.get('GOOGLE_PLACES_API_KEY');
         if (!apiKey) {
-            return jsonRes({ error: 'GOOGLE_PLACES_API_KEY secret is not set in Supabase. Please configure it in your Edge Function secrets.' }, 500);
+            return jsonRes({ error: 'No Google API key configured. Please add your API key in Settings → Google (Manual).' }, 500);
         }
 
         // ─── Action: search_places ──────────────────

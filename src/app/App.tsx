@@ -33,6 +33,7 @@ import { StorefrontCollectionDetail } from '@/features/storefront/StorefrontColl
 import { StorefrontProductDetail } from '@/features/storefront/StorefrontProductDetail';
 import { StorefrontCheckout } from '@/features/storefront/StorefrontCheckout';
 import { StorefrontThankYou } from '@/features/storefront/StorefrontThankYou';
+import { StorefrontGiftCards } from '@/features/storefront/StorefrontGiftCards';
 import { UnsubscribePage } from '@/features/storefront/UnsubscribePage';
 
 /**
@@ -63,6 +64,7 @@ export function App() {
             <Route path="products/:slug" element={<StorefrontProductDetail />} />
             <Route path="collections" element={<StorefrontCollections />} />
             <Route path="collections/:slug" element={<StorefrontCollectionDetail />} />
+            <Route path="gift-cards" element={<StorefrontGiftCards />} />
             <Route path="checkout" element={<StorefrontCheckout />} />
             <Route path="thank-you/:orderId" element={<StorefrontThankYou />} />
           </Route>
@@ -122,6 +124,7 @@ export function App() {
           <Route path="products/:slug" element={<StorefrontProductDetail />} />
           <Route path="collections" element={<StorefrontCollections />} />
           <Route path="collections/:slug" element={<StorefrontCollectionDetail />} />
+          <Route path="gift-cards" element={<StorefrontGiftCards />} />
           <Route path="checkout" element={<StorefrontCheckout />} />
           <Route path="thank-you/:orderId" element={<StorefrontThankYou />} />
         </Route>

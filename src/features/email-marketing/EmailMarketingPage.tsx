@@ -10,7 +10,7 @@ import {
 import type { EmailTemplate } from '@/types/database';
 import {
   Mail, FileText, BarChart3, Plus, Pencil, Copy, Trash2,
-  Layers,
+  Layers, Lock,
 } from 'lucide-react';
 import './EmailMarketingPage.css';
 
@@ -134,7 +134,13 @@ export function EmailMarketingPage() {
             </div>
           ) : (
             <div className="em-template-list">
-              {templates.map(t => {
+              {/* System templates first */}
+              {templates.filter(t => t.is_system).length > 0 && (
+                <div style={{ fontSize: '0.6875rem', textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--color-text-tertiary)', fontWeight: 700, padding: '0.25rem 0', marginBottom: '0.25rem' }}>
+                  <Lock size={10} style={{ verticalAlign: -1, marginRight: 4 }} />System Templates
+                </div>
+              )}
+              {[...templates.filter(t => t.is_system), ...templates.filter(t => !t.is_system)].map(t => {
                 const blockCount = Array.isArray(t.blocks) ? t.blocks.length : 0;
                 return (
                   <div
@@ -143,11 +149,12 @@ export function EmailMarketingPage() {
                     onClick={() => navigate(`/email-marketing/builder/${t.id}`)}
                   >
                     <div className="em-template-avatar">
-                      <Mail size={18} />
+                      {t.is_system ? <Lock size={18} /> : <Mail size={18} />}
                     </div>
                     <div className="em-template-info">
                       <div className="em-template-header">
                         <h4>{t.name}</h4>
+                        {t.is_system && <span className="em-badge system">System</span>}
                         {!t.active && <span className="em-badge inactive">Inactive</span>}
                       </div>
                       <p className="em-template-subject">
@@ -175,13 +182,15 @@ export function EmailMarketingPage() {
                       >
                         <Pencil size={14} />
                       </button>
-                      <button
-                        className="row-action-btn danger"
-                        title="Delete"
-                        onClick={(e) => handleDelete(e, t)}
-                      >
-                        <Trash2 size={14} />
-                      </button>
+                      {!t.is_system && (
+                        <button
+                          className="row-action-btn danger"
+                          title="Delete"
+                          onClick={(e) => handleDelete(e, t)}
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      )}
                     </div>
                   </div>
                 );

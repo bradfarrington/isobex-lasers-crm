@@ -506,8 +506,8 @@ export type StoreConfigUpdate = Partial<Omit<StoreConfig, 'id' | 'created_at' | 
 
 // ─── Orders ─────────────────────────────────────────────────
 
-export type OrderStatus = 'pending' | 'paid' | 'processing' | 'shipped' | 'delivered' | 'cancelled' | 'refunded';
-export type PaymentStatus = 'unpaid' | 'paid' | 'refunded' | 'failed';
+export type OrderStatus = 'pending' | 'paid' | 'processing' | 'shipped' | 'delivered' | 'cancelled' | 'refunded' | 'partially_refunded';
+export type PaymentStatus = 'unpaid' | 'paid' | 'refunded' | 'partially_refunded' | 'failed';
 
 export interface ShippingAddress {
   line1: string;
@@ -741,6 +741,8 @@ export interface EmailTemplate {
   settings: Record<string, any>;
   mjml_source: string;
   active: boolean;
+  is_system?: boolean;
+  system_key?: string;
   created_at: string;
   updated_at: string;
 }
@@ -803,6 +805,10 @@ export interface GoogleSettings {
   google_api_key: string;
   google_business_name: string;
   google_review_link: string;
+  google_access_token: string | null;
+  google_refresh_token: string | null;
+  google_token_expiry: string | null;
+  google_account_name: string | null;
   created_at: string;
   updated_at: string;
 }

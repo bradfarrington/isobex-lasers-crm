@@ -13,12 +13,14 @@ const STATUS_COLORS: Record<string, string> = {
   delivered: '#10b981',
   cancelled: '#ef4444',
   refunded: '#6b7280',
+  partially_refunded: '#f97316',
 };
 
 const PAYMENT_COLORS: Record<string, string> = {
   unpaid: '#f59e0b',
   paid: '#22c55e',
   refunded: '#6b7280',
+  partially_refunded: '#f97316',
   failed: '#ef4444',
 };
 

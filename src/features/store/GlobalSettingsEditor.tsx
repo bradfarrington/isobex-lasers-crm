@@ -454,6 +454,10 @@ export function GlobalSettingsEditor({ panel, draft, updateDraft }: Props) {
                 <input type="text" className="form-input" disabled value="Collections" style={{ width: '40%' }} />
                 <input type="text" className="form-input" disabled value="/shop/collections" style={{ flex: 1 }} />
               </div>
+              <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
+                <input type="text" className="form-input" disabled value="Gift Cards" style={{ width: '40%' }} />
+                <input type="text" className="form-input" disabled value="/shop/gift-cards" style={{ flex: 1 }} />
+              </div>
             </div>
 
             {/* Custom Editable Links */}
@@ -1325,6 +1329,96 @@ export function GlobalSettingsEditor({ panel, draft, updateDraft }: Props) {
     );
   }
 
+
+  if (panel === 'gift_cards_template') {
+    const gc = (draft as any)?.page_templates?.gift_cards || {};
+    const updateGC = (updates: Record<string, any>) => {
+      updateDraft({ page_templates: { ...((draft as any)?.page_templates || {}), gift_cards: { ...gc, ...updates } } } as any);
+    };
+    return (
+      <div className="builder-panel-content">
+        <div className="ub-settings-card">
+          <div className="ub-settings-card-header">
+            <h3 className="ub-settings-card-title">Page Header</h3>
+          </div>
+          <div className="form-group">
+            <label className="form-label">Page Title</label>
+            <input type="text" className="form-input" value={gc.pageTitle ?? ''} placeholder="Gift Cards" onChange={(e) => updateGC({ pageTitle: e.target.value })} />
+          </div>
+          <div className="form-group">
+            <label className="form-label">Subtitle</label>
+            <input type="text" className="form-input" value={gc.pageSubtitle ?? ''} placeholder="Give the perfect gift — let them choose what they love." onChange={(e) => updateGC({ pageSubtitle: e.target.value })} />
+          </div>
+        </div>
+
+        <div className="ub-settings-card">
+          <div className="ub-settings-card-header">
+            <h3 className="ub-settings-card-title">Preset Amounts</h3>
+            <p className="ub-settings-card-desc">Comma-separated list of amounts shown as quick-select buttons.</p>
+          </div>
+          <div className="form-group">
+            <label className="form-label">Amounts</label>
+            <input type="text" className="form-input" value={gc.presetAmounts ?? '25,50,75,100,150,200'} placeholder="25,50,75,100,150,200" onChange={(e) => updateGC({ presetAmounts: e.target.value })} />
+          </div>
+          <div className="form-group">
+            <label className="form-label">Minimum Amount</label>
+            <input type="number" className="form-input" value={gc.minimumAmount ?? 5} min={1} onChange={(e) => updateGC({ minimumAmount: Number(e.target.value) })} />
+          </div>
+        </div>
+
+        <div className="ub-settings-card">
+          <div className="ub-settings-card-header">
+            <h3 className="ub-settings-card-title">Purchase Button</h3>
+          </div>
+          <div className="form-group" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <label className="form-label" style={{ margin: 0 }}>Button Colour</label>
+            <ColorPicker value={gc.buttonColor || draft.color_primary || '#dc2626'} onChange={(val) => updateGC({ buttonColor: val })} />
+          </div>
+          <div className="form-group" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <label className="form-label" style={{ margin: 0 }}>Button Text Colour</label>
+            <ColorPicker value={gc.buttonTextColor || '#ffffff'} onChange={(val) => updateGC({ buttonTextColor: val })} />
+          </div>
+          <div className="form-group">
+            <label className="form-label">Button Border Radius (px)</label>
+            <input type="number" className="form-input" value={gc.buttonRadius ?? 8} min={0} max={50} onChange={(e) => updateGC({ buttonRadius: Number(e.target.value) })} />
+          </div>
+        </div>
+
+        <div className="ub-settings-card">
+          <div className="ub-settings-card-header">
+            <h3 className="ub-settings-card-title">Display Options</h3>
+          </div>
+          <div className="form-group">
+            <label style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', cursor: 'pointer', fontSize: '0.8125rem' }}>
+              <input type="checkbox" checked={gc.showDesignPicker !== false} onChange={(e) => updateGC({ showDesignPicker: e.target.checked })} />
+              <span>Show Design Picker</span>
+            </label>
+          </div>
+          <div className="form-group">
+            <label style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', cursor: 'pointer', fontSize: '0.8125rem' }}>
+              <input type="checkbox" checked={gc.showPreview !== false} onChange={(e) => updateGC({ showPreview: e.target.checked })} />
+              <span>Show Live Preview</span>
+            </label>
+          </div>
+          <div className="form-group">
+            <label style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', cursor: 'pointer', fontSize: '0.8125rem' }}>
+              <input type="checkbox" checked={gc.showCustomAmount !== false} onChange={(e) => updateGC({ showCustomAmount: e.target.checked })} />
+              <span>Show Custom Amount Input</span>
+            </label>
+          </div>
+          <div className="form-group">
+            <label className="form-label">Gift Card Validity</label>
+            <select className="form-input" value={gc.validityMonths || 12} onChange={(e) => updateGC({ validityMonths: Number(e.target.value) })}>
+              <option value={6}>6 Months</option>
+              <option value={12}>12 Months</option>
+              <option value={24}>24 Months</option>
+              <option value={36}>36 Months</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // Not implemented or unknown panel falls back to this message
   return <p className="form-hint" style={{ color: 'var(--color-text-secondary)', fontSize: '0.875rem' }}>Settings form for {panel} goes here.</p>;

@@ -2059,7 +2059,77 @@ export function getCrmDocumentPublicUrl(storagePath: string): string {
 
 // ─── Email Marketing: Templates ─────────────────────────────
 
+const SYSTEM_TEMPLATES = [
+  {
+    system_key: 'order_confirmation',
+    name: 'Order Confirmation',
+    subject: 'Order Confirmation — #{{order_number}}',
+    blocks: [
+      { id: 'sys-oc-1', type: 'heading', data: { content: '<p style="text-align: center">Order Confirmed ✓</p>', level: 'h2', color: '#dc2626', bgColor: '', fontFamily: '', padding: { top: 8, right: 0, bottom: 0, left: 0 } } },
+      { id: 'sys-oc-2', type: 'text', data: { content: '<p>Hi {{customer_name}},</p><p>Thank you for your order! We\'ve received your payment and your order is now being processed.</p>', color: '', bgColor: '', fontFamily: '', padding: { top: 8, right: 20, bottom: 0, left: 20 } } },
+      { id: 'sys-oc-2b', type: 'text', data: { content: '<p><strong style="color: #888; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">ORDER #{{order_number}}</strong></p>', color: '', bgColor: '', fontFamily: '', padding: { top: 12, right: 20, bottom: 0, left: 20 } } },
+      { id: 'sys-oc-3', type: 'divider', data: { style: 'solid', color: '#e5e7eb', thickness: '1', width: '100', marginTop: '8', marginBottom: '4', padding: { top: 0, right: 0, bottom: 0, left: 0 } } },
+      { id: 'sys-oc-details', type: 'order_details', data: { showImages: true, showBreakdown: true, padding: { top: 0, right: 0, bottom: 0, left: 0 } } },
+      { id: 'sys-oc-5', type: 'divider', data: { style: 'solid', color: '#e5e7eb', thickness: '1', width: '100', marginTop: '4', marginBottom: '12', padding: { top: 0, right: 0, bottom: 0, left: 0 } } },
+      { id: 'sys-oc-6', type: 'text', data: { content: '<p style="font-size: 13px; color: #888;">If you have any questions about your order, please don\'t hesitate to get in touch.</p>', color: '', bgColor: '', fontFamily: '', padding: { top: 0, right: 20, bottom: 8, left: 20 } } },
+    ],
+    settings: { width: 600, bodyBg: '#f4f4f4', contentBg: '#ffffff', fontFamily: "'Inter', sans-serif", textColor: '#1f2937', linkColor: '#dc2626', logoUrl: '', footerText: '© {{business_name}}', subject: 'Order Confirmation — #{{order_number}}', previewText: 'Your order has been confirmed' },
+  },
+  {
+    system_key: 'refund_confirmation',
+    name: 'Refund Processed',
+    subject: 'Refund Processed — Order #{{order_number}}',
+    blocks: [
+      { id: 'sys-ref-1', type: 'heading', data: { content: '<p style="text-align: center">Refund Processed</p>', level: 'h2', color: '#dc2626', bgColor: '', fontFamily: '', padding: { top: 8, right: 0, bottom: 0, left: 0 } } },
+      { id: 'sys-ref-2', type: 'text', data: { content: '<p>Hi {{customer_name}},</p><p>We\'ve processed a refund for your order. Here are the details:</p>', color: '', bgColor: '', fontFamily: '', padding: { top: 8, right: 20, bottom: 0, left: 20 } } },
+      { id: 'sys-ref-2b', type: 'text', data: { content: '<p><strong style="color: #888; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">ORDER #{{order_number}}</strong></p>', color: '', bgColor: '', fontFamily: '', padding: { top: 12, right: 20, bottom: 0, left: 20 } } },
+      { id: 'sys-ref-3', type: 'divider', data: { style: 'solid', color: '#e5e7eb', thickness: '1', width: '100', marginTop: '8', marginBottom: '4', padding: { top: 0, right: 0, bottom: 0, left: 0 } } },
+      { id: 'sys-ref-details', type: 'order_details', data: { showImages: true, showBreakdown: true, padding: { top: 0, right: 0, bottom: 0, left: 0 } } },
+      { id: 'sys-ref-5', type: 'divider', data: { style: 'solid', color: '#e5e7eb', thickness: '1', width: '100', marginTop: '4', marginBottom: '12', padding: { top: 0, right: 0, bottom: 0, left: 0 } } },
+      { id: 'sys-ref-6', type: 'text', data: { content: '<p>The refund has been sent back to your original payment method. It may take 5–10 business days to appear on your statement.</p>', color: '', bgColor: '', fontFamily: '', padding: { top: 0, right: 20, bottom: 0, left: 20 } } },
+      { id: 'sys-ref-7', type: 'text', data: { content: '<p style="font-size: 13px; color: #888;">If you have any questions, please don\'t hesitate to get in touch.</p>', color: '', bgColor: '', fontFamily: '', padding: { top: 8, right: 20, bottom: 8, left: 20 } } },
+    ],
+    settings: { width: 600, bodyBg: '#f4f4f4', contentBg: '#ffffff', fontFamily: "'Inter', sans-serif", textColor: '#1f2937', linkColor: '#dc2626', logoUrl: '', footerText: '© {{business_name}}', subject: 'Refund Processed — Order #{{order_number}}', previewText: 'Your refund has been processed' },
+  },
+];
+
+async function seedSystemEmailTemplates(): Promise<void> {
+  const { data: existing } = await supabase
+    .from('email_templates')
+    .select('system_key')
+    .eq('is_system', true);
+
+  const existingKeys = new Set((existing || []).map((t: any) => t.system_key));
+
+  for (const tpl of SYSTEM_TEMPLATES) {
+    if (existingKeys.has(tpl.system_key)) {
+      // Update existing system template with latest block structure
+      await supabase.from('email_templates').update({
+        name: tpl.name,
+        subject: tpl.subject,
+        blocks: tpl.blocks,
+        settings: tpl.settings,
+        mjml_source: '',
+      }).eq('is_system', true).eq('system_key', tpl.system_key);
+    } else {
+      await supabase.from('email_templates').insert({
+        name: tpl.name,
+        subject: tpl.subject,
+        blocks: tpl.blocks,
+        settings: tpl.settings,
+        mjml_source: '',
+        active: true,
+        is_system: true,
+        system_key: tpl.system_key,
+      });
+    }
+  }
+}
+
 export async function fetchEmailTemplates(): Promise<EmailTemplate[]> {
+  // Ensure system templates exist on first load
+  await seedSystemEmailTemplates();
+
   const { data, error } = await supabase
     .from('email_templates')
     .select('*')
@@ -2243,7 +2313,6 @@ export async function fetchGoogleSettings(): Promise<GoogleSettings | null> {
 export async function upsertGoogleSettings(
   settings: Partial<GoogleSettings> & { google_place_id: string }
 ): Promise<GoogleSettings> {
-  // Check for existing row
   const existing = await fetchGoogleSettings();
   const reviewLink = settings.google_place_id
     ? `https://search.google.com/local/writereview?placeid=${settings.google_place_id}`
@@ -2252,7 +2321,7 @@ export async function upsertGoogleSettings(
   const payload = {
     ...settings,
     google_review_link: reviewLink,
-    google_api_key: existing?.google_api_key || '', // Fallback for DB constraints
+    google_api_key: existing?.google_api_key || '',
     updated_at: new Date().toISOString(),
   };
 
@@ -2276,70 +2345,68 @@ export async function upsertGoogleSettings(
   }
 }
 
+// ─── Google OAuth Flow ──────────────────────────────────────
 
-const GOOGLE_PLACES_API_KEY = 'AIzaSyAMcQPq62_bmbNkBRshuWmV_Utu4dBoGh8';
-
-export async function testGoogleConnection(): Promise<{ ok: boolean; businessName?: string; error?: string }> {
-  const settings = await fetchGoogleSettings();
-  if (!settings || !settings.google_place_id) return { ok: false, error: 'No Place ID configured' };
-
-  const res = await fetch(`https://places.googleapis.com/v1/places/${settings.google_place_id}?fields=displayName&key=${GOOGLE_PLACES_API_KEY}`);
-  if (!res.ok) return { ok: false, error: 'Invalid Google Place ID or API Key' };
-  
-  const data = await res.json();
-  return { ok: true, businessName: data.displayName?.text };
-}
-
-export async function searchGooglePlaces(query: string): Promise<{ id: string; name: string; address: string }[]> {
-  const res = await fetch('https://places.googleapis.com/v1/places:searchText', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'X-Goog-Api-Key': GOOGLE_PLACES_API_KEY,
-      'X-Goog-FieldMask': 'places.id,places.displayName,places.formattedAddress'
-    },
-    body: JSON.stringify({ textQuery: query })
+export async function getGoogleAuthUrl(redirectUri: string): Promise<string> {
+  const { data, error } = await supabase.functions.invoke('google-oauth', {
+    body: { action: 'get_auth_url', redirect_uri: redirectUri },
   });
-
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`Google API Error: ${text}`);
-  }
-
-  const data = await res.json();
-  return (data.places || []).map((p: any) => ({
-    id: p.id,
-    name: p.displayName?.text || '',
-    address: p.formattedAddress || ''
-  }));
+  if (error) throw new Error(data?.error || error.message || 'Failed to get auth URL');
+  if (data?.error) throw new Error(data.error);
+  return data.url;
 }
+
+export async function exchangeGoogleCode(code: string, redirectUri: string): Promise<void> {
+  const { data, error } = await supabase.functions.invoke('google-oauth', {
+    body: { action: 'exchange_code', code, redirect_uri: redirectUri },
+  });
+  if (error) throw new Error(data?.error || error.message || 'Token exchange failed');
+  if (data?.error) throw new Error(data.error);
+}
+
+export async function listGoogleAccounts(): Promise<{ name: string; accountName: string; type: string }[]> {
+  const { data, error } = await supabase.functions.invoke('google-oauth', {
+    body: { action: 'list_accounts' },
+  });
+  if (error) throw new Error(data?.error || error.message || 'Failed to list accounts');
+  if (data?.error) throw new Error(data.error);
+  return data.accounts || [];
+}
+
+export async function listGoogleLocations(accountName: string): Promise<{ name: string; title: string; address: string; placeId: string | null }[]> {
+  const { data, error } = await supabase.functions.invoke('google-oauth', {
+    body: { action: 'list_locations', account_name: accountName },
+  });
+  if (error) throw new Error(data?.error || error.message || 'Failed to list locations');
+  if (data?.error) throw new Error(data.error);
+  return data.locations || [];
+}
+
+export async function selectGoogleLocation(placeId: string, businessName: string, accountName?: string): Promise<void> {
+  const { data, error } = await supabase.functions.invoke('google-oauth', {
+    body: { action: 'select_location', place_id: placeId, business_name: businessName, account_name: accountName },
+  });
+  if (error) throw new Error(data?.error || error.message || 'Failed to select location');
+  if (data?.error) throw new Error(data.error);
+}
+
+export async function disconnectGoogle(): Promise<void> {
+  const { data, error } = await supabase.functions.invoke('google-oauth', {
+    body: { action: 'disconnect' },
+  });
+  if (error) throw new Error(data?.error || error.message || 'Failed to disconnect');
+  if (data?.error) throw new Error(data.error);
+}
+
+// ─── Google Reviews (via Edge Function) ─────────────────────
 
 export async function fetchGoogleReviews(): Promise<GooglePlaceOverview> {
-  const settings = await fetchGoogleSettings();
-  if (!settings || !settings.google_place_id) {
-    throw new Error('Google Place ID is missing in Settings.');
-  }
-
-  const res = await fetch(`https://places.googleapis.com/v1/places/${settings.google_place_id}?fields=displayName,rating,userRatingCount,reviews&key=${GOOGLE_PLACES_API_KEY}`);
-  
-  if (!res.ok) throw new Error('Failed to fetch Google reviews');
-  
-  const data = await res.json();
-  const reviews = (data.reviews || []).map((r: any) => ({
-    authorName: r.authorAttribution?.displayName || 'Anonymous',
-    authorPhotoUri: r.authorAttribution?.photoUri || null,
-    rating: r.rating || 0,
-    text: r.text?.text || '',
-    relativePublishTimeDescription: r.relativePublishTimeDescription || '',
-    publishTime: r.publishTime || '',
-  }));
-
-  return {
-    displayName: data?.displayName?.text || 'Unknown',
-    rating: data?.rating || 0,
-    userRatingCount: data?.userRatingCount || 0,
-    reviews,
-  };
+  const { data, error } = await supabase.functions.invoke('google-reviews', {
+    body: { action: 'fetch_reviews' },
+  });
+  if (error) throw new Error(data?.error || error.message || 'Failed to fetch reviews');
+  if (data?.error) throw new Error(data.error);
+  return data as GooglePlaceOverview;
 }
 
 // ─── Review Requests ────────────────────────────────────────

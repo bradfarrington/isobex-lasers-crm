@@ -8,7 +8,7 @@ import type { LookupItem } from '@/types/database';
 import { useAlert } from '@/components/ui/AlertDialog';
 import {
   Plus, Pencil, Trash2, X, Check, Mail, Save, Send, Loader2,
-  CheckCircle2, Info, ListFilter, Building2, Star, Search
+  CheckCircle2, Info, ListFilter, Building2, Star, CreditCard
 } from 'lucide-react';
 import type { BusinessProfile } from '@/types/database';
 import './SettingsPage.css';
@@ -21,6 +21,7 @@ const TABS = [
   { id: 'business', label: 'Business Profile', icon: Building2 },
   { id: 'lookups', label: 'Lookups', icon: ListFilter },
   { id: 'email', label: 'Email / SMTP', icon: Mail },
+  { id: 'payments', label: 'Payments', icon: CreditCard },
   { id: 'google', label: 'Google', icon: Star },
 ];
 
@@ -55,6 +56,7 @@ export function SettingsPage() {
           {activeTab === 'business' && <BusinessProfilePanel />}
           {activeTab === 'lookups' && <LookupsPanel />}
           {activeTab === 'email' && <SmtpPanel />}
+          {activeTab === 'payments' && <PaymentsPanel />}
           {activeTab === 'google' && <GooglePanel />}
         </div>
       </div>
@@ -795,43 +797,156 @@ function SmtpPanel() {
 }
 
 /* ═══════════════════════════════════════════
-   Google Panel
+   Google Panel — OAuth Connect Flow
    ═══════════════════════════════════════════ */
+
+type OAuthStep = 'idle' | 'authenticating' | 'loading_accounts' | 'pick_location' | 'saving';
+
+interface GoogleAccount {
+  name: string;
+  accountName: string;
+  type: string;
+}
+
+interface GoogleLocation {
+  name: string;
+  title: string;
+  address: string;
+  placeId: string | null;
+}
 
 function GooglePanel() {
   const { showAlert } = useAlert();
-  const [data, setData] = useState<{ google_place_id: string; google_business_name: string } | null>(null);
+  const [data, setData] = useState<{ google_place_id: string; google_business_name: string; google_access_token: string | null } | null>(null);
   const [loading, setLoading] = useState(true);
-  const [showSearch, setShowSearch] = useState(false);
+  const [step, setStep] = useState<OAuthStep>('idle');
+  const [accounts, setAccounts] = useState<GoogleAccount[]>([]);
+  const [locations, setLocations] = useState<GoogleLocation[]>([]);
+  const [selectedAccount, setSelectedAccount] = useState<string>('');
+  const [error, setError] = useState('');
+
+  const REDIRECT_URI = `${window.location.origin}/google-callback.html`;
 
   useEffect(() => {
     api.fetchGoogleSettings().then(d => {
       if (d && d.google_place_id) {
-        setData({ google_place_id: d.google_place_id, google_business_name: d.google_business_name || 'Your Business' });
+        setData({ google_place_id: d.google_place_id, google_business_name: d.google_business_name || 'Your Business', google_access_token: d.google_access_token });
+      } else if (d && d.google_access_token) {
+        // Authenticated but no location selected yet
+        setData({ google_place_id: '', google_business_name: '', google_access_token: d.google_access_token });
       }
       setLoading(false);
     });
   }, []);
 
+  // Listen for OAuth callback from popup window
+  useEffect(() => {
+    const handler = async (event: MessageEvent) => {
+      if (event.data?.type !== 'google-oauth-callback' || !event.data?.code) return;
+
+      setStep('authenticating');
+      setError('');
+      try {
+        await api.exchangeGoogleCode(event.data.code, REDIRECT_URI);
+        // Token exchanged — now load accounts
+        await loadAccounts();
+      } catch (err: any) {
+        setError(err.message || 'Failed to connect to Google');
+        setStep('idle');
+      }
+    };
+
+    window.addEventListener('message', handler);
+    return () => window.removeEventListener('message', handler);
+  }, []);
+
+  const handleConnect = async () => {
+    try {
+      setError('');
+      const authUrl = await api.getGoogleAuthUrl(REDIRECT_URI);
+      // Open OAuth popup
+      const w = 500, h = 600;
+      const left = window.screenX + (window.outerWidth - w) / 2;
+      const top = window.screenY + (window.outerHeight - h) / 2;
+      window.open(authUrl, 'google-oauth', `width=${w},height=${h},left=${left},top=${top},popup=yes`);
+    } catch (err: any) {
+      setError(err.message || 'Failed to start Google connection');
+    }
+  };
+
+  const loadAccounts = async () => {
+    setStep('loading_accounts');
+    setError('');
+    try {
+      const accts = await api.listGoogleAccounts();
+      setAccounts(accts);
+      if (accts.length === 1) {
+        // Auto-select single account and load locations
+        setSelectedAccount(accts[0].name);
+        await loadLocations(accts[0].name);
+      } else if (accts.length === 0) {
+        setError('No Google Business accounts found for this Google account.');
+        setStep('idle');
+      } else {
+        setStep('pick_location');
+      }
+    } catch (err: any) {
+      setError(err.message || 'Failed to load accounts');
+      setStep('idle');
+    }
+  };
+
+  const loadLocations = async (accountName: string) => {
+    setStep('loading_accounts');
+    setError('');
+    try {
+      const locs = await api.listGoogleLocations(accountName);
+      setLocations(locs);
+      if (locs.length === 0) {
+        setError('No business locations found under this account.');
+      }
+      setStep('pick_location');
+    } catch (err: any) {
+      setError(err.message || 'Failed to load locations');
+      setStep('pick_location');
+    }
+  };
+
+  const handleSelectLocation = async (loc: GoogleLocation) => {
+    if (!loc.placeId) {
+      showAlert({ title: 'No Place ID', message: 'This location does not have a Place ID linked yet. It may not be verified on Google Maps.', variant: 'warning' });
+      return;
+    }
+    setStep('saving');
+    try {
+      await api.selectGoogleLocation(loc.placeId, loc.title, selectedAccount);
+      setData({ google_place_id: loc.placeId, google_business_name: loc.title, google_access_token: 'connected' });
+      setStep('idle');
+      setLocations([]);
+      setAccounts([]);
+      showAlert({ title: 'Connected!', message: `Successfully connected to ${loc.title}`, variant: 'success' });
+    } catch (err: any) {
+      showAlert({ title: 'Error', message: err.message, variant: 'danger' });
+      setStep('pick_location');
+    }
+  };
+
   const handleDisconnect = async () => {
     try {
-      await api.upsertGoogleSettings({ google_place_id: '', google_business_name: '' });
+      await api.disconnectGoogle();
       setData(null);
+      setStep('idle');
+      setAccounts([]);
+      setLocations([]);
       showAlert({ title: 'Disconnected', message: 'Google integration removed', variant: 'success' });
     } catch (err: any) {
       showAlert({ title: 'Error', message: err.message, variant: 'danger' });
     }
   };
 
-  const handleConnect = async (place: { id: string; name: string }) => {
-    try {
-      await api.upsertGoogleSettings({ google_place_id: place.id, google_business_name: place.name });
-      setData({ google_place_id: place.id, google_business_name: place.name });
-      setShowSearch(false);
-      showAlert({ title: 'Connected!', message: `Successfully connected to ${place.name}`, variant: 'success' });
-    } catch (err: any) {
-      showAlert({ title: 'Error', message: err.message, variant: 'danger' });
-    }
+  // If already authenticated but no location selected, go straight to account loading
+  const handlePickLocation = async () => {
+    await loadAccounts();
   };
 
   if (loading) {
@@ -842,6 +957,9 @@ function GooglePanel() {
     );
   }
 
+  const isConnected = data && data.google_place_id;
+  const hasToken = data && data.google_access_token;
+
   return (
     <>
       <div className="settings-panel-head">
@@ -849,103 +967,284 @@ function GooglePanel() {
         <p className="settings-panel-desc">Connect your Google Business Profile to pull in live reviews and send review requests.</p>
       </div>
 
-      <div className={`settings-integration-card ${data ? 'connected' : ''}`}>
+      <div className={`settings-integration-card ${isConnected ? 'connected' : ''}`}>
         <div className="settings-integration-icon">
           <Star size={24} />
         </div>
         <div className="settings-integration-info">
-          <h4>{data ? data.google_business_name : 'Google Business Profile'}</h4>
-          <p>{data ? 'Your reviews are now syncing.' : 'Display your live reviews directly in your CRM dashboard.'}</p>
+          <h4>{isConnected ? data.google_business_name : 'Google Business Profile'}</h4>
+          <p>{isConnected ? 'Your reviews are now syncing.' : 'Sign in with Google to connect your business profile.'}</p>
         </div>
         <div className="settings-integration-action">
-          {data ? (
+          {isConnected ? (
             <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
               <span className="badge badge-confirmed"><CheckCircle2 size={12} /> Connected</span>
               <button className="btn-outline" onClick={handleDisconnect}>Disconnect</button>
             </div>
+          ) : hasToken && !isConnected ? (
+            <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+              <button className="btn-brand" onClick={handlePickLocation} disabled={step === 'loading_accounts'}>
+                {step === 'loading_accounts' ? <><Loader2 size={16} className="spin" /> Loading…</> : 'Pick Location'}
+              </button>
+              <button className="btn-outline" onClick={handleDisconnect}>Disconnect</button>
+            </div>
           ) : (
-            <button className="btn-brand" onClick={() => setShowSearch(true)}>Connect to Google</button>
+            <button className="btn-brand" onClick={handleConnect} disabled={step === 'authenticating'}>
+              {step === 'authenticating' ? <><Loader2 size={16} className="spin" /> Connecting…</> : 'Connect with Google'}
+            </button>
           )}
         </div>
       </div>
 
-      <div className="smtp-info-box" style={{ marginTop: 'var(--space-6)' }}>
-        <Info size={14} />
-        <span>
-          Your API key is securely managed by the system. Connecting your profile instantly enables the Reputation Dashboard and allows you to send Review Request emails.
-        </span>
-      </div>
-
-      {showSearch && <GoogleSearchModal onClose={() => setShowSearch(false)} onSelect={handleConnect} />}
-    </>
-  );
-}
-
-function GoogleSearchModal({ onClose, onSelect }: { onClose: () => void; onSelect: (place: { id: string; name: string; address: string }) => void }) {
-  const [query, setQuery] = useState('');
-  const [results, setResults] = useState<{ id: string; name: string; address: string }[]>([]);
-  const [searching, setSearching] = useState(false);
-  const [error, setError] = useState('');
-
-  const handleSearch = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!query.trim()) return;
-    setSearching(true);
-    setError('');
-    
-    try {
-      const places = await api.searchGooglePlaces(query);
-      setResults(places);
-      if (places.length === 0) setError('No businesses found matching that name.');
-    } catch (err: any) {
-      setError(err.message || 'Search failed');
-    } finally {
-      setSearching(false);
-    }
-  };
-
-  return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content review-request-modal" onClick={e => e.stopPropagation()}>
-        <div className="modal-header">
-          <h3>Find Your Business</h3>
-          <button className="row-action-btn" onClick={onClose}><X size={16} /></button>
+      {/* Error display */}
+      {error && (
+        <div className="smtp-info-box" style={{ marginTop: 'var(--space-4)', borderColor: 'var(--color-danger)', color: 'var(--color-danger)' }}>
+          <Info size={14} />
+          <span>{error}</span>
         </div>
-        
-        <div className="modal-body">
-          <form onSubmit={handleSearch} className="form-group mb-4" style={{ display: 'flex', gap: 10 }}>
-            <div style={{ flex: 1, position: 'relative' }}>
-              <Search size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-tertiary)' }} />
-              <input
-                type="text"
-                className="form-input"
-                style={{ paddingLeft: '36px', width: '100%' }}
-                placeholder="Business Name (e.g. Isobex Lasers...)"
-                value={query}
-                onChange={e => setQuery(e.target.value)}
-                autoFocus
-              />
+      )}
+
+      {/* Location Picker */}
+      {step === 'pick_location' && (
+        <div className="settings-section" style={{ marginTop: 'var(--space-6)' }}>
+          <div className="settings-section-title">Select Your Business Location</div>
+
+          {/* Account selector (if multiple) */}
+          {accounts.length > 1 && (
+            <div className="smtp-field" style={{ marginBottom: 'var(--space-4)' }}>
+              <label className="smtp-field-label">Business Account</label>
+              <select
+                className="smtp-field-input"
+                value={selectedAccount}
+                onChange={async (e) => {
+                  setSelectedAccount(e.target.value);
+                  if (e.target.value) await loadLocations(e.target.value);
+                }}
+              >
+                <option value="">Select an account…</option>
+                {accounts.map(a => (
+                  <option key={a.name} value={a.name}>{a.accountName || a.name}</option>
+                ))}
+              </select>
             </div>
-            <button type="submit" className="btn-brand" disabled={searching || !query.trim()}>
-              {searching ? <Loader2 size={16} className="spin" /> : 'Search'}
-            </button>
-          </form>
+          )}
 
-          {error && <div className="text-danger mb-4" style={{ fontSize: 13, color: 'var(--color-danger)' }}>{error}</div>}
-
-          {results.length > 0 && (
-            <ul className="contact-results" style={{ position: 'relative', maxHeight: 300, display: 'block' }}>
-              {results.map(r => (
-                <li key={r.id} onClick={() => onSelect(r)} style={{ borderBottom: '1px solid var(--color-border)' }}>
-                  <div className="contact-name">{r.name}</div>
-                  <div className="contact-email">{r.address}</div>
+          {/* Location list */}
+          {locations.length > 0 && (
+            <ul className="settings-list" style={{ maxHeight: 320, overflowY: 'auto' }}>
+              {locations.map(loc => (
+                <li key={loc.name} className="settings-list-item" style={{ cursor: 'pointer', padding: '12px 14px' }} onClick={() => handleSelectLocation(loc)}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 600, fontSize: 14, color: 'var(--color-text-primary)' }}>{loc.title}</div>
+                    <div style={{ fontSize: 12, color: 'var(--color-text-tertiary)', marginTop: 2 }}>{loc.address}</div>
+                    {!loc.placeId && <div style={{ fontSize: 11, color: 'var(--color-warning)', marginTop: 2 }}>No Place ID — may not be verified</div>}
+                  </div>
+                  {loc.placeId && <CheckCircle2 size={16} style={{ color: 'var(--color-success)', flexShrink: 0 }} />}
                 </li>
               ))}
             </ul>
           )}
+
+          {locations.length === 0 && !error && (
+            <div style={{ display: 'flex', justifyContent: 'center', padding: 'var(--space-8)' }}>
+              <Loader2 size={20} className="spin" />
+            </div>
+          )}
+        </div>
+      )}
+
+      <div className="smtp-info-box" style={{ marginTop: 'var(--space-6)' }}>
+        <Info size={14} />
+        <span>
+          Sign in with the Google account that manages your business listing. We'll securely connect to your Business Profile to pull live reviews and enable review requests.
+        </span>
+      </div>
+    </>
+  );
+}
+
+/* ═══════════════════════════════════════════
+   Payments / Stripe Panel
+   ═══════════════════════════════════════════ */
+
+interface StripeSettings {
+  id: string;
+  stripe_secret_key: string;
+  stripe_webhook_secret: string;
+  stripe_configured: boolean;
+}
+
+function PaymentsPanel() {
+  const { showAlert } = useAlert();
+  const [form, setForm] = useState({
+    stripe_secret_key: '',
+    stripe_webhook_secret: '',
+  });
+  const [settingsId, setSettingsId] = useState<string | null>(null);
+  const [isConfigured, setIsConfigured] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [dirty, setDirty] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const { data, error } = await supabase
+          .from('stripe_settings')
+          .select('*')
+          .limit(1)
+          .single();
+
+        if (!error && data) {
+          const s = data as StripeSettings;
+          setSettingsId(s.id);
+          setIsConfigured(s.stripe_configured);
+          setForm({
+            stripe_secret_key: s.stripe_secret_key || '',
+            stripe_webhook_secret: s.stripe_webhook_secret || '',
+          });
+        }
+      } catch (err) {
+        console.error('Failed to fetch Stripe settings:', err);
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
+
+  const handleChange = (field: string, value: string) => {
+    setForm(prev => ({ ...prev, [field]: value }));
+    setDirty(true);
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const configured = !!form.stripe_secret_key;
+      const payload = {
+        ...form,
+        stripe_configured: configured,
+        updated_at: new Date().toISOString(),
+      };
+
+      if (settingsId) {
+        const { error } = await supabase
+          .from('stripe_settings')
+          .update(payload)
+          .eq('id', settingsId);
+        if (error) throw error;
+      } else {
+        const { data, error } = await supabase
+          .from('stripe_settings')
+          .insert(payload)
+          .select()
+          .single();
+        if (error) throw error;
+        if (data) setSettingsId(data.id);
+      }
+
+      setIsConfigured(configured);
+      setDirty(false);
+      showAlert({ title: 'Saved', message: 'Stripe settings saved successfully.', variant: 'success' });
+    } catch (err: unknown) {
+      const msg = err && typeof err === 'object' && 'message' in err
+        ? (err as { message: string }).message
+        : 'Failed to save Stripe settings';
+      showAlert({ title: 'Error', message: msg, variant: 'danger' });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <>
+        <div className="settings-panel-head">
+          <h3>Payments</h3>
+          <p className="settings-panel-desc">Loading payment settings…</p>
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'center', padding: 'var(--space-12)' }}>
+          <div className="loading-spinner" />
+        </div>
+      </>
+    );
+  }
+
+  return (
+    <>
+      <div className="settings-panel-head">
+        <h3>Payments</h3>
+        <p className="settings-panel-desc">
+          Connect your Stripe account to process payments on your storefront.
+        </p>
+      </div>
+
+      {/* Status card */}
+      <div className={`settings-integration-card ${isConfigured ? 'connected' : ''}`}>
+        <div className="settings-integration-icon">
+          <CreditCard size={24} />
+        </div>
+        <div className="settings-integration-info">
+          <h4>Stripe</h4>
+          <p>Accept credit/debit card payments, process refunds, and manage transactions.</p>
+        </div>
+        <div className="settings-integration-action">
+          {isConfigured
+            ? <span className="badge badge-confirmed"><CheckCircle2 size={12} /> Configured</span>
+            : <span className="badge badge-warning">Not Configured</span>}
         </div>
       </div>
-    </div>
+
+      {/* API Keys */}
+      <div className="settings-section">
+        <div className="settings-section-title">API Keys</div>
+        <div className="smtp-field">
+          <label className="smtp-field-label">Secret Key</label>
+          <input
+            className="smtp-field-input"
+            type="password"
+            value={form.stripe_secret_key}
+            onChange={(e) => handleChange('stripe_secret_key', e.target.value)}
+            placeholder="sk_test_..."
+          />
+        </div>
+        <div className="smtp-field" style={{ marginTop: 'var(--space-4)' }}>
+          <label className="smtp-field-label">Webhook Signing Secret</label>
+          <input
+            className="smtp-field-input"
+            type="password"
+            value={form.stripe_webhook_secret}
+            onChange={(e) => handleChange('stripe_webhook_secret', e.target.value)}
+            placeholder="whsec_..."
+          />
+        </div>
+      </div>
+
+      {/* Publishable key info */}
+      <div className="smtp-info-box">
+        <Info size={14} />
+        <span>
+          Your <strong>Stripe Publishable Key</strong> (<code>pk_test_...</code>) is set in
+          the <code>.env</code> file as <code>VITE_STRIPE_PUBLISHABLE_KEY</code>.
+          The <strong>Secret Key</strong> above is stored securely and only used by server-side edge functions.
+          After deploying, configure a Stripe webhook pointing to
+          your <code>stripe-webhook</code> Supabase Edge Function and paste the signing secret above.
+        </span>
+      </div>
+
+      {/* Actions */}
+      <div className="settings-form-actions">
+        <button
+          className="btn-brand"
+          onClick={handleSave}
+          disabled={saving || !dirty}
+        >
+          {saving
+            ? <><Loader2 size={16} className="spin" /> Saving…</>
+            : <><Save size={16} /> Save Changes</>}
+        </button>
+      </div>
+    </>
   );
 }
 
@@ -1027,3 +1326,5 @@ function TestEmailModal({ defaultEmail, onClose }: { defaultEmail: string; onClo
     </div>
   );
 }
+
+

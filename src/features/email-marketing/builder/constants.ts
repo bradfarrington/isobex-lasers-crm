@@ -1,6 +1,6 @@
 import {
   Type, AlignLeft, Image, MousePointerClick, Minus, Square,
-  Columns2, Tag, Code, Share2, Play, Timer, ShoppingBag,
+  Columns2, Tag, Code, Share2, Play, Timer, ShoppingBag, Receipt,
 } from 'lucide-react';
 
 export const BRAND = '#dc2626';
@@ -57,6 +57,16 @@ export const MERGE_TAGS = [
     { key: '{{business_website}}', label: 'Business Website' },
     { key: '{{business_address}}', label: 'Business Address' },
   ]},
+  { group: 'Order', tags: [
+    { key: '{{customer_name}}', label: 'Customer Name' },
+    { key: '{{order_number}}', label: 'Order Number' },
+    { key: '{{order_subtotal}}', label: 'Subtotal' },
+    { key: '{{order_shipping}}', label: 'Shipping Cost' },
+    { key: '{{order_vat}}', label: 'VAT (20%)' },
+    { key: '{{order_total}}', label: 'Order Total' },
+    { key: '{{order_items_table}}', label: 'Items Table' },
+    { key: '{{order_price_breakdown}}', label: 'Price Breakdown' },
+  ]},
   { group: 'Utility', tags: [
     { key: '{{current_date}}', label: 'Current Date' },
     { key: '{{current_year}}', label: 'Current Year' },
@@ -80,6 +90,16 @@ export const SAMPLE_DATA: Record<string, string> = {
   '{{current_date}}': new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }),
   '{{current_year}}': String(new Date().getFullYear()),
   '{{unsubscribe_link}}': '#',
+  '{{customer_name}}': 'John Smith',
+  '{{order.customer.name}}': 'John Smith',
+  '{{order_number}}': '1042',
+  '{{order.name}}': '1042',
+  '{{order_subtotal}}': '£189.98',
+  '{{order_shipping}}': '£5.99',
+  '{{order_vat}}': '£39.19',
+  '{{order_total}}': '£235.16',
+  '{{order_items_table}}': `<table style="width:100%;border-collapse:collapse;"><thead><tr style="background:#f9fafb;"><th style="padding:10px 12px;text-align:left;font-size:12px;color:#888;text-transform:uppercase;letter-spacing:0.5px;">Product</th><th style="padding:10px 12px;text-align:center;font-size:12px;color:#888;text-transform:uppercase;letter-spacing:0.5px;">Qty</th><th style="padding:10px 12px;text-align:right;font-size:12px;color:#888;text-transform:uppercase;letter-spacing:0.5px;">Price</th><th style="padding:10px 12px;text-align:right;font-size:12px;color:#888;text-transform:uppercase;letter-spacing:0.5px;">Total</th></tr></thead><tbody><tr><td style="padding:12px;border-bottom:1px solid #eee;"><div style="display:flex;align-items:center;gap:12px;"><img src="https://placehold.co/48x48/f3f4f6/888?text=IL" style="width:48px;height:48px;border-radius:6px;object-fit:cover;" /><div><div style="font-weight:600;">CO2 Laser Cutting Head</div><div style="font-size:12px;color:#888;">Standard</div></div></div></td><td style="padding:12px;border-bottom:1px solid #eee;text-align:center;">1</td><td style="padding:12px;border-bottom:1px solid #eee;text-align:right;">£149.99</td><td style="padding:12px;border-bottom:1px solid #eee;text-align:right;">£149.99</td></tr><tr><td style="padding:12px;border-bottom:1px solid #eee;"><div style="display:flex;align-items:center;gap:12px;"><img src="https://placehold.co/48x48/f3f4f6/888?text=IL" style="width:48px;height:48px;border-radius:6px;object-fit:cover;" /><div><div style="font-weight:600;">Replacement Lens Kit</div><div style="font-size:12px;color:#888;">25mm</div></div></div></td><td style="padding:12px;border-bottom:1px solid #eee;text-align:center;">2</td><td style="padding:12px;border-bottom:1px solid #eee;text-align:right;">£19.99</td><td style="padding:12px;border-bottom:1px solid #eee;text-align:right;">£39.98</td></tr></tbody></table>`,
+  '{{order_price_breakdown}}': `<table style="width:100%;border-collapse:collapse;"><tr><td style="padding:6px 12px;color:#555;">Subtotal</td><td style="padding:6px 12px;text-align:right;">£189.98</td></tr><tr><td style="padding:6px 12px;color:#555;">Shipping</td><td style="padding:6px 12px;text-align:right;">£5.99</td></tr><tr><td style="padding:6px 12px;color:#555;">VAT (20%)</td><td style="padding:6px 12px;text-align:right;">£39.19</td></tr><tr style="border-top:2px solid #1a1a1a;"><td style="padding:10px 12px;font-weight:700;font-size:16px;">Total</td><td style="padding:10px 12px;text-align:right;font-weight:700;font-size:16px;color:#dc2626;">£235.16</td></tr></table>`,
 };
 
 export interface BlockData {
@@ -121,6 +141,7 @@ export const BLOCK_GROUPS: { label: string; blocks: BlockDef[] }[] = [
     { type: 'merge_tag', label: 'Merge Tag', icon: Tag },
     { type: 'countdown', label: 'Countdown', icon: Timer },
     { type: 'product', label: 'Product', icon: ShoppingBag },
+    { type: 'order_details', label: 'Order Details', icon: Receipt },
   ]},
   { label: 'Advanced', blocks: [
     { type: 'html', label: 'Custom HTML', icon: Code },
@@ -146,6 +167,7 @@ export function makeBlock(type: string): BlockData {
     video: { videoUrl: '', thumbnailUrl: '', alt: 'Video thumbnail', width: '100', align: 'center', borderRadius: '0', padding: { top: 0, right: 0, bottom: 0, left: 0 } },
     countdown: { endDate: '', label: 'Offer ends', bgColor: BRAND, textColor: '#ffffff', fontSize: '18', padding: { top: 12, right: 0, bottom: 12, left: 0 } },
     product: { productId: '', showImage: true, showPrice: true, showDescription: false, buttonText: 'Shop Now', buttonColor: BRAND, padding: { top: 8, right: 0, bottom: 8, left: 0 } },
+    order_details: { showImages: true, showBreakdown: true, padding: { top: 8, right: 0, bottom: 8, left: 0 } },
   };
   return { id: crypto.randomUUID(), type, data: JSON.parse(JSON.stringify(defaults[type] || {})) };
 }
@@ -173,8 +195,14 @@ export function cleanHtml(html: string): string {
   return html.replace(/&nbsp;/g, ' ').replace(/\u00A0/g, ' ');
 }
 
-export function replaceMergeTags(text: string, preserveTags = false): string {
+export function replaceMergeTags(text: string, preserveTags = false, customData?: Record<string, string>): string {
   if (!text) return text;
   if (preserveTags) return text;
-  return text.replace(/\{\{[^}]+\}\}/g, m => SAMPLE_DATA[m] || m);
+  const source = customData || SAMPLE_DATA;
+  return text.replace(/\{\{([^}]+)\}\}/g, (match, inner) => {
+    // Strip any HTML tags that Quill might have accidentally injected inside the braces
+    const cleanInner = inner.replace(/<[^>]*>?/gm, '').trim().toLowerCase();
+    const key = `{{${cleanInner}}}`;
+    return source[key] !== undefined ? source[key] : match;
+  });
 }

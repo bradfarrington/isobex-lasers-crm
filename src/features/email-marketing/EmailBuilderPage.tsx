@@ -13,7 +13,8 @@ import {
   updateEmailCampaign,
   fetchEmailCampaign,
 } from '@/lib/api';
-import { BLOCK_GROUPS, BRAND, makeBlock } from './builder/constants';
+import { BLOCK_GROUPS, BRAND, makeBlock, SAMPLE_DATA, replaceMergeTags } from './builder/constants';
+import DOMPurify from 'dompurify';
 import type { BlockData } from './builder/constants';
 import { generateEmailHtml } from './builder/mjml';
 import { supabase } from '@/lib/supabase';
@@ -90,6 +91,155 @@ export function EmailBuilderPage() {
   const isCampaignMode = !!campaignId;
 
   const [templateName, setTemplateName] = useState(isCampaignMode ? '' : 'Untitled Template');
+
+  const [testOrders, setTestOrders] = useState<any[]>([]);
+  const [selectedOrderId, setSelectedOrderId] = useState<string>('');
+  const [dynamicSampleData, setDynamicSampleData] = useState<Record<string, string> | null>(null);
+
+  useEffect(() => {
+    supabase.from('orders')
+      .select('*, contact:contacts(first_name, last_name, email), items:order_items(product_id, variant_id, product_name, variant_label, quantity, unit_price, product_image_url)')
+      .order('created_at', { ascending: false })
+      .limit(20)
+      .then(async ({ data }) => {
+        if (!data) return;
+        // Fetch product images for all order items
+        const allProductIds = [...new Set(data.flatMap(o => (o.items || []).map((i: any) => i.product_id).filter(Boolean)))];
+        const thumbMap: Record<string, string> = {};
+        if (allProductIds.length > 0) {
+          const { data: media } = await supabase
+            .from('product_media')
+            .select('product_id, media_url, sort_order')
+            .in('product_id', allProductIds)
+            .in('media_type', ['image'])
+            .order('sort_order');
+          (media || []).forEach((m: any) => { if (!thumbMap[m.product_id]) thumbMap[m.product_id] = m.media_url; });
+        }
+        // Fetch variant option names (e.g. "Size") for items with variant_id
+        const allVariantIds = [...new Set(data.flatMap(o => (o.items || []).map((i: any) => i.variant_id).filter(Boolean)))];
+        const variantInfoMap: Record<string, { group_name: string; value: string }[]> = {};
+        if (allVariantIds.length > 0) {
+          const { data: variants } = await supabase
+            .from('product_variants')
+            .select('id, option_values')
+            .in('id', allVariantIds);
+          (variants || []).forEach((v: any) => {
+            if (v.option_values?.length) {
+              variantInfoMap[v.id] = v.option_values.map((ov: any) => ({ group_name: ov.group_name || 'Option', value: ov.value }));
+            }
+          });
+        }
+        // Fallback: for items with variant_label but no variant_id, look up by product_id
+        const orphanProductIds = [...new Set(data.flatMap(o => (o.items || []).filter((i: any) => i.variant_label && !i.variant_id).map((i: any) => i.product_id).filter(Boolean)))];
+        const productVariantMap: Record<string, any[]> = {};
+        if (orphanProductIds.length > 0) {
+          const { data: pv } = await supabase
+            .from('product_variants')
+            .select('product_id, option_values')
+            .in('product_id', orphanProductIds);
+          (pv || []).forEach((v: any) => {
+            if (!productVariantMap[v.product_id]) productVariantMap[v.product_id] = [];
+            productVariantMap[v.product_id].push(v);
+          });
+        }
+        // Attach images and variant info to items
+        const enriched = data.map(o => ({
+          ...o,
+          items: (o.items || []).map((item: any) => {
+            let variant_options = item.variant_id ? variantInfoMap[item.variant_id] || null : null;
+            // Fallback: match variant_label to option_values
+            if (!variant_options && item.variant_label && productVariantMap[item.product_id]) {
+              const match = productVariantMap[item.product_id].find((v: any) =>
+                v.option_values?.some((ov: any) => ov.value === item.variant_label)
+              );
+              if (match?.option_values?.length) {
+                const ov = match.option_values.find((o: any) => o.value === item.variant_label);
+                if (ov) variant_options = [{ group_name: ov.group_name || 'Option', value: ov.value }];
+              }
+            }
+            return {
+              ...item,
+              product_image_url: item.product_image_url || thumbMap[item.product_id] || null,
+              variant_options,
+            };
+          }),
+        }));
+        setTestOrders(enriched);
+      });
+  }, []);
+
+  useEffect(() => {
+    if (!selectedOrderId) {
+      setDynamicSampleData(null);
+      return;
+    }
+    const order = testOrders.find(o => o.id === selectedOrderId);
+    if (!order) return;
+
+    const subtotal = Number(order.subtotal || 0);
+    const shippingCost = Number(order.shipping_cost || 0);
+    const totalAmount = Number(order.total || 0);
+    const discountAmount = Number(order.discount_amount || 0);
+    const discountCode = order.discount_code || '';
+    const giftCardAmount = Number(order.gift_card_amount || 0);
+    const giftCardCode = order.gift_card_code || '';
+
+    // Derive VAT: if tax_amount is stored, use it; otherwise calculate from total
+    let vatAmount = Number(order.tax_amount || 0);
+    if (vatAmount === 0 && totalAmount > 0) {
+      vatAmount = Math.max(0, Math.round((totalAmount - subtotal - shippingCost + discountAmount + giftCardAmount) * 100) / 100);
+    }
+
+    const itemCount = (order.items || []).reduce((s: number, i: any) => s + (i.quantity || 1), 0);
+
+    const itemRows = (order.items || []).map((item: any) => {
+      const lineTotal = Number(item.unit_price || 0) * item.quantity;
+      const imgSrc = item.product_image_url;
+      const imgCell = imgSrc
+        ? `<img src="${imgSrc}" alt="${item.product_name}" style="width:56px;height:56px;border-radius:6px;object-fit:cover;display:block;" />`
+        : `<div style="width:56px;height:56px;border-radius:6px;background:#eee;"></div>`;
+      const variantHtml = item.variant_options?.length
+        ? `<br/><span style="font-size:12px;color:#999;">${item.variant_options.map((vo: any) => `${vo.group_name}: ${vo.value}`).join(' / ')}</span>`
+        : item.variant_label ? `<br/><span style="font-size:12px;color:#999;">${item.variant_label}</span>` : '';
+      return `<tr>
+        <td style="padding:12px;border-bottom:1px solid #eee;width:72px;">${imgCell}</td>
+        <td style="padding:12px;border-bottom:1px solid #eee;"><strong style="font-size:14px;">${item.product_name}</strong>${variantHtml}<br/><span style="font-size:13px;color:#666;">£${Number(item.unit_price || 0).toFixed(2)} × ${item.quantity}</span></td>
+        <td style="padding:12px;border-bottom:1px solid #eee;text-align:right;font-weight:600;font-size:14px;">£${lineTotal.toFixed(2)}</td>
+      </tr>`;
+    }).join('');
+
+    const itemsTable = `<table style="width:100%;border-collapse:collapse;">${itemRows}</table>`;
+
+    // Build breakdown rows — only show discount/gift card if used
+    const breakdownRows: string[] = [];
+    breakdownRows.push(`<tr><td style="padding:8px 12px;color:#555;font-size:14px;">Subtotal<span style="color:#999;font-size:12px;margin-left:8px;">${itemCount} item${itemCount !== 1 ? 's' : ''}</span></td><td style="padding:8px 12px;text-align:right;font-size:14px;">£${subtotal.toFixed(2)}</td></tr>`);
+    if (discountAmount > 0) {
+      breakdownRows.push(`<tr><td style="padding:8px 12px;color:#555;font-size:14px;">Discount${discountCode ? `<span style="color:#999;font-size:12px;margin-left:8px;">${discountCode}</span>` : ''}</td><td style="padding:8px 12px;text-align:right;font-size:14px;color:#16a34a;">- £${discountAmount.toFixed(2)}</td></tr>`);
+    }
+    if (giftCardAmount > 0) {
+      breakdownRows.push(`<tr><td style="padding:8px 12px;color:#555;font-size:14px;">Gift Card${giftCardCode ? `<span style="color:#999;font-size:12px;margin-left:8px;">${giftCardCode}</span>` : ''}</td><td style="padding:8px 12px;text-align:right;font-size:14px;color:#16a34a;">- £${giftCardAmount.toFixed(2)}</td></tr>`);
+    }
+    breakdownRows.push(`<tr><td style="padding:8px 12px;color:#555;font-size:14px;">Shipping</td><td style="padding:8px 12px;text-align:right;font-size:14px;">${shippingCost > 0 ? `£${shippingCost.toFixed(2)}` : 'Free'}</td></tr>`);
+    breakdownRows.push(`<tr><td style="padding:8px 12px;color:#555;font-size:14px;">VAT (20%)</td><td style="padding:8px 12px;text-align:right;font-size:14px;">£${vatAmount.toFixed(2)}</td></tr>`);
+    breakdownRows.push(`<tr style="border-top:2px solid #1a1a1a;"><td style="padding:10px 12px;font-weight:700;font-size:16px;">Total</td><td style="padding:10px 12px;text-align:right;font-weight:700;font-size:16px;color:#dc2626;">£${totalAmount.toFixed(2)}</td></tr>`);
+
+    const priceBreakdown = `<table style="width:100%;border-collapse:collapse;">${breakdownRows.join('')}</table>`;
+
+    const pd: Record<string, string> = {
+      '{{customer_name}}': `${order.contact?.first_name || ''} ${order.contact?.last_name || ''}`.trim() || 'Customer',
+      '{{order.customer.name}}': `${order.contact?.first_name || ''} ${order.contact?.last_name || ''}`.trim() || 'Customer',
+      '{{order_number}}': String(order.order_number || order.id.slice(0, 8).toUpperCase()),
+      '{{order.name}}': String(order.order_number || order.id.slice(0, 8).toUpperCase()),
+      '{{order_subtotal}}': `£${subtotal.toFixed(2)}`,
+      '{{order_shipping}}': `£${shippingCost.toFixed(2)}`,
+      '{{order_vat}}': `£${vatAmount.toFixed(2)}`,
+      '{{order_total}}': `£${totalAmount.toFixed(2)}`,
+      '{{order_items_table}}': itemsTable,
+      '{{order_price_breakdown}}': priceBreakdown,
+    };
+
+    setDynamicSampleData({ ...SAMPLE_DATA, ...pd });
+  }, [selectedOrderId, testOrders]);
 
   // ── Undo/Redo history ──
   const [blocks, setBlocksRaw] = useState<BlockData[]>([]);
@@ -307,7 +457,7 @@ export function EmailBuilderPage() {
     try {
       // Cache product data for product blocks before generating MJML
       const blocksToSave = await cacheProductData(blocks);
-      const mjmlSource = generateEmailHtml(blocksToSave, settings, true);
+      const mjmlSource = generateEmailHtml(blocksToSave, settings, true, dynamicSampleData || SAMPLE_DATA);
       if (isCampaignMode) {
         await updateEmailCampaign(campaignId!, { name: templateName, subject: settings.subject || templateName, blocks: blocksToSave, settings, html_content: mjmlSource });
       } else {
@@ -345,6 +495,16 @@ export function EmailBuilderPage() {
           {localStorage.getItem('eb-clipboard') && (
             <button className="btn-secondary" onClick={pasteBlock} title="Paste copied block"><Clipboard size={14} /> Paste</button>
           )}
+          {testOrders.length > 0 && (
+            <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+              <select className="form-input" style={{ width: 'auto', maxWidth: 220, height: 32, padding: '0 28px 0 10px', fontSize: 13, background: 'var(--color-bg-subtle)' }} value={selectedOrderId} onChange={e => setSelectedOrderId(e.target.value)} title="Preview & Test Data Source">
+                <option value="">Dummy Sample Data</option>
+                {testOrders.map(o => (
+                  <option key={o.id} value={o.id}>Order #{o.order_number || o.id.slice(0, 8)} - {o.contact?.first_name || 'Customer'}</option>
+                ))}
+              </select>
+            </div>
+          )}
           <button className="btn-secondary" onClick={() => setShowTestModal(true)} title="Send test"><Send size={14} /> Send Test</button>
           <button className={`btn-secondary${justSaved ? '' : ''}`} onClick={handleSave} disabled={saving}
             style={justSaved ? { background: 'var(--color-success)', color: '#fff', borderColor: 'var(--color-success)' } : { background: 'var(--color-primary)', color: '#fff', borderColor: 'var(--color-primary)' }}>
@@ -355,7 +515,7 @@ export function EmailBuilderPage() {
               setSaving(true);
               try {
                 const cachedBlocks = await cacheProductData(blocks);
-                const mjmlSource = generateEmailHtml(cachedBlocks, settings, true);
+                const mjmlSource = generateEmailHtml(cachedBlocks, settings, true, dynamicSampleData || SAMPLE_DATA);
                 await updateEmailCampaign(campaignId!, { name: templateName, subject: settings.subject || templateName, blocks: cachedBlocks, settings, html_content: mjmlSource });
                 navigate(`/email-marketing?tab=campaigns&campaignId=${campaignId}&step=2`);
               } catch (err) {
@@ -396,7 +556,7 @@ export function EmailBuilderPage() {
         {/* Canvas */}
         <div className="eb-canvas">
           {isPreview ? (
-            <PreviewMode blocks={blocks} settings={settings} onExit={() => setIsPreview(false)} />
+            <PreviewMode blocks={blocks} settings={settings} onExit={() => setIsPreview(false)} sampleDataOverride={dynamicSampleData || SAMPLE_DATA} />
           ) : (
             <div className="eb-canvas-scroll">
               <div className="eb-canvas-body">
@@ -428,7 +588,7 @@ export function EmailBuilderPage() {
                                 <button className="row-action-btn" onClick={e => { e.stopPropagation(); duplicateBlock(block.id); }} title="Duplicate"><Copy size={12} /></button>
                                 <button className="row-action-btn danger" onClick={e => { e.stopPropagation(); deleteBlock(block.id); }} title="Delete"><Trash2 size={12} /></button>
                               </div>
-                              <BlockPreview block={block} isPreview={false} onColumnDrop={addBlockToColumn} globalSettings={settings}
+                              <BlockPreview block={block} isPreview={false} onColumnDrop={addBlockToColumn} globalSettings={settings} customData={dynamicSampleData || SAMPLE_DATA}
                                 onSubBlockSelect={(pid, ci, bid) => { setSelectedId(pid); setSelectedSubBlock({ parentId: pid, colIdx: ci, blockId: bid }); setShowSettings(false); }}
                                 selectedSubBlockId={selectedSubBlock?.blockId} />
                             </div>
@@ -440,7 +600,7 @@ export function EmailBuilderPage() {
                       </>
                     )}
                   </div>
-                  {settings.footerText && <div className="eb-email-footer" onClick={() => { setShowSettings(true); setSelectedId(null); }}>{settings.footerText}</div>}
+                  {settings.footerText && <div className="eb-email-footer" onClick={() => { setShowSettings(true); setSelectedId(null); }} dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(replaceMergeTags(settings.footerText, false, dynamicSampleData || SAMPLE_DATA)) }} />}
                 </div>
               </div>
             </div>
@@ -478,7 +638,7 @@ export function EmailBuilderPage() {
             </div>
             <div className="eb-test-modal-body">
               <div className="form-group"><label>Recipient Email</label><input className="form-input" type="email" value={testEmail} onChange={e => setTestEmail(e.target.value)} placeholder="your@email.com" /></div>
-              <p style={{ fontSize: 12, color: 'var(--color-text-tertiary)' }}>Merge tags will be replaced with sample data.</p>
+              <p style={{ fontSize: 12, color: 'var(--color-text-tertiary)' }}>Merge tags will be replaced using the data source selected in the topbar.</p>
             </div>
             <div className="eb-test-modal-footer">
               <button className="btn-secondary" onClick={() => setShowTestModal(false)}>Cancel</button>
@@ -488,9 +648,18 @@ export function EmailBuilderPage() {
                   setSaving(true);
                   try {
                     const cachedBlocks = await cacheProductData(blocks);
-                    const html = generateEmailHtml(cachedBlocks, settings, true);
+                    let html = generateEmailHtml(cachedBlocks, settings, true, dynamicSampleData || SAMPLE_DATA);
+                    // Replace all merge tags with SAMPLE_DATA or the real order data
+                    const sd = dynamicSampleData || SAMPLE_DATA;
+                    for (const [tag, val] of Object.entries(sd)) {
+                      html = html.replace(new RegExp(tag.replace(/[{}]/g, '\\$&'), 'g'), val);
+                    }
+                    
+                    // Parse subject line tags too!
+                    const parsedSubject = (settings.subject || templateName).replace(/\{\{[^}]+\}\}/g, (m: string) => sd[m] || m);
+
                     const res = await supabase.functions.invoke('send-email', {
-                      body: { action: 'test_builder', html, subject: settings.subject || templateName, toEmail: testEmail.trim() },
+                      body: { action: 'test_builder', html, subject: parsedSubject, toEmail: testEmail.trim() },
                     });
                     if (res.error) {
                       let detail = 'Failed to send test email';

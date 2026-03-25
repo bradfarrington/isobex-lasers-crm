@@ -158,6 +158,7 @@ function StorefrontShell() {
             <Link to={sfPath('/')} className="sf-nav-link" style={{ color: menuOpen ? 'var(--sf-text)' : hColor }} onClick={() => setMenuOpen(false)}>Home</Link>
             <Link to={sfPath('/products')} className="sf-nav-link" style={{ color: menuOpen ? 'var(--sf-text)' : hColor }} onClick={() => setMenuOpen(false)}>Products</Link>
             <Link to={sfPath('/collections')} className="sf-nav-link" style={{ color: menuOpen ? 'var(--sf-text)' : hColor }} onClick={() => setMenuOpen(false)}>Collections</Link>
+            <Link to={sfPath('/gift-cards')} className="sf-nav-link" style={{ color: menuOpen ? 'var(--sf-text)' : hColor }} onClick={() => setMenuOpen(false)}>Gift Cards</Link>
             {navLinks.map((link, i) => (
               <Link key={i} to={link.url} className="sf-nav-link" style={{ color: menuOpen ? 'var(--sf-text)' : hColor }} onClick={() => setMenuOpen(false)}>{link.label}</Link>
             ))}

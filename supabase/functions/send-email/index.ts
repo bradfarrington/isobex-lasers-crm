@@ -105,14 +105,22 @@ Deno.serve(async (req: Request) => {
             return jsonRes({ ok: true, sentTo: toEmail });
         }
 
-        // ─── Action: send_order_confirmation ─────────
-        if (action === 'send_order_confirmation') {
+        // ─── Order Email Actions (DB-backed MJML templates) ──────
+        if (action === 'send_order_confirmation' || action === 'send_refund_confirmation') {
             const { orderId } = body;
             if (!orderId) return jsonRes({ error: 'orderId is required' }, 400);
 
+            // Map action to system_key
+            const systemKeyMap: Record<string, string> = {
+                send_order_confirmation: 'order_confirmation',
+                send_refund_confirmation: 'refund_confirmation',
+            };
+            const systemKey = systemKeyMap[action];
+
+            // Fetch order with contact and items
             const { data: order, error: orderErr } = await supabase
                 .from('orders')
-                .select('*, contact:contacts(first_name, last_name, email)')
+                .select('*, contact:contacts(first_name, last_name, email), items:order_items(product_name, quantity, unit_price, product_image_url)')
                 .eq('id', orderId)
                 .single();
 
@@ -122,41 +130,90 @@ Deno.serve(async (req: Request) => {
 
             const clientName = `${order.contact?.first_name || ''} ${order.contact?.last_name || ''}`.trim() || 'Customer';
             const orderNumber = order.order_number || order.id.slice(0, 8).toUpperCase();
-            const total = Number(order.total || 0).toFixed(2);
+            const subtotal = Number(order.subtotal || 0);
+            const shippingCost = Number(order.shipping_cost || 0);
+            const vatAmount = Number(order.tax_amount || 0);
+            const totalAmount = Number(order.total || 0);
 
-            const emailHtml = `<!DOCTYPE html><html><head><meta charset="utf-8"></head><body style="font-family:Helvetica,Arial,sans-serif;margin:0;padding:0;background:#f4f4f4;"><div style="max-width:600px;margin:0 auto;background:#ffffff;"><div style="background:#1a1a1a;padding:30px 20px;text-align:center;"><h1 style="color:#ffffff;margin:0;font-size:24px;">${settings.smtp_from_name || 'Isobex Lasers'}</h1></div><div style="padding:30px 20px;"><h2 style="margin-top:0;color:#dc2626;">Order Confirmed ✓</h2><p>Hi ${clientName},</p><p>Thank you for your order. Here are the details:</p><div style="background:#f9fafb;border-radius:8px;padding:20px;margin:20px 0;"><p style="color:#888;font-size:13px;text-transform:uppercase;letter-spacing:0.5px;margin:0 0 4px;">Order Number</p><p style="color:#dc2626;font-weight:bold;margin:0 0 16px;">#${orderNumber}</p><p style="color:#888;font-size:13px;text-transform:uppercase;letter-spacing:0.5px;margin:0 0 4px;">Total</p><p style="color:#dc2626;font-weight:bold;margin:0;">£${total}</p></div><p style="font-size:13px;color:#888;">If you have any questions about your order, please don't hesitate to get in touch.</p></div><div style="text-align:center;padding:20px;background:#f4f4f4;"><p style="font-size:12px;color:#aaa;margin:0;">${settings.smtp_from_name || 'Isobex Lasers'}</p></div></div></body></html>`;
+            // Build items table HTML
+            const itemRows = (order.items || []).map((item: { product_name: string; quantity: number; unit_price: number; product_image_url?: string | null }) => {
+                const lineTotal = Number(item.unit_price || 0) * item.quantity;
+                const imageHtml = item.product_image_url 
+                    ? `<img src="${item.product_image_url}" style="width:40px;height:40px;border-radius:4px;object-fit:cover;margin-right:12px;vertical-align:middle;" />`
+                    : '<div style="width:40px;height:40px;border-radius:4px;background:#f3f4f6;margin-right:12px;display:inline-block;vertical-align:middle;"></div>';
+                return `<tr><td style="padding:10px 12px;border-bottom:1px solid #eee;">
+                    <div style="display:table;width:100%;">
+                        <div style="display:table-cell;width:52px;vertical-align:middle;">${imageHtml}</div>
+                        <div style="display:table-cell;vertical-align:middle;">${item.product_name}</div>
+                    </div>
+                </td><td style="padding:10px 12px;border-bottom:1px solid #eee;text-align:center;">${item.quantity}</td><td style="padding:10px 12px;border-bottom:1px solid #eee;text-align:right;">£${Number(item.unit_price || 0).toFixed(2)}</td><td style="padding:10px 12px;border-bottom:1px solid #eee;text-align:right;">£${lineTotal.toFixed(2)}</td></tr>`;
+            }).join('');
+            const itemsTable = `<table style="width:100%;border-collapse:collapse;"><thead><tr style="background:#f9fafb;"><th style="padding:10px 12px;text-align:left;font-size:12px;color:#888;text-transform:uppercase;letter-spacing:0.5px;">Item</th><th style="padding:10px 12px;text-align:center;font-size:12px;color:#888;text-transform:uppercase;letter-spacing:0.5px;">Qty</th><th style="padding:10px 12px;text-align:right;font-size:12px;color:#888;text-transform:uppercase;letter-spacing:0.5px;">Price</th><th style="padding:10px 12px;text-align:right;font-size:12px;color:#888;text-transform:uppercase;letter-spacing:0.5px;">Total</th></tr></thead><tbody>${itemRows}</tbody></table>`;
 
-            await client.send({ from: fromAddress, to: clientEmail, subject: `Order Confirmation — #${orderNumber}`, mimeContent: htmlMime(emailHtml), replyTo });
-            await client.close();
-            return jsonRes({ ok: true, sentTo: clientEmail });
-        }
+            // Build price breakdown HTML
+            const breakdownRows = [
+                `<tr><td style="padding:6px 12px;color:#555;">Subtotal</td><td style="padding:6px 12px;text-align:right;">£${subtotal.toFixed(2)}</td></tr>`,
+                `<tr><td style="padding:6px 12px;color:#555;">Shipping</td><td style="padding:6px 12px;text-align:right;">${shippingCost > 0 ? '£' + shippingCost.toFixed(2) : 'Free'}</td></tr>`,
+                `<tr><td style="padding:6px 12px;color:#555;">VAT (20%)</td><td style="padding:6px 12px;text-align:right;">£${vatAmount.toFixed(2)}</td></tr>`,
+                `<tr style="border-top:2px solid #1a1a1a;"><td style="padding:10px 12px;font-weight:700;font-size:16px;">Total</td><td style="padding:10px 12px;text-align:right;font-weight:700;font-size:16px;color:#dc2626;">£${totalAmount.toFixed(2)}</td></tr>`,
+            ].join('');
+            const priceBreakdown = `<table style="width:100%;border-collapse:collapse;">${breakdownRows}</table>`;
 
-        // ─── Action: send_invoice ────────────────────
-        if (action === 'send_invoice') {
-            const { orderId } = body;
-            if (!orderId) return jsonRes({ error: 'orderId is required' }, 400);
+            // Fetch business profile for {{business_name}}
+            const { data: bpData } = await supabase.from('business_profile').select('business_name').limit(1).single();
+            const businessName = bpData?.business_name || settings.smtp_from_name || 'Isobex Lasers';
 
-            const { data: order, error: orderErr } = await supabase
-                .from('orders')
-                .select('*, contact:contacts(first_name, last_name, email), items:order_items(product_name, quantity, unit_price)')
-                .eq('id', orderId)
+            // Fetch the system template from DB
+            const { data: template } = await supabase
+                .from('email_templates')
+                .select('mjml_source, subject')
+                .eq('is_system', true)
+                .eq('system_key', systemKey)
                 .single();
 
-            if (orderErr || !order) return jsonRes({ error: 'Order not found' }, 400);
-            const clientEmail = order.contact?.email;
-            if (!clientEmail) return jsonRes({ error: 'Customer has no email address' }, 400);
+            // Order merge tags to replace in the template
+            const orderTags: Record<string, string> = {
+                '{{customer_name}}': clientName,
+                '{{order_number}}': orderNumber,
+                '{{order_subtotal}}': `£${subtotal.toFixed(2)}`,
+                '{{order_shipping}}': shippingCost > 0 ? `£${shippingCost.toFixed(2)}` : 'Free',
+                '{{order_vat}}': `£${vatAmount.toFixed(2)}`,
+                '{{order_total}}': `£${totalAmount.toFixed(2)}`,
+                '{{order_items_table}}': itemsTable,
+                '{{order_price_breakdown}}': priceBreakdown,
+                '{{business_name}}': businessName,
+            };
 
-            const clientName = `${order.contact?.first_name || ''} ${order.contact?.last_name || ''}`.trim() || 'Customer';
-            const orderNumber = order.order_number || order.id.slice(0, 8).toUpperCase();
-            const total = Number(order.total || 0).toFixed(2);
+            function replaceOrderTags(html: string): string {
+                let result = html;
+                for (const [tag, val] of Object.entries(orderTags)) {
+                    result = result.replace(new RegExp(tag.replace(/[{}]/g, '\\$&'), 'g'), val);
+                }
+                return result;
+            }
 
-            const itemRows = (order.items || []).map((item: { product_name: string; quantity: number; unit_price: number }) =>
-                `<tr><td style="padding:8px 12px;border-bottom:1px solid #eee;">${item.product_name}</td><td style="padding:8px 12px;border-bottom:1px solid #eee;text-align:center;">${item.quantity}</td><td style="padding:8px 12px;border-bottom:1px solid #eee;text-align:right;">£${Number(item.unit_price || 0).toFixed(2)}</td></tr>`
-            ).join('');
+            let emailHtml: string;
+            let emailSubject: string;
 
-            const emailHtml = `<!DOCTYPE html><html><head><meta charset="utf-8"></head><body style="font-family:Helvetica,Arial,sans-serif;margin:0;padding:0;background:#f4f4f4;"><div style="max-width:600px;margin:0 auto;background:#ffffff;"><div style="background:#1a1a1a;padding:30px 20px;text-align:center;"><h1 style="color:#ffffff;margin:0;font-size:24px;">${settings.smtp_from_name || 'Isobex Lasers'}</h1></div><div style="padding:30px 20px;"><h2 style="margin-top:0;color:#1a1a1a;">Invoice</h2><p>Hi ${clientName},</p><p>Please find your invoice below for order <strong>#${orderNumber}</strong>.</p><table style="width:100%;border-collapse:collapse;margin:20px 0;"><thead><tr style="background:#f9fafb;"><th style="padding:8px 12px;text-align:left;font-size:13px;color:#888;text-transform:uppercase;">Item</th><th style="padding:8px 12px;text-align:center;font-size:13px;color:#888;text-transform:uppercase;">Qty</th><th style="padding:8px 12px;text-align:right;font-size:13px;color:#888;text-transform:uppercase;">Price</th></tr></thead><tbody>${itemRows}</tbody><tfoot><tr><td colspan="2" style="padding:12px;text-align:right;font-weight:bold;">Total</td><td style="padding:12px;text-align:right;font-weight:bold;color:#dc2626;">£${total}</td></tr></tfoot></table><p style="font-size:13px;color:#888;">Thank you for your business.</p></div><div style="text-align:center;padding:20px;background:#f4f4f4;"><p style="font-size:12px;color:#aaa;margin:0;">${settings.smtp_from_name || 'Isobex Lasers'}</p></div></div></body></html>`;
+            if (template?.mjml_source) {
+                // Use the editable MJML template from the DB
+                emailHtml = replaceOrderTags(template.mjml_source);
+                emailSubject = replaceOrderTags(template.subject || `Order #${orderNumber}`);
+            } else {
+                // Fallback: simple inline HTML if template hasn't been saved yet
+                const fallbackSubjects: Record<string, string> = {
+                    order_confirmation: `Order Confirmation — #${orderNumber}`,
+                    refund_confirmation: `Refund Processed — Order #${orderNumber}`,
+                };
+                emailSubject = fallbackSubjects[systemKey] || `Order #${orderNumber}`;
+                const heading = systemKey === 'order_confirmation' ? 'Order Confirmed ✓' : 'Refund Processed';
+                const bodyContent = systemKey === 'refund_confirmation'
+                    ? `<p>Hi ${clientName},</p><p>We've processed a refund for your order.</p>${itemsTable}${priceBreakdown}`
+                    : `<p>Hi ${clientName},</p><p>Thank you for your order!</p>${itemsTable}${priceBreakdown}<p style="font-size:13px;color:#888;">Questions? Get in touch.</p>`;
+                emailHtml = `<!DOCTYPE html><html><head><meta charset="utf-8"></head><body style="font-family:Helvetica,Arial,sans-serif;margin:0;padding:0;background:#f4f4f4;"><div style="max-width:600px;margin:0 auto;background:#ffffff;"><div style="background:#1a1a1a;padding:30px 20px;text-align:center;"><h1 style="color:#ffffff;margin:0;font-size:24px;">${businessName}</h1></div><div style="padding:30px 20px;"><h2 style="margin-top:0;color:#dc2626;">${heading}</h2>${bodyContent}</div><div style="text-align:center;padding:20px;background:#f4f4f4;"><p style="font-size:12px;color:#aaa;margin:0;">${businessName}</p></div></div></body></html>`;
+            }
 
-            await client.send({ from: fromAddress, to: clientEmail, subject: `Invoice — Order #${orderNumber}`, mimeContent: htmlMime(emailHtml), replyTo });
+            await client.send({ from: fromAddress, to: clientEmail, subject: emailSubject, mimeContent: htmlMime(emailHtml), replyTo });
             await client.close();
             return jsonRes({ ok: true, sentTo: clientEmail });
         }

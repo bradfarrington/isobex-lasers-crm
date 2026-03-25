@@ -206,6 +206,11 @@
   color: var(--color-text-tertiary);
 }
 
+.em-badge.system {
+  background: rgba(99, 102, 241, 0.1);
+  color: #6366f1;
+}
+
 /* Card section header */
 .em-section-card {
   background: var(--color-bg-raised);
