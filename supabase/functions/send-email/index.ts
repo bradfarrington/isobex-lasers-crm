@@ -299,6 +299,51 @@ Deno.serve(async (req: Request) => {
             return jsonRes({ ok: true, sent: sentCount, failed: failCount, total: recipients.length });
         }
 
+        // ─── Action: send_review_request ─────────────
+        if (action === 'send_review_request') {
+            const { requestId } = body;
+            if (!requestId) return jsonRes({ error: 'requestId is required' }, 400);
+
+            // Fetch the review request
+            const { data: request, error: reqErr } = await supabase
+                .from('review_requests')
+                .select('*')
+                .eq('id', requestId)
+                .single();
+
+            if (reqErr || !request) return jsonRes({ error: 'Review request not found' }, 400);
+
+            // Fetch Google Settings to get the review link
+            const { data: googleSettings, error: gsErr } = await supabase
+                .from('google_settings')
+                .select('google_review_link')
+                .limit(1)
+                .single();
+            
+            if (gsErr || !googleSettings?.google_review_link) return jsonRes({ error: 'Google Review Link not configured in Settings' }, 400);
+
+            const reviewLink = googleSettings.google_review_link;
+            const clientName = request.contact_name || 'Valued Customer';
+            const clientEmail = request.contact_email;
+
+            // HTML template
+            const emailHtml = `<!DOCTYPE html><html><head><meta charset="utf-8"></head><body style="font-family:Helvetica,Arial,sans-serif;margin:0;padding:0;background:#f4f4f4;"><div style="max-width:600px;margin:0 auto;background:#ffffff;"><div style="background:#1a1a1a;padding:30px 20px;text-align:center;"><h1 style="color:#ffffff;margin:0;font-size:24px;">${settings.smtp_from_name || 'Isobex Lasers'}</h1></div><div style="padding:40px 30px;text-align:center;"><h2 style="margin-top:0;color:#1a1a1a;">How did we do?</h2><p style="color:#555;font-size:16px;line-height:1.6;margin-bottom:30px;">Hi ${clientName},<br><br>Thank you for choosing ${settings.smtp_from_name || 'Isobex Lasers'}. We hope you had a great experience with us. If you have a moment, we would really appreciate it if you could leave us a review on Google.</p><a href="${reviewLink}" style="display:inline-block;background:#3b82f6;color:#ffffff;text-decoration:none;font-weight:bold;padding:14px 28px;border-radius:6px;font-size:16px;">Leave a Review on Google</a></div><div style="text-align:center;padding:20px;background:#f4f4f4;"><p style="font-size:12px;color:#aaa;margin:0;">${settings.smtp_from_name || 'Isobex Lasers'}</p></div></div></body></html>`;
+
+            await client.send({
+                from: fromAddress,
+                to: clientEmail,
+                subject: `How did we do? — ${settings.smtp_from_name || 'Isobex Lasers'}`,
+                mimeContent: htmlMime(emailHtml),
+                replyTo,
+            });
+
+            // Mark as sent
+            await supabase.from('review_requests').update({ status: 'sent' }).eq('id', requestId);
+
+            await client.close();
+            return jsonRes({ ok: true, sentTo: clientEmail });
+        }
+
         return jsonRes({ error: `Unknown action: ${action}` }, 400);
 
     } catch (err) {

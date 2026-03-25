@@ -795,3 +795,48 @@ export interface CampaignRecipient {
 
 export type CampaignRecipientInsert = Omit<CampaignRecipient, 'id' | 'created_at' | 'contact'>;
 
+// ─── Google Settings (singleton) ────────────────────────────
+
+export interface GoogleSettings {
+  id: string;
+  google_place_id: string;
+  google_api_key: string;
+  google_business_name: string;
+  google_review_link: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export type GoogleSettingsUpsert = Omit<GoogleSettings, 'id' | 'created_at' | 'updated_at'>;
+
+// ─── Google Review (from Places API) ────────────────────────
+
+export interface GoogleReview {
+  authorName: string;
+  authorPhotoUri: string | null;
+  rating: number;
+  text: string;
+  relativePublishTimeDescription: string;
+  publishTime: string;
+}
+
+export interface GooglePlaceOverview {
+  displayName: string;
+  rating: number;
+  userRatingCount: number;
+  reviews: GoogleReview[];
+}
+
+// ─── Review Requests ────────────────────────────────────────
+
+export interface ReviewRequest {
+  id: string;
+  contact_id: string;
+  contact_email: string;
+  contact_name: string;
+  status: 'sent' | 'opened' | 'clicked';
+  created_at: string;
+}
+
+export type ReviewRequestInsert = Omit<ReviewRequest, 'id' | 'created_at'>;
+

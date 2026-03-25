@@ -8,7 +8,7 @@ import type { LookupItem } from '@/types/database';
 import { useAlert } from '@/components/ui/AlertDialog';
 import {
   Plus, Pencil, Trash2, X, Check, Mail, Save, Send, Loader2,
-  CheckCircle2, Info, ListFilter, Building2,
+  CheckCircle2, Info, ListFilter, Building2, Star, Search
 } from 'lucide-react';
 import type { BusinessProfile } from '@/types/database';
 import './SettingsPage.css';
@@ -21,6 +21,7 @@ const TABS = [
   { id: 'business', label: 'Business Profile', icon: Building2 },
   { id: 'lookups', label: 'Lookups', icon: ListFilter },
   { id: 'email', label: 'Email / SMTP', icon: Mail },
+  { id: 'google', label: 'Google', icon: Star },
 ];
 
 export function SettingsPage() {
@@ -54,6 +55,7 @@ export function SettingsPage() {
           {activeTab === 'business' && <BusinessProfilePanel />}
           {activeTab === 'lookups' && <LookupsPanel />}
           {activeTab === 'email' && <SmtpPanel />}
+          {activeTab === 'google' && <GooglePanel />}
         </div>
       </div>
     </PageShell>
@@ -789,6 +791,161 @@ function SmtpPanel() {
         />
       )}
     </>
+  );
+}
+
+/* ═══════════════════════════════════════════
+   Google Panel
+   ═══════════════════════════════════════════ */
+
+function GooglePanel() {
+  const { showAlert } = useAlert();
+  const [data, setData] = useState<{ google_place_id: string; google_business_name: string } | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [showSearch, setShowSearch] = useState(false);
+
+  useEffect(() => {
+    api.fetchGoogleSettings().then(d => {
+      if (d && d.google_place_id) {
+        setData({ google_place_id: d.google_place_id, google_business_name: d.google_business_name || 'Your Business' });
+      }
+      setLoading(false);
+    });
+  }, []);
+
+  const handleDisconnect = async () => {
+    try {
+      await api.upsertGoogleSettings({ google_place_id: '', google_business_name: '' });
+      setData(null);
+      showAlert({ title: 'Disconnected', message: 'Google integration removed', variant: 'success' });
+    } catch (err: any) {
+      showAlert({ title: 'Error', message: err.message, variant: 'danger' });
+    }
+  };
+
+  const handleConnect = async (place: { id: string; name: string }) => {
+    try {
+      await api.upsertGoogleSettings({ google_place_id: place.id, google_business_name: place.name });
+      setData({ google_place_id: place.id, google_business_name: place.name });
+      setShowSearch(false);
+      showAlert({ title: 'Connected!', message: `Successfully connected to ${place.name}`, variant: 'success' });
+    } catch (err: any) {
+      showAlert({ title: 'Error', message: err.message, variant: 'danger' });
+    }
+  };
+
+  if (loading) {
+    return (
+      <div style={{ display: 'flex', justifyContent: 'center', padding: 'var(--space-12)' }}>
+        <div className="loading-spinner" />
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <div className="settings-panel-head">
+        <h3>Google Integration</h3>
+        <p className="settings-panel-desc">Connect your Google Business Profile to pull in live reviews and send review requests.</p>
+      </div>
+
+      <div className={`settings-integration-card ${data ? 'connected' : ''}`}>
+        <div className="settings-integration-icon">
+          <Star size={24} />
+        </div>
+        <div className="settings-integration-info">
+          <h4>{data ? data.google_business_name : 'Google Business Profile'}</h4>
+          <p>{data ? 'Your reviews are now syncing.' : 'Display your live reviews directly in your CRM dashboard.'}</p>
+        </div>
+        <div className="settings-integration-action">
+          {data ? (
+            <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+              <span className="badge badge-confirmed"><CheckCircle2 size={12} /> Connected</span>
+              <button className="btn-outline" onClick={handleDisconnect}>Disconnect</button>
+            </div>
+          ) : (
+            <button className="btn-brand" onClick={() => setShowSearch(true)}>Connect to Google</button>
+          )}
+        </div>
+      </div>
+
+      <div className="smtp-info-box" style={{ marginTop: 'var(--space-6)' }}>
+        <Info size={14} />
+        <span>
+          Your API key is securely managed by the system. Connecting your profile instantly enables the Reputation Dashboard and allows you to send Review Request emails.
+        </span>
+      </div>
+
+      {showSearch && <GoogleSearchModal onClose={() => setShowSearch(false)} onSelect={handleConnect} />}
+    </>
+  );
+}
+
+function GoogleSearchModal({ onClose, onSelect }: { onClose: () => void; onSelect: (place: { id: string; name: string; address: string }) => void }) {
+  const [query, setQuery] = useState('');
+  const [results, setResults] = useState<{ id: string; name: string; address: string }[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleSearch = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!query.trim()) return;
+    setSearching(true);
+    setError('');
+    
+    try {
+      const places = await api.searchGooglePlaces(query);
+      setResults(places);
+      if (places.length === 0) setError('No businesses found matching that name.');
+    } catch (err: any) {
+      setError(err.message || 'Search failed');
+    } finally {
+      setSearching(false);
+    }
+  };
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-content review-request-modal" onClick={e => e.stopPropagation()}>
+        <div className="modal-header">
+          <h3>Find Your Business</h3>
+          <button className="row-action-btn" onClick={onClose}><X size={16} /></button>
+        </div>
+        
+        <div className="modal-body">
+          <form onSubmit={handleSearch} className="form-group mb-4" style={{ display: 'flex', gap: 10 }}>
+            <div style={{ flex: 1, position: 'relative' }}>
+              <Search size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--color-text-tertiary)' }} />
+              <input
+                type="text"
+                className="form-input"
+                style={{ paddingLeft: '36px', width: '100%' }}
+                placeholder="Business Name (e.g. Isobex Lasers...)"
+                value={query}
+                onChange={e => setQuery(e.target.value)}
+                autoFocus
+              />
+            </div>
+            <button type="submit" className="btn-brand" disabled={searching || !query.trim()}>
+              {searching ? <Loader2 size={16} className="spin" /> : 'Search'}
+            </button>
+          </form>
+
+          {error && <div className="text-danger mb-4" style={{ fontSize: 13, color: 'var(--color-danger)' }}>{error}</div>}
+
+          {results.length > 0 && (
+            <ul className="contact-results" style={{ position: 'relative', maxHeight: 300, display: 'block' }}>
+              {results.map(r => (
+                <li key={r.id} onClick={() => onSelect(r)} style={{ borderBottom: '1px solid var(--color-border)' }}>
+                  <div className="contact-name">{r.name}</div>
+                  <div className="contact-email">{r.address}</div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </div>
+    </div>
   );
 }
 

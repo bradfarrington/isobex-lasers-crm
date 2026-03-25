@@ -68,6 +68,10 @@ import type {
   EmailCampaignUpdate,
   CampaignRecipient,
   CampaignRecipientInsert,
+  GoogleSettings,
+  GooglePlaceOverview,
+  ReviewRequest,
+  ReviewRequestInsert,
 } from '@/types/database';
 
 // ─── Contacts ────────────────────────────────────────────
@@ -2221,4 +2225,144 @@ export async function deleteCampaignRecipients(campaignId: string): Promise<void
     .delete()
     .eq('campaign_id', campaignId);
   if (error) throw error;
+}
+
+// ─── Google Settings ────────────────────────────────────────
+
+export async function fetchGoogleSettings(): Promise<GoogleSettings | null> {
+  const { data, error } = await supabase
+    .from('google_settings')
+    .select('*')
+    .limit(1)
+    .single();
+
+  if (error) return null;
+  return data as GoogleSettings;
+}
+
+export async function upsertGoogleSettings(
+  settings: Partial<GoogleSettings> & { google_place_id: string }
+): Promise<GoogleSettings> {
+  // Check for existing row
+  const existing = await fetchGoogleSettings();
+  const reviewLink = settings.google_place_id
+    ? `https://search.google.com/local/writereview?placeid=${settings.google_place_id}`
+    : '';
+
+  const payload = {
+    ...settings,
+    google_review_link: reviewLink,
+    google_api_key: existing?.google_api_key || '', // Fallback for DB constraints
+    updated_at: new Date().toISOString(),
+  };
+
+  if (existing) {
+    const { data, error } = await supabase
+      .from('google_settings')
+      .update(payload)
+      .eq('id', existing.id)
+      .select()
+      .single();
+    if (error) throw error;
+    return data as GoogleSettings;
+  } else {
+    const { data, error } = await supabase
+      .from('google_settings')
+      .insert(payload)
+      .select()
+      .single();
+    if (error) throw error;
+    return data as GoogleSettings;
+  }
+}
+
+
+const GOOGLE_PLACES_API_KEY = 'AIzaSyAMcQPq62_bmbNkBRshuWmV_Utu4dBoGh8';
+
+export async function testGoogleConnection(): Promise<{ ok: boolean; businessName?: string; error?: string }> {
+  const settings = await fetchGoogleSettings();
+  if (!settings || !settings.google_place_id) return { ok: false, error: 'No Place ID configured' };
+
+  const res = await fetch(`https://places.googleapis.com/v1/places/${settings.google_place_id}?fields=displayName&key=${GOOGLE_PLACES_API_KEY}`);
+  if (!res.ok) return { ok: false, error: 'Invalid Google Place ID or API Key' };
+  
+  const data = await res.json();
+  return { ok: true, businessName: data.displayName?.text };
+}
+
+export async function searchGooglePlaces(query: string): Promise<{ id: string; name: string; address: string }[]> {
+  const res = await fetch('https://places.googleapis.com/v1/places:searchText', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Goog-Api-Key': GOOGLE_PLACES_API_KEY,
+      'X-Goog-FieldMask': 'places.id,places.displayName,places.formattedAddress'
+    },
+    body: JSON.stringify({ textQuery: query })
+  });
+
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Google API Error: ${text}`);
+  }
+
+  const data = await res.json();
+  return (data.places || []).map((p: any) => ({
+    id: p.id,
+    name: p.displayName?.text || '',
+    address: p.formattedAddress || ''
+  }));
+}
+
+export async function fetchGoogleReviews(): Promise<GooglePlaceOverview> {
+  const settings = await fetchGoogleSettings();
+  if (!settings || !settings.google_place_id) {
+    throw new Error('Google Place ID is missing in Settings.');
+  }
+
+  const res = await fetch(`https://places.googleapis.com/v1/places/${settings.google_place_id}?fields=displayName,rating,userRatingCount,reviews&key=${GOOGLE_PLACES_API_KEY}`);
+  
+  if (!res.ok) throw new Error('Failed to fetch Google reviews');
+  
+  const data = await res.json();
+  const reviews = (data.reviews || []).map((r: any) => ({
+    authorName: r.authorAttribution?.displayName || 'Anonymous',
+    authorPhotoUri: r.authorAttribution?.photoUri || null,
+    rating: r.rating || 0,
+    text: r.text?.text || '',
+    relativePublishTimeDescription: r.relativePublishTimeDescription || '',
+    publishTime: r.publishTime || '',
+  }));
+
+  return {
+    displayName: data?.displayName?.text || 'Unknown',
+    rating: data?.rating || 0,
+    userRatingCount: data?.userRatingCount || 0,
+    reviews,
+  };
+}
+
+// ─── Review Requests ────────────────────────────────────────
+
+export async function fetchReviewRequests(): Promise<ReviewRequest[]> {
+  const { data, error } = await supabase
+    .from('review_requests')
+    .select('*')
+    .order('created_at', { ascending: false });
+
+  if (error) throw error;
+  return data as ReviewRequest[];
+}
+
+export async function createReviewRequest(
+  request: ReviewRequestInsert
+): Promise<ReviewRequest> {
+  const { data, error } = await supabase
+    .from('review_requests')
+    .insert(request)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as ReviewRequest;
 }
