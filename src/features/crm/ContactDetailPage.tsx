@@ -7,6 +7,7 @@ import * as api from '@/lib/api';
 import type { Contact, ContactUpdate } from '@/types/database';
 import { ContactDocumentsTab } from './ContactDocumentsTab';
 import { ContactDealsTab } from './ContactDealsTab';
+import { ContactOrdersTab } from './ContactOrdersTab';
 import {
   ArrowLeft,
   Mail,
@@ -21,8 +22,6 @@ import {
   X,
   User,
   Target,
-  Package,
-  ShoppingCart,
   Activity,
   UserCheck,
 } from 'lucide-react';
@@ -517,24 +516,7 @@ export function ContactDetailPage() {
   );
 
   const renderOrders = () => (
-    <div className="contact-detail-grid">
-      <div className="contact-detail-card">
-        {cardHeader(<ShoppingCart size={14} />, 'Orders', null, false)}
-        <div className="tab-placeholder">
-          <ShoppingCart size={32} />
-          <h4>No orders yet</h4>
-          <p>Orders linked to this contact will appear here.</p>
-        </div>
-      </div>
-      <div className="contact-detail-card">
-        {cardHeader(<Package size={14} />, 'Installations', null, false)}
-        <div className="tab-placeholder">
-          <Package size={32} />
-          <h4>No installations yet</h4>
-          <p>Installation jobs for this contact will appear here.</p>
-        </div>
-      </div>
-    </div>
+    <ContactOrdersTab contactId={contact.id} />
   );
 
   const renderDocuments = () => (

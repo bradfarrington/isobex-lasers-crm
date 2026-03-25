@@ -1,0 +1,109 @@
+/* ══════════════════════════════════════════
+   Contact Orders Tab
+   ══════════════════════════════════════════ */
+
+.contact-orders-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-10) var(--space-6);
+  color: var(--color-text-tertiary);
+  font-size: var(--font-size-sm);
+}
+
+.contact-orders-table-wrap {
+  overflow-x: auto;
+}
+
+.contact-orders-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--font-size-sm);
+}
+
+.contact-orders-table th {
+  text-align: left;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--color-border);
+  white-space: nowrap;
+}
+
+.contact-orders-table td {
+  padding: var(--space-3);
+  border-bottom: 1px solid var(--color-border);
+  color: var(--color-text-primary);
+  vertical-align: middle;
+}
+
+.contact-orders-table tbody tr {
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+
+.contact-orders-table tbody tr:hover {
+  background: var(--color-bg-surface);
+}
+
+.contact-orders-col-number {
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-primary);
+}
+
+.contact-orders-col-total {
+  font-weight: var(--font-weight-semibold);
+  text-align: right;
+}
+
+.contact-orders-col-total-header {
+  text-align: right !important;
+}
+
+.contact-orders-status-badge {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  text-transform: capitalize;
+  white-space: nowrap;
+}
+
+/* ── Summary cards ── */
+.contact-orders-summary {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-4);
+  margin-bottom: var(--space-5);
+}
+
+.contact-orders-summary-card {
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
+  text-align: center;
+}
+
+.contact-orders-summary-value {
+  font-size: var(--font-size-2xl);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-primary);
+  letter-spacing: -0.025em;
+}
+
+.contact-orders-summary-label {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-tertiary);
+  margin-top: var(--space-1);
+}
+
+@media (max-width: 768px) {
+  .contact-orders-summary {
+    grid-template-columns: 1fr;
+  }
+}
