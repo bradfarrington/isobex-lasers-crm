@@ -235,9 +235,10 @@ Deno.serve(async (req: Request) => {
             );
             const priceBreakdown = `<table style="width:100%;border-collapse:collapse;">${breakdownRows.join('')}</table>`;
 
-            // Fetch business profile for {{business_name}}
-            const { data: bpData } = await supabase.from('business_profile').select('business_name').limit(1).single();
+            // Fetch business profile for {{business_name}} and VAT
+            const { data: bpData } = await supabase.from('business_profile').select('business_name, vat_number').limit(1).single();
             const businessName = bpData?.business_name || settings.smtp_from_name || 'Isobex Lasers';
+            const businessVatNumber = bpData?.vat_number || '';
 
             // Fetch the system template from DB
             const { data: template } = await supabase
@@ -258,6 +259,7 @@ Deno.serve(async (req: Request) => {
                 '{{order_items_table}}': itemsTable,
                 '{{order_price_breakdown}}': priceBreakdown,
                 '{{business_name}}': businessName,
+                '{{business_vat_number}}': businessVatNumber,
             };
 
             function replaceOrderTags(html: string): string {
@@ -361,6 +363,7 @@ Deno.serve(async (req: Request) => {
                         '{{business_phone}}': bp.business_phone || '',
                         '{{business_website}}': bp.business_website || '',
                         '{{business_address}}': businessAddress,
+                        '{{business_vat_number}}': bp.vat_number || '',
                         '{{current_date}}': new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }),
                         '{{current_year}}': String(new Date().getFullYear()),
                         '{{unsubscribe_link}}': unsubLink,
@@ -506,8 +509,9 @@ Deno.serve(async (req: Request) => {
             const giftCardVisual = buildGiftCardHtml(designTemplate, Number(gc.initial_balance), giftCardCode, recipientName);
 
             // Fetch business profile
-            const { data: bpData } = await supabase.from('business_profile').select('business_name').limit(1).single();
+            const { data: bpData } = await supabase.from('business_profile').select('business_name, vat_number').limit(1).single();
             const businessName = bpData?.business_name || settings.smtp_from_name || 'Our Store';
+            const businessVatNumber = bpData?.vat_number || '';
 
             const messageIntro = giftCardMessage ? ` with a message` : '';
 
@@ -522,6 +526,7 @@ Deno.serve(async (req: Request) => {
                 '{{gift_card_expiry}}': giftCardExpiry,
                 '{{gift_card_visual}}': giftCardVisual,
                 '{{business_name}}': businessName,
+                '{{business_vat_number}}': businessVatNumber,
             };
 
             function replaceGcTags(html: string): string {

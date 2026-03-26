@@ -75,6 +75,7 @@ export interface BusinessProfile {
   business_county: string;
   business_postcode: string;
   business_country: string;
+  vat_number: string | null;
   created_at: string;
   updated_at: string;
 }

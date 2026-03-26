@@ -1,5 +1,6 @@
-import { Menu, PanelLeftClose, Search, Bell, Sun, Moon } from 'lucide-react';
+import { Menu, PanelLeftClose, Sun, Moon } from 'lucide-react';
 import { useTheme } from '@/hooks/useTheme';
+import { GlobalSearch } from './GlobalSearch';
 import './TopHeader.css';
 
 interface TopHeaderProps {
@@ -22,6 +23,10 @@ export function TopHeader({ onToggleSidebar, sidebarOpen }: TopHeaderProps) {
         </button>
       </div>
 
+      <div className="top-header-center">
+        <GlobalSearch />
+      </div>
+
       <div className="top-header-right">
         <button
           className="top-header-icon-btn"
@@ -29,13 +34,6 @@ export function TopHeader({ onToggleSidebar, sidebarOpen }: TopHeaderProps) {
           aria-label={theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode'}
         >
           {theme === 'light' ? <Moon size={18} /> : <Sun size={18} />}
-        </button>
-        <button className="top-header-icon-btn" aria-label="Search">
-          <Search size={18} />
-        </button>
-        <button className="top-header-icon-btn" aria-label="Notifications">
-          <Bell size={18} />
-          <span className="notification-dot" />
         </button>
         <div className="top-header-avatar">
           <span>IL</span>

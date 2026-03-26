@@ -56,6 +56,7 @@ export const MERGE_TAGS = [
     { key: '{{business_phone}}', label: 'Business Phone' },
     { key: '{{business_website}}', label: 'Business Website' },
     { key: '{{business_address}}', label: 'Business Address' },
+    { key: '{{business_vat_number}}', label: 'Business VAT Number' },
   ]},
   { group: 'Order', tags: [
     { key: '{{customer_name}}', label: 'Customer Name' },
@@ -95,6 +96,7 @@ export const SAMPLE_DATA: Record<string, string> = {
   '{{business_phone}}': '+44 1234 567890',
   '{{business_website}}': 'https://isobexlasers.com',
   '{{business_address}}': '123 Industrial Way, Sheffield, S1 1AA',
+  '{{business_vat_number}}': 'GB 123 4567 89',
   '{{current_date}}': new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }),
   '{{current_year}}': String(new Date().getFullYear()),
   '{{unsubscribe_link}}': '#',

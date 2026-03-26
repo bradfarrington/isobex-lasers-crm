@@ -8,6 +8,7 @@ import {
   UserPlus,
   TrendingUp,
 } from 'lucide-react';
+import { RevenueChart } from './RevenueChart';
 import './DashboardPage.css';
 
 export function DashboardPage() {
@@ -67,16 +68,14 @@ export function DashboardPage() {
         })}
       </div>
 
-      {/* Placeholder panels */}
+      {/* Dashboard Panels */}
       <div className="dashboard-grid">
         <div className="dashboard-panel dashboard-panel-wide">
           <div className="dashboard-panel-header">
             <h3>Revenue Overview</h3>
             <TrendingUp size={18} className="text-secondary" />
           </div>
-          <div className="dashboard-panel-placeholder">
-            Chart will be rendered here using Recharts
-          </div>
+          <RevenueChart />
         </div>
         <div className="dashboard-panel">
           <div className="dashboard-panel-header">

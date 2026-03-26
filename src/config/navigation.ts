@@ -6,7 +6,6 @@ import {
   ShoppingBag,
   PackageCheck,
   Mail,
-  Star,
   FileText,
   BarChart3,
   Settings,
@@ -34,7 +33,7 @@ export const navigationSections: NavSection[] = [
     title: 'Marketing',
     items: [
       { label: 'Email Marketing', path: '/email-marketing', icon: Mail },
-      { label: 'Reviews', path: '/reviews', icon: Star },
+      // { label: 'Reviews', path: '/reviews', icon: Star }, // Hidden until business is accepted on Google Places
     ],
   },
   {

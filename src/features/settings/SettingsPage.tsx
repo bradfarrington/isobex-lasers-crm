@@ -23,7 +23,7 @@ const TABS = [
   { id: 'lookups', label: 'Lookups', icon: ListFilter },
   { id: 'email', label: 'Email / SMTP', icon: Mail },
   { id: 'payments', label: 'Payments', icon: CreditCard },
-  { id: 'google', label: 'Google', icon: Star },
+  // { id: 'google', label: 'Google', icon: Star }, // Hidden until business is accepted on Google Places
   { id: 'tracking', label: 'Tracking Pixel', icon: Activity },
 ];
 
@@ -59,7 +59,7 @@ export function SettingsPage() {
           {activeTab === 'lookups' && <LookupsPanel />}
           {activeTab === 'email' && <SmtpPanel />}
           {activeTab === 'payments' && <PaymentsPanel />}
-          {activeTab === 'google' && <GooglePanel />}
+          {/* {activeTab === 'google' && <GooglePanel />} */}
           {activeTab === 'tracking' && <TrackingPanel />}
         </div>
       </div>
@@ -82,6 +82,7 @@ const EMPTY_PROFILE: Omit<BusinessProfile, 'id' | 'created_at' | 'updated_at'> =
   business_county: '',
   business_postcode: '',
   business_country: 'United Kingdom',
+  vat_number: '',
 };
 
 function BusinessProfilePanel() {
@@ -114,6 +115,7 @@ function BusinessProfilePanel() {
             business_county: p.business_county || '',
             business_postcode: p.business_postcode || '',
             business_country: p.business_country || 'United Kingdom',
+            vat_number: p.vat_number || '',
           });
         }
       } catch (err) {
@@ -241,6 +243,13 @@ function BusinessProfilePanel() {
             <label className="smtp-field-label">Country</label>
             <input className="smtp-field-input" value={form.business_country} onChange={e => handleChange('business_country', e.target.value)} placeholder="United Kingdom" />
           </div>
+        </div>
+        <div className="smtp-field-row">
+          <div className="smtp-field">
+            <label className="smtp-field-label">VAT Number</label>
+            <input className="smtp-field-input" value={form.vat_number || ''} onChange={e => handleChange('vat_number', e.target.value)} placeholder="GB 123 4567 89" />
+          </div>
+          <div className="smtp-field"></div>
         </div>
       </div>
 
@@ -818,6 +827,7 @@ interface GoogleLocation {
   placeId: string | null;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function GooglePanel() {
   const { showAlert } = useAlert();
   const [data, setData] = useState<{ google_place_id: string; google_business_name: string; google_access_token: string | null } | null>(null);
