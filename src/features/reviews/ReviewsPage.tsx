@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { PageShell } from '@/components/layout/PageShell';
 import { useAlert } from '@/components/ui/AlertDialog';
 import { supabase } from '@/lib/supabase';
