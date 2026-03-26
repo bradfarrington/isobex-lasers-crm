@@ -2,6 +2,7 @@ import { useState, useMemo, useCallback } from 'react';
 import { PageShell } from '@/components/layout/PageShell';
 import { useData } from '@/context/DataContext';
 import { useAlert } from '@/components/ui/AlertDialog';
+import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import * as api from '@/lib/api';
 import { getFullAddress } from '@/lib/address';
 import type { Company, CompanyInsert } from '@/types/database';
@@ -356,23 +357,22 @@ export function CompaniesPage() {
                   </div>
                   <div className="form-group">
                     <label>Status</label>
-                    <select
+                    <SearchableSelect
                       className="form-select"
                       value={form.status}
-                      onChange={(e) =>
+                      onChange={(val) =>
                         setForm({
                           ...form,
-                          status: e.target.value,
+                          status: val,
                         })
                       }
-                    >
-                      <option value="">Select status</option>
-                      {state.companyStatuses.map((s) => (
-                        <option key={s.id} value={s.name}>
-                          {s.name}
-                        </option>
-                      ))}
-                    </select>
+                      searchable={false}
+                      sort={false}
+                      options={[
+                        { label: 'Select status', value: '' },
+                        ...state.companyStatuses.map((s) => ({ label: s.name, value: s.name }))
+                      ]}
+                    />
                   </div>
                 </div>
                 <div className="form-row">

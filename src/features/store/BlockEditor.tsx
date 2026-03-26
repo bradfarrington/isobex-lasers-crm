@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import type { PageBlock } from '@/types/database';
 import { Plus, Trash2, Upload, ChevronDown, Search, Loader2 } from 'lucide-react';
 import * as Icons from 'lucide-react';
@@ -63,19 +64,27 @@ function renderBlockEditor(block: PageBlock, c: Record<string, any>, set: (key: 
             </Field>
             <div className="form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
               <Field label="Level">
-                <select className="form-input" value={c.level || 'h2'} onChange={(e) => set('level', e.target.value)}>
-                  <option value="h1">H1 — Large</option>
-                  <option value="h2">H2 — Medium</option>
-                  <option value="h3">H3 — Small</option>
-                  <option value="h4">H4 — Extra Small</option>
-                </select>
+                <SearchableSelect className="form-input" value={c.level || 'h2'} onChange={(val) => set('level', val)}
+  searchable={false}
+  sort={false}
+  options={[
+    { label: 'H1 — Large', value: 'h1' },
+    { label: 'H2 — Medium', value: 'h2' },
+    { label: 'H3 — Small', value: 'h3' },
+    { label: 'H4 — Extra Small', value: 'h4' }
+  ]}
+/>
               </Field>
               <Field label="Alignment">
-                <select className="form-input" value={c.align || 'center'} onChange={(e) => set('align', e.target.value)}>
-                  <option value="left">Left</option>
-                  <option value="center">Centre</option>
-                  <option value="right">Right</option>
-                </select>
+                <SearchableSelect className="form-input" value={c.align || 'center'} onChange={(val) => set('align', val)}
+  searchable={false}
+  sort={false}
+  options={[
+    { label: 'Left', value: 'left' },
+    { label: 'Centre', value: 'center' },
+    { label: 'Right', value: 'right' }
+  ]}
+/>
               </Field>
             </div>
           </Card>
@@ -87,16 +96,20 @@ function renderBlockEditor(block: PageBlock, c: Record<string, any>, set: (key: 
                   onChange={(e) => set('fontSize', e.target.value ? Number(e.target.value) : '')} placeholder="Auto" />
               </Field>
               <Field label="Weight">
-                <select className="form-input" value={c.fontWeight || ''} onChange={(e) => set('fontWeight', e.target.value)}>
-                  <option value="">Default</option>
-                  <option value="300">Light (300)</option>
-                  <option value="400">Regular (400)</option>
-                  <option value="500">Medium (500)</option>
-                  <option value="600">Semi Bold (600)</option>
-                  <option value="700">Bold (700)</option>
-                  <option value="800">Extra Bold (800)</option>
-                  <option value="900">Black (900)</option>
-                </select>
+                <SearchableSelect className="form-input" value={c.fontWeight || ''} onChange={(val) => set('fontWeight', val)}
+  searchable={false}
+  sort={false}
+  options={[
+    { label: 'Default', value: '' },
+    { label: 'Light (300)', value: '300' },
+    { label: 'Regular (400)', value: '400' },
+    { label: 'Medium (500)', value: '500' },
+    { label: 'Semi Bold (600)', value: '600' },
+    { label: 'Bold (700)', value: '700' },
+    { label: 'Extra Bold (800)', value: '800' },
+    { label: 'Black (900)', value: '900' }
+  ]}
+/>
               </Field>
             </div>
             <InlineColor label="Colour" value={c.color || ''} onChange={(val) => set('color', val)} />
@@ -112,11 +125,15 @@ function renderBlockEditor(block: PageBlock, c: Record<string, any>, set: (key: 
               <textarea className="form-input form-textarea" rows={5} value={c.text || ''} onChange={(e) => set('text', e.target.value)} />
             </Field>
             <Field label="Alignment">
-              <select className="form-input" value={c.align || 'left'} onChange={(e) => set('align', e.target.value)}>
-                <option value="left">Left</option>
-                <option value="center">Centre</option>
-                <option value="right">Right</option>
-              </select>
+              <SearchableSelect className="form-input" value={c.align || 'left'} onChange={(val) => set('align', val)}
+  searchable={false}
+  sort={false}
+  options={[
+    { label: 'Left', value: 'left' },
+    { label: 'Centre', value: 'center' },
+    { label: 'Right', value: 'right' }
+  ]}
+/>
             </Field>
           </Card>
         </div>
@@ -144,18 +161,26 @@ function renderBlockEditor(block: PageBlock, c: Record<string, any>, set: (key: 
           <Card title="Style">
             <div className="form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
               <Field label="Size">
-                <select className="form-input" value={c.size || 'md'} onChange={(e) => set('size', e.target.value)}>
-                  <option value="sm">Small</option>
-                  <option value="md">Medium</option>
-                  <option value="lg">Large</option>
-                </select>
+                <SearchableSelect className="form-input" value={c.size || 'md'} onChange={(val) => set('size', val)}
+  searchable={false}
+  sort={false}
+  options={[
+    { label: 'Small', value: 'sm' },
+    { label: 'Medium', value: 'md' },
+    { label: 'Large', value: 'lg' }
+  ]}
+/>
               </Field>
               <Field label="Alignment">
-                <select className="form-input" value={c.align || 'center'} onChange={(e) => set('align', e.target.value)}>
-                  <option value="left">Left</option>
-                  <option value="center">Centre</option>
-                  <option value="right">Right</option>
-                </select>
+                <SearchableSelect className="form-input" value={c.align || 'center'} onChange={(val) => set('align', val)}
+  searchable={false}
+  sort={false}
+  options={[
+    { label: 'Left', value: 'left' },
+    { label: 'Centre', value: 'center' },
+    { label: 'Right', value: 'right' }
+  ]}
+/>
               </Field>
             </div>
             <div className="form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
@@ -173,16 +198,20 @@ function renderBlockEditor(block: PageBlock, c: Record<string, any>, set: (key: 
                   onChange={(e) => set('fontSize', e.target.value ? Number(e.target.value) : '')} placeholder="Auto" />
               </Field>
               <Field label="Weight">
-                <select className="form-input" value={c.fontWeight || ''} onChange={(e) => set('fontWeight', e.target.value)}>
-                  <option value="">Default</option>
-                  <option value="300">Light (300)</option>
-                  <option value="400">Regular (400)</option>
-                  <option value="500">Medium (500)</option>
-                  <option value="600">Semi Bold (600)</option>
-                  <option value="700">Bold (700)</option>
-                  <option value="800">Extra Bold (800)</option>
-                  <option value="900">Black (900)</option>
-                </select>
+                <SearchableSelect className="form-input" value={c.fontWeight || ''} onChange={(val) => set('fontWeight', val)}
+  searchable={false}
+  sort={false}
+  options={[
+    { label: 'Default', value: '' },
+    { label: 'Light (300)', value: '300' },
+    { label: 'Regular (400)', value: '400' },
+    { label: 'Medium (500)', value: '500' },
+    { label: 'Semi Bold (600)', value: '600' },
+    { label: 'Bold (700)', value: '700' },
+    { label: 'Extra Bold (800)', value: '800' },
+    { label: 'Black (900)', value: '900' }
+  ]}
+/>
               </Field>
             </div>
             <InlineColor label="Text Colour" value={c.textColor || ''} onChange={(val) => set('textColor', val)} />
@@ -228,17 +257,25 @@ function renderBlockEditor(block: PageBlock, c: Record<string, any>, set: (key: 
           <Card title="Divider Style">
             <div className="form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
               <Field label="Width">
-                <select className="form-input" value={c.width || 'standard'} onChange={(e) => set('width', e.target.value)}>
-                  <option value="standard">Standard</option>
-                  <option value="full">Full Viewport</option>
-                </select>
+                <SearchableSelect className="form-input" value={c.width || 'standard'} onChange={(val) => set('width', val)}
+  searchable={false}
+  sort={false}
+  options={[
+    { label: 'Standard', value: 'standard' },
+    { label: 'Full Viewport', value: 'full' }
+  ]}
+/>
               </Field>
               <Field label="Style">
-                <select className="form-input" value={c.style || 'solid'} onChange={(e) => set('style', e.target.value)}>
-                  <option value="solid">Solid</option>
-                  <option value="dashed">Dashed</option>
-                  <option value="dotted">Dotted</option>
-                </select>
+                <SearchableSelect className="form-input" value={c.style || 'solid'} onChange={(val) => set('style', val)}
+  searchable={false}
+  sort={false}
+  options={[
+    { label: 'Solid', value: 'solid' },
+    { label: 'Dashed', value: 'dashed' },
+    { label: 'Dotted', value: 'dotted' }
+  ]}
+/>
               </Field>
             </div>
             <div className="form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
@@ -270,10 +307,14 @@ function renderBlockEditor(block: PageBlock, c: Record<string, any>, set: (key: 
             </Field>
             <div className="form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '1rem' }}>
               <Field label="Width">
-                <select className="form-input" value={c.width || 'full'} onChange={(e) => set('width', e.target.value)}>
-                  <option value="full">Full Viewport</option>
-                  <option value="container">Container</option>
-                </select>
+                <SearchableSelect className="form-input" value={c.width || 'full'} onChange={(val) => set('width', val)}
+  searchable={false}
+  sort={false}
+  options={[
+    { label: 'Full Viewport', value: 'full' },
+    { label: 'Container', value: 'container' }
+  ]}
+/>
               </Field>
               <Field label="Scroll Speed">
                 <input type="number" className="form-input" value={c.speed || 30} onChange={(e) => set('speed', Number(e.target.value))} />
@@ -293,12 +334,16 @@ function renderBlockEditor(block: PageBlock, c: Record<string, any>, set: (key: 
           <Card title="Features Layout">
             <div className="form-row">
               <Field label="Grid Columns (Desktop)">
-                <select className="form-input" value={c.columns || 3} onChange={(e) => set('columns', Number(e.target.value))}>
-                  <option value={1}>1 Column</option>
-                  <option value={2}>2 Columns</option>
-                  <option value={3}>3 Columns</option>
-                  <option value={4}>4 Columns</option>
-                </select>
+                <SearchableSelect className="form-input" value={c.columns || 3} onChange={(val) => set('columns', Number(val))}
+  searchable={false}
+  sort={false}
+  options={[
+    { label: '1 Column', value: '1' },
+    { label: '2 Columns', value: '2' },
+    { label: '3 Columns', value: '3' },
+    { label: '4 Columns', value: '4' }
+  ]}
+/>
               </Field>
             </div>
           </Card>
@@ -316,15 +361,20 @@ function renderBlockEditor(block: PageBlock, c: Record<string, any>, set: (key: 
                 <div className="form-group" style={{ display: 'flex', alignItems: 'flex-end', gap: '1rem', marginBottom: '0.75rem' }}>
                   <div style={{ flex: 1 }}>
                     <label className="form-label">Icon</label>
-                    <select className="form-input" value={item.icon || 'star'} onChange={(e) => {
-                      const items = [...(c.items || [])];
-                      items[i] = { ...item, icon: e.target.value };
-                      set('items', items);
-                    }}>
-                      {COMMON_ICONS.map(icon => (
-                        <option key={icon} value={icon}>{icon.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}</option>
-                      ))}
-                    </select>
+                    <SearchableSelect
+                      className="form-input"
+                      value={item.icon || 'star'}
+                      onChange={(val) => {
+                        const items = [...(c.items || [])];
+                        items[i] = { ...item, icon: val };
+                        set('items', items);
+                      }}
+                      searchable={true}
+                      options={COMMON_ICONS.map(icon => ({
+                        label: icon.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' '),
+                        value: icon
+                      }))}
+                    />
                   </div>
                   <div style={{ width: '42px', height: '42px', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#f9fafb', borderRadius: '8px', border: '1px solid #e5e7eb', flexShrink: 0 }}>
                     {(() => {
@@ -390,13 +440,17 @@ function renderBlockEditor(block: PageBlock, c: Record<string, any>, set: (key: 
                   <input className="form-input" type="number" value={c.titleFontSize || 20} onChange={(e) => set('titleFontSize', Number(e.target.value))} />
                 </Field>
                 <Field label="Title Weight">
-                  <select className="form-input" value={c.titleFontWeight || '700'} onChange={(e) => set('titleFontWeight', e.target.value)}>
-                    <option value="400">Regular (400)</option>
-                    <option value="500">Medium (500)</option>
-                    <option value="600">Semibold (600)</option>
-                    <option value="700">Bold (700)</option>
-                    <option value="800">Black (800)</option>
-                  </select>
+                  <SearchableSelect className="form-input" value={c.titleFontWeight || '700'} onChange={(val) => set('titleFontWeight', val)}
+  searchable={false}
+  sort={false}
+  options={[
+    { label: 'Regular (400)', value: '400' },
+    { label: 'Medium (500)', value: '500' },
+    { label: 'Semibold (600)', value: '600' },
+    { label: 'Bold (700)', value: '700' },
+    { label: 'Black (800)', value: '800' }
+  ]}
+/>
                 </Field>
               </div>
               <div className="form-row" style={{ marginTop: '0.5rem' }}>
@@ -415,20 +469,28 @@ function renderBlockEditor(block: PageBlock, c: Record<string, any>, set: (key: 
           <Card title="Layout Settings">
             <div className="form-row">
               <Field label="Display Type">
-                <select className="form-input" value={c.layout || 'grid'} onChange={(e) => set('layout', e.target.value)}>
-                  <option value="grid">Grid</option>
-                  <option value="carousel">Carousel</option>
-                  <option value="list">List (Stacked)</option>
-                </select>
+                <SearchableSelect className="form-input" value={c.layout || 'grid'} onChange={(val) => set('layout', val)}
+  searchable={false}
+  sort={false}
+  options={[
+    { label: 'Grid', value: 'grid' },
+    { label: 'Carousel', value: 'carousel' },
+    { label: 'List (Stacked)', value: 'list' }
+  ]}
+/>
               </Field>
             </div>
             {c.layout === 'carousel' && (
               <div className="form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '1rem' }}>
                 <Field label="Auto Scroll">
-                  <select className="form-input" value={c.autoScroll === false ? 'no' : 'yes'} onChange={(e) => set('autoScroll', e.target.value === 'yes')}>
-                    <option value="yes">Yes</option>
-                    <option value="no">No</option>
-                  </select>
+                  <SearchableSelect className="form-input" value={c.autoScroll === false ? 'no' : 'yes'} onChange={(val) => set('autoScroll', val === 'yes')}
+  searchable={false}
+  sort={false}
+  options={[
+    { label: 'Yes', value: 'yes' },
+    { label: 'No', value: 'no' }
+  ]}
+/>
                 </Field>
                 <Field label="Interval (ms)">
                   <input className="form-input" type="number" step="500" min="1000" disabled={c.autoScroll === false} value={c.scrollInterval || 3000} onChange={(e) => set('scrollInterval', Number(e.target.value))} />
@@ -473,10 +535,14 @@ function renderBlockEditor(block: PageBlock, c: Record<string, any>, set: (key: 
                   style={{ marginBottom: '0.5rem' }}
                   value={item.text || ''}
                   onChange={(e) => { const items = [...(c.items || [])]; items[i] = { ...items[i], text: e.target.value }; set('items', items); }} />
-                <select className="form-input" value={item.rating || 5}
-                  onChange={(e) => { const items = [...(c.items || [])]; items[i] = { ...items[i], rating: Number(e.target.value) }; set('items', items); }}>
-                  {[5,4,3,2,1].map(r => <option key={r} value={r}>{r} ★</option>)}
-                </select>
+                <SearchableSelect
+                  className="form-input"
+                  value={item.rating?.toString() || '5'}
+                  onChange={(val) => { const items = [...(c.items || [])]; items[i] = { ...items[i], rating: Number(val) }; set('items', items); }}
+                  searchable={false}
+                  sort={false}
+                  options={[5,4,3,2,1].map(r => ({ label: `${r} ★`, value: r.toString() }))}
+                />
               </div>
             ))}
             <button className="btn btn-secondary btn-sm" style={{ width: '100%' }} onClick={() => set('items', [...(c.items || []), { name: '', text: '', rating: 5 }])}>
@@ -516,11 +582,15 @@ function renderBlockEditor(block: PageBlock, c: Record<string, any>, set: (key: 
             </div>
             <div className="form-row" style={{ marginTop: '1rem' }}>
               <Field label="Alignment">
-                <select className="form-input" value={c.align || 'center'} onChange={(e) => set('align', e.target.value)}>
-                  <option value="left">Left</option>
-                  <option value="center">Center</option>
-                  <option value="right">Right</option>
-                </select>
+                <SearchableSelect className="form-input" value={c.align || 'center'} onChange={(val) => set('align', val)}
+  searchable={false}
+  sort={false}
+  options={[
+    { label: 'Left', value: 'left' },
+    { label: 'Center', value: 'center' },
+    { label: 'Right', value: 'right' }
+  ]}
+/>
               </Field>
             </div>
           </Card>
@@ -564,13 +634,17 @@ function renderBlockEditor(block: PageBlock, c: Record<string, any>, set: (key: 
                   <input className="form-input" type="number" value={c.qFontSize || 18} onChange={(e) => set('qFontSize', Number(e.target.value))} />
                 </Field>
                 <Field label="Font Weight">
-                  <select className="form-input" value={c.qFontWeight || '700'} onChange={(e) => set('qFontWeight', e.target.value)}>
-                    <option value="400">Regular (400)</option>
-                    <option value="500">Medium (500)</option>
-                    <option value="600">Semibold (600)</option>
-                    <option value="700">Bold (700)</option>
-                    <option value="800">Black (800)</option>
-                  </select>
+                  <SearchableSelect className="form-input" value={c.qFontWeight || '700'} onChange={(val) => set('qFontWeight', val)}
+  searchable={false}
+  sort={false}
+  options={[
+    { label: 'Regular (400)', value: '400' },
+    { label: 'Medium (500)', value: '500' },
+    { label: 'Semibold (600)', value: '600' },
+    { label: 'Bold (700)', value: '700' },
+    { label: 'Black (800)', value: '800' }
+  ]}
+/>
                 </Field>
               </div>
             </div>
@@ -638,11 +712,15 @@ function renderBlockEditor(block: PageBlock, c: Record<string, any>, set: (key: 
             </div>
             <div className="form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
               <Field label="Border Style">
-                <select className="form-input" value={c.borderStyle || 'solid'} onChange={(e) => set('borderStyle', e.target.value)}>
-                  <option value="solid">Solid</option>
-                  <option value="dashed">Dashed</option>
-                  <option value="dotted">Dotted</option>
-                </select>
+                <SearchableSelect className="form-input" value={c.borderStyle || 'solid'} onChange={(val) => set('borderStyle', val)}
+  searchable={false}
+  sort={false}
+  options={[
+    { label: 'Solid', value: 'solid' },
+    { label: 'Dashed', value: 'dashed' },
+    { label: 'Dotted', value: 'dotted' }
+  ]}
+/>
               </Field>
               <Field label="">
                 <div style={{ height: '1.25rem' }} />
@@ -676,10 +754,14 @@ function renderBlockEditor(block: PageBlock, c: Record<string, any>, set: (key: 
               </Field>
             )}
             <Field label="Overflow">
-              <select className="form-input" value={c.overflow || 'visible'} onChange={(e) => set('overflow', e.target.value)}>
-                <option value="visible">Visible</option>
-                <option value="hidden">Hidden</option>
-              </select>
+              <SearchableSelect className="form-input" value={c.overflow || 'visible'} onChange={(val) => set('overflow', val)}
+  searchable={false}
+  sort={false}
+  options={[
+    { label: 'Visible', value: 'visible' },
+    { label: 'Hidden', value: 'hidden' }
+  ]}
+/>
             </Field>
           </Card>
         </div>
@@ -694,8 +776,8 @@ function renderBlockEditor(block: PageBlock, c: Record<string, any>, set: (key: 
           <Card title="Layout">
             <div className="form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
               <Field label="Columns">
-                <select className="form-input" value={cols.length} onChange={(e) => {
-                  const len = Number(e.target.value);
+                <SearchableSelect className="form-input" value={cols.length.toString()} onChange={(val) => {
+                  const len = Number(val);
                   const newCols = [...cols];
                   if (len > newCols.length) {
                     while (newCols.length < len) newCols.push({ blocks: [] });
@@ -703,12 +785,16 @@ function renderBlockEditor(block: PageBlock, c: Record<string, any>, set: (key: 
                     newCols.splice(len);
                   }
                   set('columns', newCols);
-                }}>
-                  <option value="1">1 Column</option>
-                  <option value="2">2 Columns</option>
-                  <option value="3">3 Columns</option>
-                  <option value="4">4 Columns</option>
-                </select>
+                }}
+  searchable={false}
+  sort={false}
+  options={[
+    { label: '1 Column', value: '1' },
+    { label: '2 Columns', value: '2' },
+    { label: '3 Columns', value: '3' },
+    { label: '4 Columns', value: '4' }
+  ]}
+/>
               </Field>
               <Field label="Gap (px)">
                 <input className="form-input" type="number" value={c.gap || 16} min="0" max="100" onChange={(e) => set('gap', Number(e.target.value))} />
@@ -919,10 +1005,14 @@ function HalfHeroEditor({ config: c, set }: { config: Record<string, any>; set: 
       {/* Background Card */}
       <Card title="Background">
         <Field label="Background Mode">
-          <select className="form-input" value={bgMode} onChange={(e) => set('bgMode', e.target.value)}>
-            <option value="image">Image</option>
-            <option value="colour">Solid Colour</option>
-          </select>
+          <SearchableSelect className="form-input" value={bgMode} onChange={(val) => set('bgMode', val)}
+  searchable={false}
+  sort={false}
+  options={[
+    { label: 'Image', value: 'image' },
+    { label: 'Solid Colour', value: 'colour' }
+  ]}
+/>
         </Field>
 
         {bgMode === 'image' ? (
@@ -950,13 +1040,17 @@ function HalfHeroEditor({ config: c, set }: { config: Record<string, any>; set: 
             </div>
             <div className="form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
               <Field label="Image Position">
-                <select className="form-input" value={c.objectPosition || 'center'} onChange={(e) => set('objectPosition', e.target.value)}>
-                  <option value="top">Top</option>
-                  <option value="center">Center</option>
-                  <option value="bottom">Bottom</option>
-                  <option value="left">Left</option>
-                  <option value="right">Right</option>
-                </select>
+                <SearchableSelect className="form-input" value={c.objectPosition || 'center'} onChange={(val) => set('objectPosition', val)}
+  searchable={false}
+  sort={false}
+  options={[
+    { label: 'Top', value: 'top' },
+    { label: 'Center', value: 'center' },
+    { label: 'Bottom', value: 'bottom' },
+    { label: 'Left', value: 'left' },
+    { label: 'Right', value: 'right' }
+  ]}
+/>
               </Field>
               <Field label="Image Opacity">
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
@@ -998,14 +1092,18 @@ function HalfHeroEditor({ config: c, set }: { config: Record<string, any>; set: 
         </div>
         <div className="form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
           <Field label="Font Weight">
-            <select className="form-input" value={c.titleFontWeight || '900'} onChange={(e) => set('titleFontWeight', e.target.value)}>
-              <option value="400">Regular (400)</option>
-              <option value="500">Medium (500)</option>
-              <option value="600">Semi-Bold (600)</option>
-              <option value="700">Bold (700)</option>
-              <option value="800">Extra-Bold (800)</option>
-              <option value="900">Black (900)</option>
-            </select>
+            <SearchableSelect className="form-input" value={c.titleFontWeight || '900'} onChange={(val) => set('titleFontWeight', val)}
+  searchable={false}
+  sort={false}
+  options={[
+    { label: 'Regular (400)', value: '400' },
+    { label: 'Medium (500)', value: '500' },
+    { label: 'Semi-Bold (600)', value: '600' },
+    { label: 'Bold (700)', value: '700' },
+    { label: 'Extra-Bold (800)', value: '800' },
+    { label: 'Black (900)', value: '900' }
+  ]}
+/>
           </Field>
           <Field label="">
             <div style={{ height: '1.25rem' }} />
@@ -1080,11 +1178,15 @@ function HalfHeroEditor({ config: c, set }: { config: Record<string, any>; set: 
         </div>
         <div className="form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
           <Field label="Padding Size">
-            <select className="form-input" value={c.ctaSize || 'md'} onChange={(e) => set('ctaSize', e.target.value)}>
-              <option value="sm">Small (Compact)</option>
-              <option value="md">Medium (Standard)</option>
-              <option value="lg">Large (Spaced)</option>
-            </select>
+            <SearchableSelect className="form-input" value={c.ctaSize || 'md'} onChange={(val) => set('ctaSize', val)}
+  searchable={false}
+  sort={false}
+  options={[
+    { label: 'Small (Compact)', value: 'sm' },
+    { label: 'Medium (Standard)', value: 'md' },
+    { label: 'Large (Spaced)', value: 'lg' }
+  ]}
+/>
           </Field>
           <div />
         </div>
@@ -1121,10 +1223,14 @@ function HeroBannerEditor({ config: c, set }: { config: Record<string, any>; set
       {/* Background Card */}
       <Card title="Background">
         <Field label="Background Mode">
-          <select className="form-input" value={bgMode} onChange={(e) => set('bgMode', e.target.value)}>
-            <option value="image">Image</option>
-            <option value="colour">Solid Colour</option>
-          </select>
+          <SearchableSelect className="form-input" value={bgMode} onChange={(val) => set('bgMode', val)}
+  searchable={false}
+  sort={false}
+  options={[
+    { label: 'Image', value: 'image' },
+    { label: 'Solid Colour', value: 'colour' }
+  ]}
+/>
         </Field>
 
         {bgMode === 'image' ? (
@@ -1182,14 +1288,18 @@ function HeroBannerEditor({ config: c, set }: { config: Record<string, any>; set
         </div>
         <div className="form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
           <Field label="Font Weight">
-            <select className="form-input" value={c.titleFontWeight || '900'} onChange={(e) => set('titleFontWeight', e.target.value)}>
-              <option value="400">Regular (400)</option>
-              <option value="500">Medium (500)</option>
-              <option value="600">Semi-Bold (600)</option>
-              <option value="700">Bold (700)</option>
-              <option value="800">Extra-Bold (800)</option>
-              <option value="900">Black (900)</option>
-            </select>
+            <SearchableSelect className="form-input" value={c.titleFontWeight || '900'} onChange={(val) => set('titleFontWeight', val)}
+  searchable={false}
+  sort={false}
+  options={[
+    { label: 'Regular (400)', value: '400' },
+    { label: 'Medium (500)', value: '500' },
+    { label: 'Semi-Bold (600)', value: '600' },
+    { label: 'Bold (700)', value: '700' },
+    { label: 'Extra-Bold (800)', value: '800' },
+    { label: 'Black (900)', value: '900' }
+  ]}
+/>
           </Field>
           <Field label="">
             <div style={{ height: '1.25rem' }} />
@@ -1259,11 +1369,15 @@ function HeroBannerEditor({ config: c, set }: { config: Record<string, any>; set
                   </div>
                   <div className="form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                     <Field label="Padding Size">
-                      <select className="form-input" value={btn.size || 'md'} onChange={(e) => updateBtn(i, 'size', e.target.value)}>
-                        <option value="sm">Small</option>
-                        <option value="md">Medium</option>
-                        <option value="lg">Large</option>
-                      </select>
+                      <SearchableSelect className="form-input" value={btn.size || 'md'} onChange={(val) => updateBtn(i, 'size', val)}
+  searchable={false}
+  sort={false}
+  options={[
+    { label: 'Small', value: 'sm' },
+    { label: 'Medium', value: 'md' },
+    { label: 'Large', value: 'lg' }
+  ]}
+/>
                     </Field>
                   </div>
                 </div>
@@ -1319,27 +1433,39 @@ function CategoryLinksEditor({ config: c, set }: { config: Record<string, any>; 
       <Card title="Layout">
         <div className="form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
           <Field label="Columns">
-            <select className="form-input" value={c.columns || 3} onChange={(e) => set('columns', Number(e.target.value))}>
-              <option value="2">2 Columns</option>
-              <option value="3">3 Columns</option>
-              <option value="4">4 Columns</option>
-              <option value="5">5 Columns</option>
-              <option value="6">6 Columns</option>
-            </select>
+            <SearchableSelect className="form-input" value={c.columns || 3} onChange={(val) => set('columns', Number(val))}
+  searchable={false}
+  sort={false}
+  options={[
+    { label: '2 Columns', value: '2' },
+    { label: '3 Columns', value: '3' },
+    { label: '4 Columns', value: '4' },
+    { label: '5 Columns', value: '5' },
+    { label: '6 Columns', value: '6' }
+  ]}
+/>
           </Field>
           <Field label="Image Aspect Ratio">
-            <select className="form-input" value={c.aspectRatio || 'auto'} onChange={(e) => set('aspectRatio', e.target.value)}>
-              <option value="auto">Auto (Original)</option>
-              <option value="square">Square (1:1)</option>
-              <option value="portrait">Portrait (3:4)</option>
-              <option value="landscape">Landscape (4:3)</option>
-            </select>
+            <SearchableSelect className="form-input" value={c.aspectRatio || 'auto'} onChange={(val) => set('aspectRatio', val)}
+  searchable={false}
+  sort={false}
+  options={[
+    { label: 'Auto (Original)', value: 'auto' },
+    { label: 'Square (1:1)', value: 'square' },
+    { label: 'Portrait (3:4)', value: 'portrait' },
+    { label: 'Landscape (4:3)', value: 'landscape' }
+  ]}
+/>
           </Field>
           <Field label="Text Position">
-            <select className="form-input" value={c.textPosition || 'below'} onChange={(e) => set('textPosition', e.target.value)}>
-              <option value="below">Below Image</option>
-              <option value="overlay">Overlay on Image</option>
-            </select>
+            <SearchableSelect className="form-input" value={c.textPosition || 'below'} onChange={(val) => set('textPosition', val)}
+  searchable={false}
+  sort={false}
+  options={[
+    { label: 'Below Image', value: 'below' },
+    { label: 'Overlay on Image', value: 'overlay' }
+  ]}
+/>
           </Field>
         </div>
         <div style={{ marginTop: '1rem' }}>
@@ -1377,11 +1503,15 @@ function CategoryLinksEditor({ config: c, set }: { config: Record<string, any>; 
             <input className="form-input" value={c.ctaText ?? 'SHOP NOW'} onChange={(e) => set('ctaText', e.target.value)} />
           </Field>
           <Field label="Button Style">
-            <select className="form-input" value={c.ctaStyle || 'link'} onChange={(e) => set('ctaStyle', e.target.value)}>
-              <option value="link">Text Link</option>
-              <option value="primary">Primary Button</option>
-              <option value="secondary">Secondary Button</option>
-            </select>
+            <SearchableSelect className="form-input" value={c.ctaStyle || 'link'} onChange={(val) => set('ctaStyle', val)}
+  searchable={false}
+  sort={false}
+  options={[
+    { label: 'Text Link', value: 'link' },
+    { label: 'Primary Button', value: 'primary' },
+    { label: 'Secondary Button', value: 'secondary' }
+  ]}
+/>
           </Field>
           {c.ctaStyle && c.ctaStyle !== 'link' && (
              <Field label="Button Custom Color">
@@ -1439,10 +1569,14 @@ function BannerEditor({ config: c, set }: { config: Record<string, any>; set: (k
     <div className="builder-panel-content">
       <Card title="Content mode">
         <Field label="Display Mode">
-          <select className="form-input" value={mode} onChange={(e) => set('mode', e.target.value)}>
-            <option value="static">Static Text</option>
-            <option value="ticker">Scrolling Ticker</option>
-          </select>
+          <SearchableSelect className="form-input" value={mode} onChange={(val) => set('mode', val)}
+  searchable={false}
+  sort={false}
+  options={[
+    { label: 'Static Text', value: 'static' },
+    { label: 'Scrolling Ticker', value: 'ticker' }
+  ]}
+/>
         </Field>
       </Card>
 
@@ -1457,11 +1591,15 @@ function BannerEditor({ config: c, set }: { config: Record<string, any>; set: (k
         )}
         {mode === 'static' && (
           <Field label="Alignment">
-            <select className="form-input" value={c.align || 'center'} onChange={(e) => set('align', e.target.value)}>
-              <option value="left">Left</option>
-              <option value="center">Centre</option>
-              <option value="right">Right</option>
-            </select>
+            <SearchableSelect className="form-input" value={c.align || 'center'} onChange={(val) => set('align', val)}
+  searchable={false}
+  sort={false}
+  options={[
+    { label: 'Left', value: 'left' },
+    { label: 'Centre', value: 'center' },
+    { label: 'Right', value: 'right' }
+  ]}
+/>
           </Field>
         )}
       </Card>
@@ -1473,14 +1611,18 @@ function BannerEditor({ config: c, set }: { config: Record<string, any>; set: (k
             <input type="number" className="form-input" value={c.fontSize || ''} onChange={(e) => set('fontSize', e.target.value ? Number(e.target.value) : undefined)} placeholder="e.g. 16" />
           </Field>
           <Field label="Font Weight">
-            <select className="form-input" value={c.fontWeight || 600} onChange={(e) => set('fontWeight', Number(e.target.value))}>
-              <option value="400">Regular (400)</option>
-              <option value="500">Medium (500)</option>
-              <option value="600">Semi Bold (600)</option>
-              <option value="700">Bold (700)</option>
-              <option value="800">Extra Bold (800)</option>
-              <option value="900">Black (900)</option>
-            </select>
+            <SearchableSelect className="form-input" value={c.fontWeight || 600} onChange={(val) => set('fontWeight', Number(val))}
+  searchable={false}
+  sort={false}
+  options={[
+    { label: 'Regular (400)', value: '400' },
+    { label: 'Medium (500)', value: '500' },
+    { label: 'Semi Bold (600)', value: '600' },
+    { label: 'Bold (700)', value: '700' },
+    { label: 'Extra Bold (800)', value: '800' },
+    { label: 'Black (900)', value: '900' }
+  ]}
+/>
           </Field>
         </div>
         <div style={{ marginTop: '1rem' }}>
@@ -1490,10 +1632,14 @@ function BannerEditor({ config: c, set }: { config: Record<string, any>; set: (k
 
       <Card title="Background">
         <Field label="Background Mode">
-          <select className="form-input" value={bgMode} onChange={(e) => set('bgMode', e.target.value)}>
-            <option value="colour">Solid Colour</option>
-            <option value="image">Image with Overlay</option>
-          </select>
+          <SearchableSelect className="form-input" value={bgMode} onChange={(val) => set('bgMode', val)}
+  searchable={false}
+  sort={false}
+  options={[
+    { label: 'Solid Colour', value: 'colour' },
+    { label: 'Image with Overlay', value: 'image' }
+  ]}
+/>
         </Field>
 
         {bgMode === 'image' && (
@@ -1515,11 +1661,15 @@ function BannerEditor({ config: c, set }: { config: Record<string, any>; set: (k
             </Field>
             <div className="form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '1rem' }}>
               <Field label="Aspect Ratio">
-                <select className="form-input" value={c.aspectRatio || 'auto'} onChange={(e) => set('aspectRatio', e.target.value)}>
-                  <option value="auto">Auto</option>
-                  <option value="narrow">Narrow (Padding)</option>
-                  <option value="wide">Wide (Padding)</option>
-                </select>
+                <SearchableSelect className="form-input" value={c.aspectRatio || 'auto'} onChange={(val) => set('aspectRatio', val)}
+  searchable={false}
+  sort={false}
+  options={[
+    { label: 'Auto', value: 'auto' },
+    { label: 'Narrow (Padding)', value: 'narrow' },
+    { label: 'Wide (Padding)', value: 'wide' }
+  ]}
+/>
               </Field>
             </div>
             <div style={{ marginTop: '1rem' }}>
@@ -1625,20 +1775,28 @@ function ImageBlockEditor({ config: c, set }: { config: Record<string, any>; set
       <Card title="Style">
         <div className="form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
           <Field label="Width">
-            <select className="form-input" value={c.width || '100%'} onChange={(e) => set('width', e.target.value)}>
-              <option value="100%">100% (Full Width)</option>
-              <option value="75%">75% Width</option>
-              <option value="50%">50% Width</option>
-              <option value="25%">25% Width</option>
-              <option value="auto">Auto (Natural Size)</option>
-            </select>
+            <SearchableSelect className="form-input" value={c.width || '100%'} onChange={(val) => set('width', val)}
+  searchable={false}
+  sort={false}
+  options={[
+    { label: '100% (Full Width)', value: '100%' },
+    { label: '75% Width', value: '75%' },
+    { label: '50% Width', value: '50%' },
+    { label: '25% Width', value: '25%' },
+    { label: 'Auto (Natural Size)', value: 'auto' }
+  ]}
+/>
           </Field>
           <Field label="Alignment">
-            <select className="form-input" value={c.align || 'center'} onChange={(e) => set('align', e.target.value)}>
-              <option value="left">Left</option>
-              <option value="center">Centre</option>
-              <option value="right">Right</option>
-            </select>
+            <SearchableSelect className="form-input" value={c.align || 'center'} onChange={(val) => set('align', val)}
+  searchable={false}
+  sort={false}
+  options={[
+    { label: 'Left', value: 'left' },
+    { label: 'Centre', value: 'center' },
+    { label: 'Right', value: 'right' }
+  ]}
+/>
           </Field>
         </div>
         <div className="form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
@@ -1647,12 +1805,16 @@ function ImageBlockEditor({ config: c, set }: { config: Record<string, any>; set
               onChange={(e) => set('borderRadius', e.target.value ? Number(e.target.value) : '')} placeholder="e.g. 12" />
           </Field>
           <Field label="Shadow">
-            <select className="form-input" value={c.shadow || 'none'} onChange={(e) => set('shadow', e.target.value)}>
-              <option value="none">None</option>
-              <option value="sm">Small</option>
-              <option value="md">Medium</option>
-              <option value="lg">Large</option>
-            </select>
+            <SearchableSelect className="form-input" value={c.shadow || 'none'} onChange={(val) => set('shadow', val)}
+  searchable={false}
+  sort={false}
+  options={[
+    { label: 'None', value: 'none' },
+    { label: 'Small', value: 'sm' },
+    { label: 'Medium', value: 'md' },
+    { label: 'Large', value: 'lg' }
+  ]}
+/>
           </Field>
         </div>
         <Field label="Opacity (%)">
@@ -1725,28 +1887,40 @@ function ImageGalleryEditor({ config: c, set }: { config: Record<string, any>; s
       <Card title="Layout">
         <div className="form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
           <Field label="Layout Mode">
-            <select className="form-input" value={c.layout || 'grid'} onChange={(e) => set('layout', e.target.value)}>
-              <option value="grid">Grid (Uniform)</option>
-              <option value="masonry">Masonry (Staggered)</option>
-              <option value="bento">Bento (Dynamic Spans)</option>
-            </select>
+            <SearchableSelect className="form-input" value={c.layout || 'grid'} onChange={(val) => set('layout', val)}
+  searchable={false}
+  sort={false}
+  options={[
+    { label: 'Grid (Uniform)', value: 'grid' },
+    { label: 'Masonry (Staggered)', value: 'masonry' },
+    { label: 'Bento (Dynamic Spans)', value: 'bento' }
+  ]}
+/>
           </Field>
           <Field label="Columns">
-            <select className="form-input" value={c.columns || 3} onChange={(e) => set('columns', Number(e.target.value))}>
-              <option value="2">2 Columns</option>
-              <option value="3">3 Columns</option>
-              <option value="4">4 Columns</option>
-            </select>
+            <SearchableSelect className="form-input" value={c.columns || 3} onChange={(val) => set('columns', Number(val))}
+  searchable={false}
+  sort={false}
+  options={[
+    { label: '2 Columns', value: '2' },
+    { label: '3 Columns', value: '3' },
+    { label: '4 Columns', value: '4' }
+  ]}
+/>
           </Field>
         </div>
         <div className="form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
           <Field label="Aspect Ratio">
-            <select className="form-input" value={c.aspectRatio || 'square'} onChange={(e) => set('aspectRatio', e.target.value)}>
-              <option value="square">Square (1:1)</option>
-              <option value="landscape">Landscape (4:3)</option>
-              <option value="portrait">Portrait (3:4)</option>
-              <option value="auto">Auto (Original)</option>
-            </select>
+            <SearchableSelect className="form-input" value={c.aspectRatio || 'square'} onChange={(val) => set('aspectRatio', val)}
+  searchable={false}
+  sort={false}
+  options={[
+    { label: 'Square (1:1)', value: 'square' },
+    { label: 'Landscape (4:3)', value: 'landscape' },
+    { label: 'Portrait (3:4)', value: 'portrait' },
+    { label: 'Auto (Original)', value: 'auto' }
+  ]}
+/>
           </Field>
           <Field label="Gap (px)">
             <input className="form-input" type="number" value={c.gap ?? 16} min="0" max="64"
@@ -1762,12 +1936,16 @@ function ImageGalleryEditor({ config: c, set }: { config: Record<string, any>; s
               onChange={(e) => set('borderRadius', e.target.value ? Number(e.target.value) : '')} placeholder="0" />
           </Field>
           <Field label="Shadow">
-            <select className="form-input" value={c.shadow || 'none'} onChange={(e) => set('shadow', e.target.value)}>
-              <option value="none">None</option>
-              <option value="sm">Small</option>
-              <option value="md">Medium</option>
-              <option value="lg">Large</option>
-            </select>
+            <SearchableSelect className="form-input" value={c.shadow || 'none'} onChange={(val) => set('shadow', val)}
+  searchable={false}
+  sort={false}
+  options={[
+    { label: 'None', value: 'none' },
+    { label: 'Small', value: 'sm' },
+    { label: 'Medium', value: 'md' },
+    { label: 'Large', value: 'lg' }
+  ]}
+/>
           </Field>
         </div>
       </Card>
@@ -1911,14 +2089,18 @@ function CollectionShowcaseEditor({ config: c, set }: { config: Record<string, a
         </div>
         <div className="form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '0.5rem' }}>
           <Field label="Font Weight">
-            <select className="form-input" value={c.titleFontWeight || '800'} onChange={(e) => set('titleFontWeight', e.target.value)}>
-              <option value="400">Regular (400)</option>
-              <option value="500">Medium (500)</option>
-              <option value="600">Semi-Bold (600)</option>
-              <option value="700">Bold (700)</option>
-              <option value="800">Extra-Bold (800)</option>
-              <option value="900">Black (900)</option>
-            </select>
+            <SearchableSelect className="form-input" value={c.titleFontWeight || '800'} onChange={(val) => set('titleFontWeight', val)}
+  searchable={false}
+  sort={false}
+  options={[
+    { label: 'Regular (400)', value: '400' },
+    { label: 'Medium (500)', value: '500' },
+    { label: 'Semi-Bold (600)', value: '600' },
+    { label: 'Bold (700)', value: '700' },
+    { label: 'Extra-Bold (800)', value: '800' },
+    { label: 'Black (900)', value: '900' }
+  ]}
+/>
           </Field>
           <Field label="">
             <div style={{ height: '1.25rem' }} />
@@ -1944,12 +2126,16 @@ function CollectionShowcaseEditor({ config: c, set }: { config: Record<string, a
       <Card title="Collection">
         <div className="form-row" style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '1rem' }}>
           <Field label="Select Collection">
-            <select className="form-input" value={c.collectionId || ''} onChange={(e) => set('collectionId', e.target.value)}>
-              <option value="">-- All Products (Fallback) --</option>
-              {collections.map((col: any) => (
-                <option key={col.id} value={col.id}>{col.name}</option>
-              ))}
-            </select>
+            <SearchableSelect
+              className="form-input"
+              value={c.collectionId || ''}
+              onChange={(val) => set('collectionId', val)}
+              searchable={true}
+              options={[
+                { label: '-- All Products (Fallback) --', value: '' },
+                ...collections.map((col: any) => ({ label: col.name, value: col.id }))
+              ]}
+            />
           </Field>
           <Field label="Limit">
             <input className="form-input" type="number" value={c.limit || 5} onChange={(e) => set('limit', Number(e.target.value))} />
@@ -2002,14 +2188,18 @@ function ProductCarouselEditor({ config: c, set }: { config: Record<string, any>
         </div>
         <div className="form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '0.5rem' }}>
           <Field label="Font Weight">
-            <select className="form-input" value={c.titleFontWeight || '900'} onChange={(e) => set('titleFontWeight', e.target.value)}>
-              <option value="400">Regular (400)</option>
-              <option value="500">Medium (500)</option>
-              <option value="600">Semi-Bold (600)</option>
-              <option value="700">Bold (700)</option>
-              <option value="800">Extra-Bold (800)</option>
-              <option value="900">Black (900)</option>
-            </select>
+            <SearchableSelect className="form-input" value={c.titleFontWeight || '900'} onChange={(val) => set('titleFontWeight', val)}
+  searchable={false}
+  sort={false}
+  options={[
+    { label: 'Regular (400)', value: '400' },
+    { label: 'Medium (500)', value: '500' },
+    { label: 'Semi-Bold (600)', value: '600' },
+    { label: 'Bold (700)', value: '700' },
+    { label: 'Extra-Bold (800)', value: '800' },
+    { label: 'Black (900)', value: '900' }
+  ]}
+/>
           </Field>
           <Field label="">
             <div style={{ height: '1.25rem' }} />
@@ -2092,10 +2282,14 @@ function ProductGridEditor({ config: c, set }: { config: Record<string, any>; se
     <div className="builder-panel-content">
       <Card title="Products">
         <Field label="Mode">
-          <select className="form-input" value={c.mode || 'auto'} onChange={(e) => set('mode', e.target.value)}>
-            <option value="auto">Auto — Show all visible products</option>
-            <option value="manual">Manual — Choose specific products</option>
-          </select>
+          <SearchableSelect className="form-input" value={c.mode || 'auto'} onChange={(val) => set('mode', val)}
+  searchable={false}
+  sort={false}
+  options={[
+    { label: 'Auto — Show all visible products', value: 'auto' },
+    { label: 'Manual — Choose specific products', value: 'manual' }
+  ]}
+/>
         </Field>
         {c.mode === 'manual' && (
           <div style={{ marginTop: '1rem' }}>
@@ -2119,11 +2313,15 @@ function ProductGridEditor({ config: c, set }: { config: Record<string, any>; se
       <Card title="Layout">
         <div className="form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
           <Field label="Columns">
-            <select className="form-input" value={c.columns || 4} onChange={(e) => set('columns', Number(e.target.value))}>
-              <option value="2">2</option>
-              <option value="3">3</option>
-              <option value="4">4</option>
-            </select>
+            <SearchableSelect className="form-input" value={c.columns || 4} onChange={(val) => set('columns', Number(val))}
+  searchable={false}
+  sort={false}
+  options={[
+    { label: '2', value: '2' },
+    { label: '3', value: '3' },
+    { label: '4', value: '4' }
+  ]}
+/>
           </Field>
           <Field label="Max Products">
             <input className="form-input" type="number" value={c.limit || 8} min="1" max="50"
@@ -2165,10 +2363,14 @@ function CollectionGridEditor({ config: c, set }: { config: Record<string, any>;
     <div className="builder-panel-content">
       <Card title="Collections">
         <Field label="Mode">
-          <select className="form-input" value={c.mode || 'auto'} onChange={(e) => set('mode', e.target.value)}>
-            <option value="auto">Auto — Show all collections</option>
-            <option value="manual">Manual — Choose specific collections</option>
-          </select>
+          <SearchableSelect className="form-input" value={c.mode || 'auto'} onChange={(val) => set('mode', val)}
+  searchable={false}
+  sort={false}
+  options={[
+    { label: 'Auto — Show all collections', value: 'auto' },
+    { label: 'Manual — Choose specific collections', value: 'manual' }
+  ]}
+/>
         </Field>
         {c.mode === 'manual' && (
           <div style={{ marginTop: '1rem' }}>
@@ -2192,11 +2394,15 @@ function CollectionGridEditor({ config: c, set }: { config: Record<string, any>;
       <Card title="Layout">
         <div className="form-row" style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '1rem' }}>
           <Field label="Columns">
-            <select className="form-input" value={c.columns || 3} onChange={(e) => set('columns', Number(e.target.value))}>
-              <option value="2">2</option>
-              <option value="3">3</option>
-              <option value="4">4</option>
-            </select>
+            <SearchableSelect className="form-input" value={c.columns || 3} onChange={(val) => set('columns', Number(val))}
+  searchable={false}
+  sort={false}
+  options={[
+    { label: '2', value: '2' },
+    { label: '3', value: '3' },
+    { label: '4', value: '4' }
+  ]}
+/>
           </Field>
         </div>
       </Card>
@@ -2225,28 +2431,40 @@ function FeaturedProductEditor({ config: c, set }: { config: Record<string, any>
     <div className="builder-panel-content">
       <Card title="Product" desc="Select the product to explicitly feature on the page.">
         <Field label="Featured Product">
-          <select className="form-input" value={c.productId || ''} onChange={(e) => set('productId', e.target.value)}>
-            <option value="">Select a product...</option>
-            {products.map(p => (
-              <option key={p.id} value={p.id}>{p.name}</option>
-            ))}
-          </select>
+          <SearchableSelect
+            className="form-input"
+            value={c.productId || ''}
+            onChange={(val) => set('productId', val)}
+            searchable={true}
+            options={[
+              { label: 'Select a product...', value: '' },
+              ...products.map((p: any) => ({ label: p.name, value: p.id }))
+            ]}
+          />
         </Field>
       </Card>
       
       <Card title="Featured Layout">
         <div className="form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
           <Field label="Image Alignment">
-            <select className="form-input" value={c.align || 'left'} onChange={(e) => set('align', e.target.value)}>
-              <option value="left">Image on Left</option>
-              <option value="right">Image on Right</option>
-            </select>
+            <SearchableSelect className="form-input" value={c.align || 'left'} onChange={(val) => set('align', val)}
+  searchable={false}
+  sort={false}
+  options={[
+    { label: 'Image on Left', value: 'left' },
+    { label: 'Image on Right', value: 'right' }
+  ]}
+/>
           </Field>
           <Field label="Show Description">
-            <select className="form-input" value={c.showDescription === false ? 'no' : 'yes'} onChange={(e) => set('showDescription', e.target.value === 'yes')}>
-              <option value="yes">Yes</option>
-              <option value="no">No</option>
-            </select>
+            <SearchableSelect className="form-input" value={c.showDescription === false ? 'no' : 'yes'} onChange={(val) => set('showDescription', val === 'yes')}
+  searchable={false}
+  sort={false}
+  options={[
+    { label: 'Yes', value: 'yes' },
+    { label: 'No', value: 'no' }
+  ]}
+/>
           </Field>
         </div>
       </Card>

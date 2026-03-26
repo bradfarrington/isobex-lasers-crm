@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAlert } from '@/components/ui/AlertDialog';
+import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { useNavigate } from 'react-router-dom';
 import { useStoreConfig } from './useStoreConfig';
 import { useCart } from './useCart';
@@ -325,9 +326,15 @@ function StorefrontCheckoutInner() {
             </div>
             <div className="sf-checkout-field">
               <label>Country</label>
-              <select value={country} onChange={(e) => setCountry(e.target.value)} style={inputStyle}>
-                <option value="GB">United Kingdom</option>
-              </select>
+              <SearchableSelect
+                value={country}
+                onChange={(val) => setCountry(val)}
+                style={inputStyle}
+                searchable={true}
+                options={[
+                  { label: 'United Kingdom', value: 'GB' }
+                ]}
+              />
             </div>
           </div>
         </div>

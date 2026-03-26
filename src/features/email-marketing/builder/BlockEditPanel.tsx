@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import ReactQuill from 'react-quill-new';
 import { ArrowLeft, Trash2, X, Tag, Search } from 'lucide-react';
 import { BLOCK_TYPE_MAP, QUILL_FULL, QUILL_HEADING, QUILL_FORMATS, MERGE_TAGS, BRAND, SOCIAL_PLATFORMS } from './constants';
@@ -57,9 +58,15 @@ export function BlockEditPanel({ block, onUpdate, onDelete, onBack }: Props) {
             <div className="eb-quill-wrap"><ReactQuill theme="snow" value={block.data.content || ''} onChange={v => patch('content', v)} modules={QUILL_HEADING} formats={QUILL_FORMATS} placeholder="Heading…" /></div>
           </div>
           <div className="form-group"><label>Level</label>
-            <select className="form-select" value={block.data.level || 'h2'} onChange={e => patch('level', e.target.value)}>
-              <option value="h1">H1 — Large</option><option value="h2">H2 — Medium</option><option value="h3">H3 — Small</option>
-            </select>
+            <SearchableSelect className="form-select" value={block.data.level || 'h2'} onChange={(val) => patch('level', val)}
+  searchable={false}
+  sort={false}
+  options={[
+    { label: 'H1 — Large', value: 'h1' },
+    { label: 'H2 — Medium', value: 'h2' },
+    { label: 'H3 — Small', value: 'h3' }
+  ]}
+/>
           </div>
           <FontPicker value={block.data.fontFamily || ''} onChange={v => patch('fontFamily', v)} />
           <ColorField label="Text Colour" value={block.data.color} onChange={v => patch('color', v)} defaultValue="#1f2937" />
@@ -110,9 +117,16 @@ export function BlockEditPanel({ block, onUpdate, onDelete, onBack }: Props) {
           <FontPicker value={block.data.fontFamily || ''} onChange={v => patch('fontFamily', v)} />
           <div className="form-group"><label>Font Size</label><input className="form-input" type="number" value={block.data.fontSize || 15} onChange={e => patch('fontSize', e.target.value)} min={10} max={32} /></div>
           <div className="form-group"><label>Font Weight</label>
-            <select className="form-select" value={block.data.fontWeight || '600'} onChange={e => patch('fontWeight', e.target.value)}>
-              <option value="400">Normal</option><option value="500">Medium</option><option value="600">Semi Bold</option><option value="700">Bold</option>
-            </select>
+            <SearchableSelect className="form-select" value={block.data.fontWeight || '600'} onChange={(val) => patch('fontWeight', val)}
+  searchable={false}
+  sort={false}
+  options={[
+    { label: 'Normal', value: '400' },
+    { label: 'Medium', value: '500' },
+    { label: 'Semi Bold', value: '600' },
+    { label: 'Bold', value: '700' }
+  ]}
+/>
           </div>
           <div className="eb-divider" /><div className="eb-section-label">Size & Shape</div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
@@ -128,9 +142,15 @@ export function BlockEditPanel({ block, onUpdate, onDelete, onBack }: Props) {
         {/* ── Divider ── */}
         {block.type === 'divider' && (<>
           <div className="form-group"><label>Style</label>
-            <select className="form-select" value={block.data.style || 'solid'} onChange={e => patch('style', e.target.value)}>
-              <option value="solid">Solid</option><option value="dashed">Dashed</option><option value="dotted">Dotted</option>
-            </select>
+            <SearchableSelect className="form-select" value={block.data.style || 'solid'} onChange={(val) => patch('style', val)}
+  searchable={false}
+  sort={false}
+  options={[
+    { label: 'Solid', value: 'solid' },
+    { label: 'Dashed', value: 'dashed' },
+    { label: 'Dotted', value: 'dotted' }
+  ]}
+/>
           </div>
           <div className="form-group"><label>Thickness (px)</label><input className="form-input" type="number" value={block.data.thickness || 1} onChange={e => patch('thickness', e.target.value)} min={1} max={10} /></div>
           <ColorField label="Colour" value={block.data.color} onChange={v => patch('color', v)} defaultValue="#e5e7eb" />
@@ -153,13 +173,20 @@ export function BlockEditPanel({ block, onUpdate, onDelete, onBack }: Props) {
         {/* ── Columns ── */}
         {block.type === 'columns' && (<>
           <div className="form-group"><label>Layout</label>
-            <select className="form-select" value={block.data.layout || '50-50'} onChange={e => {
-              const layout = e.target.value; const n = layout.split('-').length;
-              const cols = Array.from({ length: n }, (_, i) => block.data.columns?.[i] || { blocks: [] });
-              onUpdate({ data: { ...block.data, layout, columns: cols } });
-            }}>
-              <option value="50-50">50 / 50</option><option value="33-67">33 / 67</option><option value="67-33">67 / 33</option><option value="33-33-33">33 / 33 / 33</option>
-            </select>
+            <SearchableSelect className="form-select" value={block.data.layout || '50-50'} onChange={layout => {
+              const n = layout.split('-').length;
+              const cols = Array.from({ length: n }, () => ({ bgColor: '', padding: '' }));
+              patch('layout', layout); patch('columns', cols);
+            }}
+              searchable={false}
+              sort={false}
+              options={[
+                { label: '50 / 50', value: '50-50' },
+                { label: '33 / 67', value: '33-67' },
+                { label: '67 / 33', value: '67-33' },
+                { label: '33 / 33 / 33', value: '33-33-33' }
+              ]}
+            />
           </div>
           <div className="form-group"><label>Gap ({block.data.gap || 16}px)</label><input type="range" min="0" max="40" step="2" value={block.data.gap || 16} onChange={e => patch('gap', e.target.value)} style={{ width: '100%' }} /></div>
           <div className="eb-divider" /><div className="eb-section-label">Column Backgrounds</div>
@@ -369,10 +396,16 @@ function ProductBlockEditor({ block, patch, onUpdate }: {
       {source === 'collection' && (
         <div className="form-group">
           <label>Collection</label>
-          <select className="form-input" value={block.data.collectionId || ''} onChange={e => patch('collectionId', e.target.value)}>
-            <option value="">Select a collection…</option>
-            {collections.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-          </select>
+          <SearchableSelect
+            className="form-input"
+            value={block.data.collectionId || ''}
+            onChange={val => patch('collectionId', val)}
+            searchable={true}
+            options={[
+              { label: 'Select a collection…', value: '' },
+              ...collections.map(c => ({ label: c.name, value: c.id }))
+            ]}
+          />
         </div>
       )}
 

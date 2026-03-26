@@ -1,0 +1,49 @@
+.inline-edit-container {
+  display: block;
+}
+
+.inline-edit-container.view {
+  position: relative;
+  display: inline-flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding: 4px 6px;
+  margin: -4px -6px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background var(--transition-fast);
+  width: calc(100% + 12px);
+}
+
+.inline-edit-container.view:hover {
+  background: var(--color-bg-surface);
+}
+
+.inline-edit-container.view.disabled {
+  cursor: default;
+}
+.inline-edit-container.view.disabled:hover {
+  background: transparent;
+}
+
+.inline-edit-content {
+  flex: 1;
+  min-width: 0;
+  word-break: break-word;
+}
+
+.inline-edit-icon {
+  opacity: 0;
+  color: var(--color-text-tertiary);
+  transition: opacity var(--transition-fast);
+  padding-top: 2px;
+  flex-shrink: 0;
+}
+
+.inline-edit-container.view:hover .inline-edit-icon {
+  opacity: 1;
+}
+
+.inline-edit-container.editing {
+  width: 100%;
+}

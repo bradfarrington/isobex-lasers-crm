@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { PageShell } from '@/components/layout/PageShell';
 import { useData } from '@/context/DataContext';
 import { useAlert } from '@/components/ui/AlertDialog';
+import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import * as api from '@/lib/api';
 import type {
   ProductType,
@@ -905,19 +906,22 @@ export function ProductEditorPage() {
                             </div>
                           </td>
                           <td>
-                            <select 
-                              className="form-input form-input-sm" 
-                              value={r.status} 
-                              onChange={(e) => handleUpdateReviewStatus(r.id, e.target.value as any)}
+                            <SearchableSelect
+                              className="form-input form-input-sm"
+                              value={r.status}
+                              onChange={(val) => handleUpdateReviewStatus(r.id, val as any)}
+                              searchable={false}
+                              sort={false}
                               style={{ 
                                 borderColor: r.status === 'approved' ? '#86efac' : r.status === 'rejected' ? '#fca5a5' : '#fcd34d',
                                 backgroundColor: r.status === 'approved' ? '#f0fdf4' : r.status === 'rejected' ? '#fef2f2' : '#fffbeb'
                               }}
-                            >
-                              <option value="pending">Pending</option>
-                              <option value="approved">Approved</option>
-                              <option value="rejected">Rejected</option>
-                            </select>
+                              options={[
+                                { label: 'Pending', value: 'pending' },
+                                { label: 'Approved', value: 'approved' },
+                                { label: 'Rejected', value: 'rejected' },
+                              ]}
+                            />
                           </td>
                           <td style={{ maxWidth: '300px', whiteSpace: 'normal', fontSize: '0.875rem', lineHeight: 1.4, color: 'var(--color-text-secondary)' }}>
                             {r.content}

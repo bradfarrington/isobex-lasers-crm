@@ -5,7 +5,7 @@ import {
   fetchEmailCampaigns,
   fetchEmailTemplates,
   fetchCampaignRecipients,
-  fetchAllCampaignRecipients,
+
   fetchContacts,
   createEmailCampaign,
   updateEmailCampaign,
@@ -25,8 +25,14 @@ import {
   Plus, ArrowLeft, Trash2, Copy, Mail, Users, Send,
   Calendar, Clock, Layers, BarChart3, Eye, Pencil,
   MousePointerClick, AlertTriangle, CheckCircle2, XCircle,
-  Search, ChevronRight, Loader2,
+  Search, ChevronRight, Loader2, TrendingUp, ShoppingCart,
+  RefreshCw,
 } from 'lucide-react';
+import {
+  AreaChart, Area, XAxis, YAxis, Tooltip,
+  ResponsiveContainer, CartesianGrid,
+} from 'recharts';
+import { fetchEmailAnalytics, type EmailAnalyticsSummary } from '@/services/emailAnalytics';
 import { DateTimePicker } from '@/components/ui/DatePicker';
 import { generateEmailHtml } from './builder/mjml';
 import type { BlockData } from './builder/constants';
@@ -89,21 +95,17 @@ export function CampaignsTab({ activeSubTab = 'campaigns' }: CampaignsTabProps) 
   const [editingCampaignId, setEditingCampaignId] = useState<string | null>(null);
 
   // Load data
-  const [allRecipients, setAllRecipients] = useState<CampaignRecipient[]>([]);
-
   const loadData = useCallback(async () => {
     try {
       setLoading(true);
-      const [c, t, ct, ar] = await Promise.all([
+      const [c, t, ct] = await Promise.all([
         fetchEmailCampaigns(),
         fetchEmailTemplates(),
         fetchContacts(),
-        fetchAllCampaignRecipients(),
       ]);
       setCampaigns(c);
       setTemplates(t);
       setContacts(ct);
-      setAllRecipients(ar);
     } catch (err) {
       console.error('Failed to load campaigns data:', err);
     } finally {
@@ -462,38 +464,9 @@ export function CampaignsTab({ activeSubTab = 'campaigns' }: CampaignsTabProps) 
   };
 
   // ── Analytics helpers ──
-  const sentCampaigns = campaigns.filter(c => c.status === 'sent');
+  // ── Analytics helpers ──
+  // Removed unused sentCampaigns and campaignRecipientStats helpers
 
-  // Build per-campaign recipient stats from allRecipients
-  const campaignRecipientStats = useMemo(() => {
-    const map: Record<string, { total: number; opened: number; clicked: number; failed: number }> = {};
-    for (const r of allRecipients) {
-      if (!map[r.campaign_id]) map[r.campaign_id] = { total: 0, opened: 0, clicked: 0, failed: 0 };
-      const s = map[r.campaign_id];
-      s.total++;
-      if (r.status === 'opened' || r.status === 'clicked') s.opened++;
-      if (r.status === 'clicked') s.clicked++;
-      if (r.status === 'failed' || r.status === 'bounced') s.failed++;
-    }
-    return map;
-  }, [allRecipients]);
-
-  // Compute avg open / click rate across sent campaigns
-  const { avgOpenRate, avgClickRate } = useMemo(() => {
-    if (sentCampaigns.length === 0) return { avgOpenRate: null, avgClickRate: null };
-    let openSum = 0;
-    let clickSum = 0;
-    let count = 0;
-    for (const c of sentCampaigns) {
-      const s = campaignRecipientStats[c.id];
-      if (!s || s.total === 0) continue;
-      openSum += (s.opened / s.total) * 100;
-      clickSum += (s.clicked / s.total) * 100;
-      count++;
-    }
-    if (count === 0) return { avgOpenRate: null, avgClickRate: null };
-    return { avgOpenRate: openSum / count, avgClickRate: clickSum / count };
-  }, [sentCampaigns, campaignRecipientStats]);
 
   const selectedCampaign = selectedCampaignId
     ? campaigns.find(c => c.id === selectedCampaignId) || null
@@ -501,66 +474,7 @@ export function CampaignsTab({ activeSubTab = 'campaigns' }: CampaignsTabProps) 
 
   // ── Analytics Overview ──
   if (showAnalytics && view === 'list') {
-    const totalSent = sentCampaigns.reduce((s, c) => s + c.total_recipients, 0);
-    return (
-      <div className="analytics-overview">
-        <div className="analytics-stats-grid" style={{ marginBottom: 'var(--space-6)' }}>
-          <div className="analytics-stat-card">
-            <Send size={20} />
-            <div className="analytics-stat-value">{sentCampaigns.length}</div>
-            <div className="analytics-stat-label">Campaigns Sent</div>
-          </div>
-          <div className="analytics-stat-card">
-            <Users size={20} />
-            <div className="analytics-stat-value">{totalSent}</div>
-            <div className="analytics-stat-label">Total Recipients</div>
-          </div>
-          <div className="analytics-stat-card">
-            <Eye size={20} />
-            <div className="analytics-stat-value">{avgOpenRate !== null ? `${avgOpenRate.toFixed(1)}%` : '—'}</div>
-            <div className="analytics-stat-label">Avg. Open Rate</div>
-          </div>
-          <div className="analytics-stat-card">
-            <MousePointerClick size={20} />
-            <div className="analytics-stat-value">{avgClickRate !== null ? `${avgClickRate.toFixed(1)}%` : '—'}</div>
-            <div className="analytics-stat-label">Avg. Click Rate</div>
-          </div>
-        </div>
-
-        {sentCampaigns.length === 0 ? (
-          <div className="em-empty">
-            <BarChart3 size={36} />
-            <h3>No campaigns sent yet</h3>
-            <p>Send your first campaign to see analytics here.</p>
-          </div>
-        ) : (
-          <div className="campaign-list">
-            {sentCampaigns.map(c => {
-              const cs = campaignRecipientStats[c.id] || { total: 0, opened: 0, clicked: 0, failed: 0 };
-              return (
-                <div key={c.id} className="campaign-card" onClick={() => openDetail(c)}>
-                  <div className="campaign-card-main">
-                    <div className="campaign-card-header">
-                      <h4>{c.name}</h4>
-                      <span className={`campaign-status-badge ${c.status}`}>{c.status}</span>
-                    </div>
-                    <p className="campaign-card-subject">{c.subject}</p>
-                    <div className="campaign-card-meta">
-                      <span><Users size={12} /> {c.total_recipients} recipients</span>
-                      {c.sent_at && <span><Calendar size={12} /> {new Date(c.sent_at).toLocaleDateString()}</span>}
-                      <span style={{ color: '#8b5cf6' }}><Eye size={12} /> {cs.opened} opened</span>
-                      <span style={{ color: '#10b981' }}><MousePointerClick size={12} /> {cs.clicked} clicked</span>
-                      {cs.failed > 0 && <span style={{ color: 'var(--color-danger)' }}><XCircle size={12} /> {cs.failed} failed</span>}
-                    </div>
-                  </div>
-                  <ChevronRight size={16} style={{ color: 'var(--color-text-tertiary)' }} />
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
-    );
+    return <EmailAnalyticsDashboard />;
   }
 
   // ── Campaign Detail View ──
@@ -1135,6 +1049,451 @@ export function CampaignsTab({ activeSubTab = 'campaigns' }: CampaignsTabProps) 
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════
+   Email Analytics Dashboard — Standalone Component
+   ═══════════════════════════════════════════════════════ */
+
+const CHART_COLORS = {
+  primary: '#dc2626',
+  opened: '#8b5cf6',
+  clicked: '#10b981',
+  delivered: '#3b82f6',
+  failed: '#ef4444',
+  bounced: '#f59e0b',
+};
+
+const RateTooltip = ({ active, payload, label }: any) => {
+  if (active && payload?.length) {
+    return (
+      <div className="ea-tooltip">
+        <p className="ea-tooltip-label">{label}</p>
+        {payload.map((p: any, i: number) => (
+          <p key={i} className="ea-tooltip-value" style={{ color: p.color }}>
+            {p.name}: {p.value.toFixed(1)}%
+          </p>
+        ))}
+      </div>
+    );
+  }
+  return null;
+};
+
+function EmailAnalyticsDashboard() {
+  const [data, setData] = useState<EmailAnalyticsSummary | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [days, setDays] = useState(90);
+  const [attrWindow, setAttrWindow] = useState(1);
+  const [chartMetric, setChartMetric] = useState<'openRate' | 'clickRate'>('openRate');
+  const [showNumbers, setShowNumbers] = useState(true);
+  const [tableSearch, setTableSearch] = useState('');
+  const [tableSort, setTableSort] = useState<'openRate' | 'clickRate'>('openRate');
+  const [refreshing, setRefreshing] = useState(false);
+
+  const loadData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const result = await fetchEmailAnalytics(days, attrWindow);
+      setData(result);
+    } catch (err) {
+      console.error('Failed to load email analytics:', err);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, [days, attrWindow]);
+
+  useEffect(() => { loadData(); }, [loadData]);
+
+  const handleRefresh = () => {
+    setRefreshing(true);
+    loadData();
+  };
+
+  if (loading && !data) {
+    return (
+      <div className="ea-loading">
+        <div className="loading-spinner" />
+        <p>Crunching campaign numbers…</p>
+      </div>
+    );
+  }
+
+  if (!data || data.totalCampaigns === 0) {
+    return (
+      <div className="em-empty">
+        <BarChart3 size={36} />
+        <h3>No campaigns sent yet</h3>
+        <p>Send your first campaign to see analytics here.</p>
+      </div>
+    );
+  }
+
+  // Sorted tables
+  const topCampaigns = [...data.campaigns]
+    .sort((a, b) => b[tableSort] - a[tableSort])
+    .slice(0, 5);
+
+  const filteredRecent = data.campaigns
+    .filter(c => !tableSearch || c.name.toLowerCase().includes(tableSearch.toLowerCase()))
+    .sort((a, b) => new Date(b.sentAt).getTime() - new Date(a.sentAt).getTime());
+
+  // Engagement funnel
+  const funnelMax = data.totalDelivered || 1;
+  const funnelData = [
+    { label: 'Delivered', value: data.totalDelivered, pct: 100, color: CHART_COLORS.delivered },
+    { label: 'Opened', value: data.totalOpened, pct: (data.totalOpened / funnelMax) * 100, color: CHART_COLORS.opened },
+    { label: 'Clicked', value: data.totalClicked, pct: (data.totalClicked / funnelMax) * 100, color: CHART_COLORS.clicked },
+    { label: 'Ordered', value: data.totalOrders, pct: (data.totalOrders / funnelMax) * 100, color: CHART_COLORS.primary },
+  ];
+
+  const formatVal = (v: number, isRate: boolean) =>
+    isRate ? `${v.toFixed(1)}%` : v.toLocaleString();
+
+  return (
+    <div className="ea-dashboard">
+      {/* ── Controls Row ── */}
+      <div className="ea-controls">
+        <div className="ea-filter-group">
+          <div className="ea-pill-group">
+            {[7, 14, 30, 90].map(d => (
+              <button
+                key={d}
+                className={`ea-pill${days === d ? ' active' : ''}`}
+                onClick={() => setDays(d)}
+              >
+                {d} Days
+              </button>
+            ))}
+            <button
+              className={`ea-pill${days === 9999 ? ' active' : ''}`}
+              onClick={() => setDays(9999)}
+            >
+              All
+            </button>
+          </div>
+        </div>
+        <div className="ea-filter-group">
+          <label className="ea-attr-label">Attribution Window</label>
+          <select
+            className="ea-attr-select"
+            value={attrWindow}
+            onChange={e => setAttrWindow(Number(e.target.value))}
+          >
+            <option value={1}>1 Day</option>
+            <option value={3}>3 Days</option>
+            <option value={7}>7 Days</option>
+            <option value={14}>14 Days</option>
+            <option value={30}>30 Days</option>
+          </select>
+          <button className="ea-refresh-btn" onClick={handleRefresh} disabled={refreshing} title="Refresh">
+            <RefreshCw size={14} className={refreshing ? 'ea-spin' : ''} />
+          </button>
+        </div>
+      </div>
+
+      {/* ── 1. Conversion Summary ── */}
+      <div className="ea-section">
+        <div className="ea-section-header">
+          <h3>Conversion Summary</h3>
+          <p>Campaign success summarised by revenue and orders.</p>
+        </div>
+        <div className="ea-stat-grid">
+          <div className="ea-stat-card">
+            <div className="ea-stat-icon" style={{ background: 'rgba(220,38,38,0.08)', color: '#dc2626' }}>
+              <TrendingUp size={20} />
+            </div>
+            <div className="ea-stat-label">Revenue</div>
+            <div className="ea-stat-value">£{data.totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+          </div>
+          <div className="ea-stat-card">
+            <div className="ea-stat-icon" style={{ background: 'rgba(139,92,246,0.08)', color: '#8b5cf6' }}>
+              <ShoppingCart size={20} />
+            </div>
+            <div className="ea-stat-label">Avg. Order Value</div>
+            <div className="ea-stat-value">£{data.avgOrderValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+          </div>
+          <div className="ea-stat-card">
+            <div className="ea-stat-icon" style={{ background: 'rgba(16,185,129,0.08)', color: '#10b981' }}>
+              <MousePointerClick size={20} />
+            </div>
+            <div className="ea-stat-label">Order Rate</div>
+            <div className="ea-stat-value">{data.orderRate.toFixed(2)}%</div>
+          </div>
+          <div className="ea-stat-card">
+            <div className="ea-stat-icon" style={{ background: 'rgba(59,130,246,0.08)', color: '#3b82f6' }}>
+              <ShoppingCart size={20} />
+            </div>
+            <div className="ea-stat-label">Total Orders</div>
+            <div className="ea-stat-value">{data.totalOrders}</div>
+          </div>
+        </div>
+      </div>
+
+      {/* ── 2. Engagement Summary ── */}
+      <div className="ea-section">
+        <div className="ea-section-header">
+          <h3>Engagement Summary</h3>
+          <p>Performance summary of recipient engagement, including open rates, click activity, and conversions.</p>
+        </div>
+        <div className="ea-funnel-wrap">
+          <div className="ea-funnel-bars">
+            {funnelData.map(f => (
+              <div className="ea-funnel-row" key={f.label}>
+                <span className="ea-funnel-label">{f.label}</span>
+                <div className="ea-funnel-track">
+                  <div
+                    className="ea-funnel-fill"
+                    style={{ width: `${Math.max(f.pct, 2)}%`, background: f.color }}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+          <span className="ea-funnel-pct-label">Cumulative</span>
+          <div className="ea-funnel-pcts">
+            {funnelData.map(f => {
+              const displayPct = f.pct > 0 && f.pct < 1 ? '<1%' : `${f.pct.toFixed(0)}%`;
+              return (
+                <div className="ea-funnel-pct-pill" key={f.label}>
+                  {displayPct}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      {/* ── 3. Performance Analysis ── */}
+      <div className="ea-section">
+        <div className="ea-section-header">
+          <h3>Performance Analysis</h3>
+          <p>Track campaign performance trends for a metric over time.</p>
+        </div>
+        <div className="ea-stat-grid">
+          <div className="ea-stat-card">
+            <div className="ea-stat-icon" style={{ background: 'rgba(59,130,246,0.08)', color: '#3b82f6' }}>
+              <Send size={20} />
+            </div>
+            <div className="ea-stat-label">Emails Delivered</div>
+            <div className="ea-stat-value">{data.totalDelivered.toLocaleString()}</div>
+          </div>
+          <div className="ea-stat-card">
+            <div className="ea-stat-icon" style={{ background: 'rgba(245,158,11,0.08)', color: '#f59e0b' }}>
+              <AlertTriangle size={20} />
+            </div>
+            <div className="ea-stat-label">Bounced</div>
+            <div className="ea-stat-value">{data.totalBounced.toLocaleString()}</div>
+          </div>
+          <div className="ea-stat-card">
+            <div className="ea-stat-icon" style={{ background: 'rgba(139,92,246,0.08)', color: '#8b5cf6' }}>
+              <Eye size={20} />
+            </div>
+            <div className="ea-stat-label">Avg. Open Rate</div>
+            <div className="ea-stat-value">{data.avgOpenRate.toFixed(1)}%</div>
+          </div>
+          <div className="ea-stat-card">
+            <div className="ea-stat-icon" style={{ background: 'rgba(239,68,68,0.08)', color: '#ef4444' }}>
+              <XCircle size={20} />
+            </div>
+            <div className="ea-stat-label">Failed</div>
+            <div className="ea-stat-value">{data.totalFailed.toLocaleString()}</div>
+          </div>
+        </div>
+      </div>
+
+      {/* ── 4. Open/Click Rate Chart ── */}
+      {data.openRateByDate.length > 0 && (
+        <div className="ea-section">
+          <div className="ea-section-header ea-row-between">
+            <div>
+              <h3>{chartMetric === 'openRate' ? 'Open' : 'Click'} Rate (for Email Campaigns)</h3>
+            </div>
+            <select
+              className="ea-attr-select"
+              value={chartMetric}
+              onChange={e => setChartMetric(e.target.value as any)}
+            >
+              <option value="openRate">Open Rate</option>
+              <option value="clickRate">Click Rate</option>
+            </select>
+          </div>
+          <div className="ea-chart-container">
+            <div className="ea-chart-summary">
+              <div className="ea-chart-big-stat">
+                <div className="ea-chart-big-label">{chartMetric === 'openRate' ? 'Open' : 'Click'} Rate</div>
+                <div className="ea-chart-big-value">
+                  {(chartMetric === 'openRate' ? data.avgOpenRate : data.avgClickRate).toFixed(2)}%
+                </div>
+              </div>
+              <div className="ea-chart-details">
+                <div><span>Total Opened:</span> <strong>{data.totalOpened.toLocaleString()}</strong></div>
+                <div><span>Total Delivery:</span> <strong>{data.totalDelivered.toLocaleString()}</strong></div>
+              </div>
+            </div>
+            <div className="ea-chart-graph">
+              <ResponsiveContainer width="100%" height={220}>
+                <AreaChart data={data.openRateByDate} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="rateGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor={CHART_COLORS.delivered} stopOpacity={0.2} />
+                      <stop offset="95%" stopColor={CHART_COLORS.delivered} stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid vertical={false} stroke="var(--color-border)" />
+                  <XAxis
+                    dataKey="date"
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fill: 'var(--color-text-tertiary)', fontSize: 11 }}
+                    minTickGap={40}
+                  />
+                  <YAxis
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fill: 'var(--color-text-tertiary)', fontSize: 11 }}
+                    tickFormatter={v => `${v}%`}
+                    width={40}
+                  />
+                  <Tooltip content={<RateTooltip />} />
+                  <Area
+                    type="monotone"
+                    dataKey={chartMetric}
+                    name={chartMetric === 'openRate' ? 'Open Rate' : 'Click Rate'}
+                    stroke={CHART_COLORS.delivered}
+                    strokeWidth={2}
+                    fill="url(#rateGrad)"
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── 5. Top Performing Emails ── */}
+      <div className="ea-section">
+        <div className="ea-section-header ea-row-between">
+          <div>
+            <h3>Top Performing Emails</h3>
+            <p>List of top performing emails based on {tableSort === 'openRate' ? 'Open Rate' : 'Click Rate'}</p>
+          </div>
+          <select
+            className="ea-attr-select"
+            value={tableSort}
+            onChange={e => setTableSort(e.target.value as any)}
+          >
+            <option value="openRate">Open Rate</option>
+            <option value="clickRate">Click Rate</option>
+          </select>
+        </div>
+        <div className="ea-table-controls">
+          <label className="ea-toggle-label">
+            <div className={`ea-toggle${showNumbers ? ' active' : ''}`} onClick={() => setShowNumbers(!showNumbers)}>
+              <div className="ea-toggle-dot" />
+            </div>
+            Show statistics in numbers
+          </label>
+        </div>
+        <div className="ea-table-wrap">
+          <table className="ea-table">
+            <thead>
+              <tr>
+                <th>Title</th>
+                <th>Execution Date</th>
+                <th>Delivered</th>
+                <th>Open Rate</th>
+                <th>Click Rate</th>
+                <th>Revenue</th>
+              </tr>
+            </thead>
+            <tbody>
+              {topCampaigns.map(c => (
+                <tr key={c.id}>
+                  <td>
+                    <div className="ea-table-title">
+                      <Calendar size={14} />
+                      {c.name}
+                    </div>
+                  </td>
+                  <td>{new Date(c.sentAt).toLocaleDateString('en-GB', { month: 'short', day: 'numeric', year: 'numeric' })} {new Date(c.sentAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}</td>
+                  <td>{c.delivered.toLocaleString()}</td>
+                  <td>{showNumbers ? c.opened.toLocaleString() : formatVal(c.openRate, true)}</td>
+                  <td>{showNumbers ? c.clicked.toLocaleString() : formatVal(c.clickRate, true)}</td>
+                  <td>{c.revenue > 0 ? `£${c.revenue.toFixed(0)}` : '0'}</td>
+                </tr>
+              ))}
+              {topCampaigns.length === 0 && (
+                <tr><td colSpan={6} className="ea-table-empty">No campaigns in this period</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* ── 6. Most Recent Emails ── */}
+      <div className="ea-section">
+        <div className="ea-section-header ea-row-between">
+          <div>
+            <h3>Most Recent Emails</h3>
+            <p>Latest campaign metrics for quick comparison, regardless of time range</p>
+          </div>
+          <div className="ea-search-wrap">
+            <Search size={14} />
+            <input
+              className="ea-search-input"
+              placeholder="Search Campaign Name"
+              value={tableSearch}
+              onChange={e => setTableSearch(e.target.value)}
+            />
+          </div>
+        </div>
+        <div className="ea-table-controls">
+          <label className="ea-toggle-label">
+            <div className={`ea-toggle${showNumbers ? ' active' : ''}`} onClick={() => setShowNumbers(!showNumbers)}>
+              <div className="ea-toggle-dot" />
+            </div>
+            Show statistics in numbers
+          </label>
+        </div>
+        <div className="ea-table-wrap">
+          <table className="ea-table">
+            <thead>
+              <tr>
+                <th>Title</th>
+                <th>Execution Date</th>
+                <th>Recipients</th>
+                <th>Open Rate</th>
+                <th>Click Rate</th>
+                <th>Revenue</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredRecent.map(c => (
+                <tr key={c.id}>
+                  <td>
+                    <div className="ea-table-title">
+                      <Calendar size={14} />
+                      {c.name}
+                    </div>
+                  </td>
+                  <td>{new Date(c.sentAt).toLocaleDateString('en-GB', { month: 'short', day: 'numeric', year: 'numeric' })} {new Date(c.sentAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}</td>
+                  <td>{c.totalRecipients.toLocaleString()}</td>
+                  <td>{showNumbers ? c.opened.toLocaleString() : formatVal(c.openRate, true)}</td>
+                  <td>{showNumbers ? c.clicked.toLocaleString() : formatVal(c.clickRate, true)}</td>
+                  <td>{c.revenue > 0 ? `£${c.revenue.toFixed(0)}` : '0'}</td>
+                </tr>
+              ))}
+              {filteredRecent.length === 0 && (
+                <tr><td colSpan={6} className="ea-table-empty">No campaigns found</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
   );
 }

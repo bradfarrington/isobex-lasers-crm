@@ -6,6 +6,7 @@ import { supabase } from '@/lib/supabase';
 import * as api from '@/lib/api';
 import type { LookupItem } from '@/types/database';
 import { useAlert } from '@/components/ui/AlertDialog';
+import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import {
   Plus, Pencil, Trash2, X, Check, Mail, Save, Send, Loader2,
   CheckCircle2, Info, ListFilter, Building2, Star, CreditCard, Activity, Copy
@@ -1015,19 +1016,19 @@ function GooglePanel() {
           {accounts.length > 1 && (
             <div className="smtp-field" style={{ marginBottom: 'var(--space-4)' }}>
               <label className="smtp-field-label">Business Account</label>
-              <select
+              <SearchableSelect
                 className="smtp-field-input"
                 value={selectedAccount}
-                onChange={async (e) => {
-                  setSelectedAccount(e.target.value);
-                  if (e.target.value) await loadLocations(e.target.value);
+                onChange={async (val) => {
+                  setSelectedAccount(val);
+                  if (val) await loadLocations(val);
                 }}
-              >
-                <option value="">Select an account…</option>
-                {accounts.map(a => (
-                  <option key={a.name} value={a.name}>{a.accountName || a.name}</option>
-                ))}
-              </select>
+                searchable={false}
+                options={[
+                  { label: 'Select an account…', value: '' },
+                  ...accounts.map(a => ({ label: a.accountName || a.name, value: a.name }))
+                ]}
+              />
             </div>
           )}
 

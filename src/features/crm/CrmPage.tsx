@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { PageShell } from '@/components/layout/PageShell';
 import { useData } from '@/context/DataContext';
 import { useAlert } from '@/components/ui/AlertDialog';
+import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import * as api from '@/lib/api';
 import type { Contact, ContactInsert, ContactType } from '@/types/database';
 import {
@@ -471,23 +472,18 @@ export function CrmPage() {
                 {form.contact_type === 'Customer' && (
                   <div className="form-group">
                     <label>Company</label>
-                    <select
+                    <SearchableSelect
                       className="form-select"
                       value={form.company_id ?? ''}
-                      onChange={(e) =>
+                      onChange={(val) =>
                         setForm({
                           ...form,
-                          company_id: e.target.value || null,
+                          company_id: val || null,
                         })
                       }
-                    >
-                      <option value="">No company</option>
-                      {state.companies.map((company) => (
-                        <option key={company.id} value={company.id}>
-                          {company.name}
-                        </option>
-                      ))}
-                    </select>
+                      options={state.companies.map((company) => ({ label: company.name, value: company.id }))}
+                      placeholder="No company"
+                    />
                   </div>
                 )}
 

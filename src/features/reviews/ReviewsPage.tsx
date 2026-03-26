@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { PageShell } from '@/components/layout/PageShell';
 import { useAlert } from '@/components/ui/AlertDialog';
+import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { supabase } from '@/lib/supabase';
 import * as api from '@/lib/api';
 import type { GooglePlaceOverview, GoogleReview, ReviewRequest } from '@/types/database';
@@ -212,18 +213,21 @@ function AllReviewsTab() {
         <div className="toolbar-group">
           <Filter size={16} color="var(--color-text-tertiary)" />
           <span>Filter by Rating:</span>
-          <select
+          <SearchableSelect
             className="form-select"
-            value={filterRating || ''}
-            onChange={e => setFilterRating(e.target.value ? Number(e.target.value) : null)}
-          >
-            <option value="">All Ratings</option>
-            <option value="5">5 Stars</option>
-            <option value="4">4 Stars</option>
-            <option value="3">3 Stars</option>
-            <option value="2">2 Stars</option>
-            <option value="1">1 Star</option>
-          </select>
+            value={filterRating ? filterRating.toString() : ''}
+            onChange={val => setFilterRating(val ? Number(val) : null)}
+            searchable={false}
+            sort={false}
+            options={[
+              { label: 'All Ratings', value: '' },
+              { label: '5 Stars', value: '5' },
+              { label: '4 Stars', value: '4' },
+              { label: '3 Stars', value: '3' },
+              { label: '2 Stars', value: '2' },
+              { label: '1 Star', value: '1' },
+            ]}
+          />
         </div>
       </div>
 
