@@ -166,21 +166,13 @@ function StorefrontShell() {
             )}
           </Link>
 
-          <nav className={`sf-nav ${menuOpen ? 'open' : ''}`}>
-            {menuOpen && (
-              <div className="sf-nav-close-header" style={{ backgroundColor: hBg }}>
-                <span style={{ fontWeight: 700, fontSize: '1.125rem', color: hColor }}>Menu</span>
-                <button onClick={() => setMenuOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: hColor, padding: 4 }}>
-                  <X size={22} />
-                </button>
-              </div>
-            )}
-            <Link to={sfPath('/')} className="sf-nav-link" style={{ color: menuOpen ? 'var(--sf-text)' : hColor }} onClick={() => setMenuOpen(false)}>Home</Link>
-            <Link to={sfPath('/products')} className="sf-nav-link" style={{ color: menuOpen ? 'var(--sf-text)' : hColor }} onClick={() => setMenuOpen(false)}>Products</Link>
-            <Link to={sfPath('/collections')} className="sf-nav-link" style={{ color: menuOpen ? 'var(--sf-text)' : hColor }} onClick={() => setMenuOpen(false)}>Collections</Link>
-            <Link to={sfPath('/gift-cards')} className="sf-nav-link" style={{ color: menuOpen ? 'var(--sf-text)' : hColor }} onClick={() => setMenuOpen(false)}>Gift Cards</Link>
+          <nav className="sf-nav desktop-only">
+            <Link to={sfPath('/')} className="sf-nav-link" style={{ color: hColor }}>Home</Link>
+            <Link to={sfPath('/products')} className="sf-nav-link" style={{ color: hColor }}>Products</Link>
+            <Link to={sfPath('/collections')} className="sf-nav-link" style={{ color: hColor }}>Collections</Link>
+            <Link to={sfPath('/gift-cards')} className="sf-nav-link" style={{ color: hColor }}>Gift Cards</Link>
             {navLinks.map((link, i) => (
-              <Link key={i} to={link.url} className="sf-nav-link" style={{ color: menuOpen ? 'var(--sf-text)' : hColor }} onClick={() => setMenuOpen(false)}>{link.label}</Link>
+              <Link key={i} to={link.url} className="sf-nav-link" style={{ color: hColor }}>{link.label}</Link>
             ))}
           </nav>
 
@@ -193,6 +185,23 @@ function StorefrontShell() {
 
       {/* Mobile menu overlay */}
       <div className={`sf-mobile-menu-overlay ${menuOpen ? 'open' : ''}`} onClick={() => setMenuOpen(false)} />
+
+      {/* Mobile nav drawer */}
+      <nav className={`sf-nav-mobile ${menuOpen ? 'open' : ''}`} style={{ backgroundColor: hBg }}>
+        <div className="sf-nav-close-header" style={{ backgroundColor: hBg }}>
+          <span style={{ fontWeight: 700, fontSize: '1.125rem', color: hColor }}>Menu</span>
+          <button onClick={() => setMenuOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: hColor, padding: 4 }}>
+            <X size={22} />
+          </button>
+        </div>
+        <Link to={sfPath('/')} className="sf-nav-link" style={{ color: hColor }} onClick={() => setMenuOpen(false)}>Home</Link>
+        <Link to={sfPath('/products')} className="sf-nav-link" style={{ color: hColor }} onClick={() => setMenuOpen(false)}>Products</Link>
+        <Link to={sfPath('/collections')} className="sf-nav-link" style={{ color: hColor }} onClick={() => setMenuOpen(false)}>Collections</Link>
+        <Link to={sfPath('/gift-cards')} className="sf-nav-link" style={{ color: hColor }} onClick={() => setMenuOpen(false)}>Gift Cards</Link>
+        {navLinks.map((link, i) => (
+          <Link key={i} to={link.url} className="sf-nav-link" style={{ color: hColor }} onClick={() => setMenuOpen(false)}>{link.label}</Link>
+        ))}
+      </nav>
 
       {/* Main content */}
       <main className="sf-main">
