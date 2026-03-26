@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { ProtectedRoute } from '@/components/layout/ProtectedRoute';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { DashboardPage } from '@/features/dashboard/DashboardPage';
 import { CrmPage } from '@/features/crm/CrmPage';
@@ -35,6 +36,9 @@ import { StorefrontCheckout } from '@/features/storefront/StorefrontCheckout';
 import { StorefrontThankYou } from '@/features/storefront/StorefrontThankYou';
 import { StorefrontGiftCards } from '@/features/storefront/StorefrontGiftCards';
 import { UnsubscribePage } from '@/features/storefront/UnsubscribePage';
+import { LoginPage } from '@/features/auth/LoginPage';
+import { ForgotPasswordPage } from '@/features/auth/ForgotPasswordPage';
+import { ResetPasswordPage } from '@/features/auth/ResetPasswordPage';
 
 /**
  * Detect if the app is being served on a custom storefront domain.
@@ -80,39 +84,47 @@ export function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route element={<AppLayout />}>
-          <Route index element={<DashboardPage />} />
-          <Route path="crm" element={<CrmPage />} />
-          <Route path="crm/:id" element={<ContactDetailPage />} />
-          <Route path="companies" element={<CompaniesPage />} />
-          <Route path="pipeline" element={<PipelinePage />} />
-          {/* Store sub-routes */}
-          <Route path="store" element={<StorePage />} />
-          <Route path="store/new" element={<ProductEditorPage />} />
-          <Route path="store/:id" element={<ProductEditorPage />} />
-          <Route path="store/collections" element={<CollectionsPage />} />
-          <Route path="store/inventory" element={<InventoryPage />} />
-          <Route path="store/gift-cards" element={<GiftCardsPage />} />
-          <Route path="store/discounts" element={<DiscountsPage />} />
-          <Route path="store/shipping" element={<ShippingPage />} />
-          <Route path="store/seo" element={<SeoPage />} />
-          <Route path="store/domain" element={<DomainPage />} />
+        {/* Public Auth Routes */}
+        <Route path="login" element={<LoginPage />} />
+        <Route path="forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="update-password" element={<ResetPasswordPage />} />
 
-          <Route path="orders" element={<OrdersPage />} />
-          <Route path="orders/:id" element={<OrderDetailPage />} />
-          <Route path="email-marketing" element={<EmailMarketingPage />} />
-          <Route path="email-marketing/builder" element={<EmailBuilderPage />} />
-          <Route path="email-marketing/builder/:id" element={<EmailBuilderPage />} />
-          <Route path="reviews" element={<ReviewsPage />} />
-          <Route path="documents" element={<DocumentsPage />} />
-          <Route path="installations" element={<InstallationsPage />} />
-          <Route path="support" element={<SupportPage />} />
-          <Route path="reporting" element={<ReportingPage />} />
-          <Route path="settings" element={<SettingsPage />} />
+        {/* Protected CRM Routes */}
+        <Route element={<ProtectedRoute />}>
+          <Route element={<AppLayout />}>
+            <Route index element={<DashboardPage />} />
+            <Route path="crm" element={<CrmPage />} />
+            <Route path="crm/:id" element={<ContactDetailPage />} />
+            <Route path="companies" element={<CompaniesPage />} />
+            <Route path="pipeline" element={<PipelinePage />} />
+            {/* Store sub-routes */}
+            <Route path="store" element={<StorePage />} />
+            <Route path="store/new" element={<ProductEditorPage />} />
+            <Route path="store/:id" element={<ProductEditorPage />} />
+            <Route path="store/collections" element={<CollectionsPage />} />
+            <Route path="store/inventory" element={<InventoryPage />} />
+            <Route path="store/gift-cards" element={<GiftCardsPage />} />
+            <Route path="store/discounts" element={<DiscountsPage />} />
+            <Route path="store/shipping" element={<ShippingPage />} />
+            <Route path="store/seo" element={<SeoPage />} />
+            <Route path="store/domain" element={<DomainPage />} />
+
+            <Route path="orders" element={<OrdersPage />} />
+            <Route path="orders/:id" element={<OrderDetailPage />} />
+            <Route path="email-marketing" element={<EmailMarketingPage />} />
+            <Route path="email-marketing/builder" element={<EmailBuilderPage />} />
+            <Route path="email-marketing/builder/:id" element={<EmailBuilderPage />} />
+            <Route path="reviews" element={<ReviewsPage />} />
+            <Route path="documents" element={<DocumentsPage />} />
+            <Route path="installations" element={<InstallationsPage />} />
+            <Route path="support" element={<SupportPage />} />
+            <Route path="reporting" element={<ReportingPage />} />
+            <Route path="settings" element={<SettingsPage />} />
+          </Route>
+
+          {/* Unified Store Builder — Full-width, no CRM chrome */}
+          <Route path="store/builder" element={<UnifiedBuilder />} />
         </Route>
-
-        {/* Unified Store Builder — Full-width, no CRM chrome */}
-        <Route path="store/builder" element={<UnifiedBuilder />} />
 
         {/* Public: Unsubscribe */}
         <Route path="unsubscribe/:token" element={<UnsubscribePage />} />

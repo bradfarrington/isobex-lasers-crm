@@ -1,5 +1,7 @@
 import { Menu, PanelLeftClose, Sun, Moon } from 'lucide-react';
 import { useTheme } from '@/hooks/useTheme';
+import { supabase } from '@/lib/supabase';
+import { useAlert } from '@/components/ui/AlertDialog';
 import { GlobalSearch } from './GlobalSearch';
 import './TopHeader.css';
 
@@ -10,6 +12,19 @@ interface TopHeaderProps {
 
 export function TopHeader({ onToggleSidebar, sidebarOpen }: TopHeaderProps) {
   const { theme, toggleTheme } = useTheme();
+  const { showConfirm } = useAlert();
+
+  const handleLogout = async () => {
+    const confirmed = await showConfirm({
+      title: 'Sign Out',
+      message: 'Are you sure you want to sign out?',
+      confirmLabel: 'Sign Out',
+    });
+
+    if (confirmed) {
+      await supabase.auth.signOut();
+    }
+  };
 
   return (
     <header className="top-header">
@@ -35,9 +50,14 @@ export function TopHeader({ onToggleSidebar, sidebarOpen }: TopHeaderProps) {
         >
           {theme === 'light' ? <Moon size={18} /> : <Sun size={18} />}
         </button>
-        <div className="top-header-avatar">
+        <button 
+          className="top-header-avatar"
+          onClick={handleLogout}
+          title="Sign out"
+          style={{ cursor: 'pointer', border: 'none', padding: 0 }}
+        >
           <span>IL</span>
-        </div>
+        </button>
       </div>
     </header>
   );

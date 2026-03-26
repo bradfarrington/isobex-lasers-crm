@@ -570,6 +570,76 @@ Deno.serve(async (req: Request) => {
             await client.close();
             return jsonRes({ ok: true, sentTo: gc.recipient_email });
         }
+        // ─── Action: send_password_reset ────────────
+        if (action === 'send_password_reset') {
+            const { email, redirectTo } = body;
+            if (!email) return jsonRes({ error: 'Email is required' }, 400);
+
+            // Generate recovery link using admin API
+            const { data: linkData, error: linkErr } = await supabase.auth.admin.generateLink({
+                type: 'recovery',
+                email,
+                options: { redirectTo: redirectTo || undefined }
+            });
+
+            if (linkErr) {
+                console.error('generateLink error:', linkErr);
+                // We return success to prevent email enumeration attacks
+                return jsonRes({ ok: true }); 
+            }
+
+            const actionLink = linkData.properties?.action_link;
+            if (!actionLink) {
+                 return jsonRes({ error: 'Failed to generate action link' }, 500);
+            }
+
+            // Fetch business profile
+            const { data: bpData } = await supabase.from('business_profile').select('business_name').limit(1).single();
+            const businessName = bpData?.business_name || settings.smtp_from_name || 'Isobex Lasers';
+
+            // Fetch system template
+            const { data: template } = await supabase
+                .from('email_templates')
+                .select('mjml_source, subject')
+                .eq('is_system', true)
+                .eq('system_key', 'forgot_password')
+                .single();
+
+            const fpTags: Record<string, string> = {
+                '{{reset_password_link}}': actionLink,
+                '{{business_name}}': businessName,
+            };
+
+            function replaceFpTags(html: string): string {
+                let result = html;
+                for (const [tag, val] of Object.entries(fpTags)) {
+                    result = result.replace(new RegExp(tag.replace(/[{}]/g, '\\$&'), 'g'), val);
+                }
+                return result;
+            }
+
+            let emailHtml: string;
+            let emailSubject: string;
+
+            if (template?.mjml_source) {
+                emailHtml = replaceFpTags(template.mjml_source);
+                emailSubject = replaceFpTags(template.subject || 'Reset Your Password');
+            } else {
+                emailSubject = 'Reset Your Password';
+                emailHtml = `<!DOCTYPE html><html><head><meta charset="utf-8"></head><body style="font-family:Helvetica,Arial,sans-serif;margin:0;padding:0;background:#f4f4f4;"><div style="max-width:600px;margin:0 auto;background:#ffffff;"><div style="background:#1a1a1a;padding:30px 20px;text-align:center;"><h1 style="color:#ffffff;margin:0;font-size:24px;">${businessName}</h1></div><div style="padding:40px 30px;text-align:center;"><h2 style="margin-top:0;color:#1a1a1a;">Password Reset</h2><p style="color:#555;font-size:16px;line-height:1.6;margin-bottom:30px;">We received a request to reset your password. Click the link below to set a new password.</p><a href="${actionLink}" style="display:inline-block;background:#3b82f6;color:#ffffff;text-decoration:none;font-weight:bold;padding:14px 28px;border-radius:6px;font-size:16px;">Reset Password</a></div><div style="text-align:center;padding:20px;background:#f4f4f4;"><p style="font-size:12px;color:#aaa;margin:0;">This link will expire in 24 hours. • ${businessName}</p></div></div></body></html>`;
+            }
+
+            await client.send({
+                from: fromAddress,
+                to: email,
+                subject: emailSubject,
+                mimeContent: htmlMime(emailHtml),
+                replyTo,
+            });
+
+            await client.close();
+            return jsonRes({ ok: true });
+        }
 
         return jsonRes({ error: `Unknown action: ${action}` }, 400);
 

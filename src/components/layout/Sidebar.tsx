@@ -1,4 +1,5 @@
 import { useLocation, Link } from 'react-router-dom';
+import { Settings } from 'lucide-react';
 import { navigationSections } from '@/config/navigation';
 import { useTheme } from '@/hooks/useTheme';
 import './Sidebar.css';
@@ -64,9 +65,19 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
         ))}
       </nav>
 
-      {/* Footer */}
+      {/* Footer pinned settings */}
       <div className="sidebar-footer">
-        <div className="sidebar-version">v0.1.0</div>
+        <Link
+          to="/settings"
+          className={`sidebar-item ${isActive('/settings') ? 'active' : ''}`}
+          onClick={() => {
+            if (window.innerWidth <= 768) onClose();
+          }}
+        >
+          <Settings size={18} className="sidebar-item-icon" />
+          <span className="sidebar-item-label">Settings</span>
+          {isActive('/settings') && <div className="sidebar-item-indicator" />}
+        </Link>
       </div>
     </aside>
   );

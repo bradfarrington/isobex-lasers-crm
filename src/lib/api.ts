@@ -2105,6 +2105,19 @@ const SYSTEM_TEMPLATES = [
     ],
     settings: { width: 600, bodyBg: '#f4f4f4', contentBg: '#ffffff', fontFamily: "'Inter', sans-serif", textColor: '#1f2937', linkColor: '#dc2626', logoUrl: '', footerText: '© {{business_name}}', subject: 'You\'ve received a Gift Card! 🎁', previewText: 'Someone special sent you a gift card' },
   },
+  {
+    system_key: 'forgot_password',
+    name: 'Forgot Password',
+    subject: 'Reset Your Password',
+    blocks: [
+      { id: 'sys-fp-1', type: 'heading', data: { content: '<p style="text-align: center">Password Reset 🔒</p>', level: 'h2', color: '#1f2937', bgColor: '', fontFamily: '', padding: { top: 8, right: 0, bottom: 0, left: 0 } } },
+      { id: 'sys-fp-2', type: 'text', data: { content: '<p>Hi,</p><p>We received a request to reset your password. If you didn\'t make this request, you can safely ignore this email.</p><p>Otherwise, click the link below to set a new password:</p>', color: '', bgColor: '', fontFamily: '', padding: { top: 8, right: 20, bottom: 16, left: 20 } } },
+      { id: 'sys-fp-3', type: 'button', data: { text: 'Reset Password', url: '{{reset_password_link}}', color: '#ffffff', bgColor: '#111827', borderRadius: 6, padding: { top: 12, right: 24, bottom: 12, left: 24 } } },
+      { id: 'sys-fp-5', type: 'divider', data: { style: 'solid', color: '#e5e7eb', thickness: '1', width: '100', marginTop: '16', marginBottom: '8', padding: { top: 0, right: 0, bottom: 0, left: 0 } } },
+      { id: 'sys-fp-6', type: 'text', data: { content: '<p style="font-size: 12px; color: #888; text-align: center;">This link will expire in 24 hours. • {{business_name}}</p>', color: '', bgColor: '', fontFamily: '', padding: { top: 0, right: 20, bottom: 8, left: 20 } } },
+    ],
+    settings: { width: 600, bodyBg: '#f4f4f4', contentBg: '#ffffff', fontFamily: "'Inter', sans-serif", textColor: '#1f2937', linkColor: '#dc2626', logoUrl: '', footerText: '© {{business_name}}', subject: 'Reset Your Password', previewText: 'Link to reset your password' },
+  },
 ];
 
 async function seedSystemEmailTemplates(): Promise<void> {

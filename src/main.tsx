@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import { ThemeProvider } from '@/hooks/useTheme'
 import { DataProvider } from '@/context/DataContext'
 import { AlertProvider } from '@/components/ui/AlertDialog'
+import { AuthProvider } from '@/context/AuthContext'
 import { App } from '@/app/App'
 import '@/styles/variables.css'
 import '@/styles/reset.css'
@@ -15,7 +16,9 @@ createRoot(document.getElementById('root')!).render(
     <ThemeProvider>
       <DataProvider>
         <AlertProvider>
-          <App />
+          <AuthProvider>
+            <App />
+          </AuthProvider>
         </AlertProvider>
       </DataProvider>
     </ThemeProvider>
