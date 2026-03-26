@@ -13,6 +13,66 @@ function jsonRes(body: Record<string, unknown>, status = 200) {
     });
 }
 
+// ─── Gift Card Visual Builder (inline HTML for emails) ──────────────
+function buildGiftCardHtml(design: string, amount: number, code: string, recipientName: string): string {
+    const designs: Record<string, { bg: string; textColor: string; amountColor: string; codeColor: string; labelColor: string }> = {
+        classic: {
+            bg: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)',
+            textColor: '#ffffff',
+            amountColor: '#dc2626',
+            codeColor: 'rgba(255,255,255,0.7)',
+            labelColor: 'rgba(255,255,255,0.35)',
+        },
+        industrial: {
+            bg: 'linear-gradient(145deg, #2d2d2d 0%, #1a1a1a 40%, #111111 100%)',
+            textColor: '#e0e0e0',
+            amountColor: '#ffffff',
+            codeColor: '#888888',
+            labelColor: 'rgba(255,255,255,0.35)',
+        },
+        festive: {
+            bg: 'linear-gradient(135deg, #b91c1c 0%, #dc2626 40%, #ef4444 100%)',
+            textColor: '#ffffff',
+            amountColor: '#fef3c7',
+            codeColor: 'rgba(255,255,255,0.7)',
+            labelColor: 'rgba(255,255,255,0.35)',
+        },
+        minimal: {
+            bg: '#ffffff',
+            textColor: '#1a1a1a',
+            amountColor: '#dc2626',
+            codeColor: '#9ca3af',
+            labelColor: '#9ca3af',
+        },
+    };
+
+    const d = designs[design] || designs.classic;
+    const isMinimal = design === 'minimal';
+    const border = isMinimal ? 'border:1px solid #e5e7eb;' : '';
+    const formattedAmount = amount > 0 ? amount.toFixed(2) : '0.00';
+
+    return `<table cellpadding="0" cellspacing="0" border="0" width="400" style="max-width:400px;margin:0 auto;border-radius:16px;overflow:hidden;${border}background:${d.bg};font-family:'Inter',Helvetica,Arial,sans-serif;box-shadow:0 8px 32px rgba(0,0,0,0.18),0 2px 8px rgba(0,0,0,0.08);">
+  <tr><td style="padding:24px 24px 0 24px;">
+    <table cellpadding="0" cellspacing="0" border="0" width="100%">
+      <tr>
+        <td style="font-size:13px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:${d.textColor};">🎁 GIFT CARD</td>
+        <td style="text-align:right;font-size:11px;font-weight:700;letter-spacing:0.2em;text-transform:uppercase;color:${d.labelColor};">GIFT CARD</td>
+      </tr>
+    </table>
+  </td></tr>
+  <tr><td style="padding:20px 24px 4px 24px;">
+    <span style="font-size:20px;font-weight:600;color:${d.amountColor};opacity:0.8;">£</span>
+    <span style="font-size:40px;font-weight:800;letter-spacing:-0.02em;line-height:1;color:${d.amountColor};">${formattedAmount}</span>
+  </td></tr>
+  <tr><td style="padding:8px 24px 0 24px;">
+    <span style="font-family:'Courier New',monospace;font-size:14px;letter-spacing:0.15em;color:${d.codeColor};">${code}</span>
+  </td></tr>
+  <tr><td style="padding:16px 24px 24px 24px;">
+    <div style="font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:${d.textColor};">${recipientName}</div>
+  </td></tr>
+</table>`;
+}
+
 Deno.serve(async (req: Request) => {
     if (req.method === 'OPTIONS') {
         return new Response('ok', { headers: corsHeaders });
@@ -134,6 +194,10 @@ Deno.serve(async (req: Request) => {
             const shippingCost = Number(order.shipping_cost || 0);
             const vatAmount = Number(order.tax_amount || 0);
             const totalAmount = Number(order.total || 0);
+            const discountAmount = Number(order.discount_amount || 0);
+            const discountCode = order.discount_code || '';
+            const giftCardAmount = Number(order.gift_card_amount || 0);
+            const giftCardCode = order.gift_card_code || '';
 
             // Build items table HTML
             const itemRows = (order.items || []).map((item: { product_name: string; quantity: number; unit_price: number; product_image_url?: string | null }) => {
@@ -150,14 +214,26 @@ Deno.serve(async (req: Request) => {
             }).join('');
             const itemsTable = `<table style="width:100%;border-collapse:collapse;"><thead><tr style="background:#f9fafb;"><th style="padding:10px 12px;text-align:left;font-size:12px;color:#888;text-transform:uppercase;letter-spacing:0.5px;">Item</th><th style="padding:10px 12px;text-align:center;font-size:12px;color:#888;text-transform:uppercase;letter-spacing:0.5px;">Qty</th><th style="padding:10px 12px;text-align:right;font-size:12px;color:#888;text-transform:uppercase;letter-spacing:0.5px;">Price</th><th style="padding:10px 12px;text-align:right;font-size:12px;color:#888;text-transform:uppercase;letter-spacing:0.5px;">Total</th></tr></thead><tbody>${itemRows}</tbody></table>`;
 
-            // Build price breakdown HTML
-            const breakdownRows = [
+            // Build price breakdown HTML — conditionally include discount & gift card rows
+            const breakdownRows: string[] = [
                 `<tr><td style="padding:6px 12px;color:#555;">Subtotal</td><td style="padding:6px 12px;text-align:right;">£${subtotal.toFixed(2)}</td></tr>`,
-                `<tr><td style="padding:6px 12px;color:#555;">Shipping</td><td style="padding:6px 12px;text-align:right;">${shippingCost > 0 ? '£' + shippingCost.toFixed(2) : 'Free'}</td></tr>`,
-                `<tr><td style="padding:6px 12px;color:#555;">VAT (20%)</td><td style="padding:6px 12px;text-align:right;">£${vatAmount.toFixed(2)}</td></tr>`,
+            ];
+            if (discountAmount > 0) {
+                breakdownRows.push(`<tr><td style="padding:6px 12px;color:#16a34a;">Discount${discountCode ? ` (${discountCode})` : ''}</td><td style="padding:6px 12px;text-align:right;color:#16a34a;">-£${discountAmount.toFixed(2)}</td></tr>`);
+            }
+            if (giftCardAmount > 0) {
+                breakdownRows.push(`<tr><td style="padding:6px 12px;color:#16a34a;">Gift Card${giftCardCode ? ` (${giftCardCode})` : ''}</td><td style="padding:6px 12px;text-align:right;color:#16a34a;">-£${giftCardAmount.toFixed(2)}</td></tr>`);
+            }
+            breakdownRows.push(
+                `<tr><td style="padding:6px 12px;color:#555;">Shipping</td><td style="padding:6px 12px;text-align:right;">${shippingCost > 0 ? '£' + shippingCost.toFixed(2) : 'Free'}</td></tr>`
+            );
+            if (vatAmount > 0) {
+                breakdownRows.push(`<tr><td style="padding:6px 12px;color:#555;">VAT (20%)</td><td style="padding:6px 12px;text-align:right;">£${vatAmount.toFixed(2)}</td></tr>`);
+            }
+            breakdownRows.push(
                 `<tr style="border-top:2px solid #1a1a1a;"><td style="padding:10px 12px;font-weight:700;font-size:16px;">Total</td><td style="padding:10px 12px;text-align:right;font-weight:700;font-size:16px;color:#dc2626;">£${totalAmount.toFixed(2)}</td></tr>`,
-            ].join('');
-            const priceBreakdown = `<table style="width:100%;border-collapse:collapse;">${breakdownRows}</table>`;
+            );
+            const priceBreakdown = `<table style="width:100%;border-collapse:collapse;">${breakdownRows.join('')}</table>`;
 
             // Fetch business profile for {{business_name}}
             const { data: bpData } = await supabase.from('business_profile').select('business_name').limit(1).single();
@@ -399,6 +475,95 @@ Deno.serve(async (req: Request) => {
 
             await client.close();
             return jsonRes({ ok: true, sentTo: clientEmail });
+        }
+
+        // ─── Action: send_gift_card_notification ──────────
+        if (action === 'send_gift_card_notification') {
+            const { giftCardId } = body;
+            if (!giftCardId) return jsonRes({ error: 'giftCardId is required' }, 400);
+
+            // Fetch the gift card record
+            const { data: gc, error: gcErr } = await supabase
+                .from('gift_cards')
+                .select('*')
+                .eq('id', giftCardId)
+                .single();
+
+            if (gcErr || !gc) return jsonRes({ error: 'Gift card not found' }, 400);
+            if (!gc.recipient_email) return jsonRes({ error: 'Gift card has no recipient email' }, 400);
+
+            const recipientName = gc.recipient_name || 'Friend';
+            const senderName = body.senderName || 'Someone special';
+            const giftCardCode = gc.code;
+            const giftCardAmount = `£${Number(gc.initial_balance).toFixed(2)}`;
+            const giftCardMessage = gc.message || '';
+            const giftCardExpiry = gc.expires_at
+                ? new Date(gc.expires_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
+                : 'No expiry';
+            const designTemplate = gc.design_template || 'classic';
+
+            // Build the visual card HTML (used only if {{gift_card_visual}} is still in the template)
+            const giftCardVisual = buildGiftCardHtml(designTemplate, Number(gc.initial_balance), giftCardCode, recipientName);
+
+            // Fetch business profile
+            const { data: bpData } = await supabase.from('business_profile').select('business_name').limit(1).single();
+            const businessName = bpData?.business_name || settings.smtp_from_name || 'Our Store';
+
+            const messageIntro = giftCardMessage ? ` with a message` : '';
+
+            // Merge tags - Note: gift_card_amount intentionally omits the £ symbol here to prevent double ££ symbols in legacy templates that hardcoded the £ sign
+            const gcTags: Record<string, string> = {
+                '{{recipient_name}}': recipientName,
+                '{{sender_name}}': senderName,
+                '{{gift_card_code}}': giftCardCode,
+                '{{gift_card_amount}}': Number(gc.initial_balance).toFixed(2),
+                '{{gift_card_message}}': giftCardMessage,
+                '{{gift_card_message_intro}}': messageIntro,
+                '{{gift_card_expiry}}': giftCardExpiry,
+                '{{gift_card_visual}}': giftCardVisual,
+                '{{business_name}}': businessName,
+            };
+
+            function replaceGcTags(html: string): string {
+                let result = html;
+                for (const [tag, val] of Object.entries(gcTags)) {
+                    result = result.replace(new RegExp(tag.replace(/[{}]/g, '\\$&'), 'g'), val);
+                }
+                
+                // Inject message bubble for users who saved templates without the visual block dynamically picking it up
+                if (giftCardMessage && !html.includes('{{gift_card_message}}')) {
+                    const messageBubble = `<div style="max-width:400px;margin:24px auto;background:#f9fafb;border-radius:12px;padding:20px;font-style:italic;color:#555;font-size:15px;line-height:1.6;text-align:center;box-shadow:inset 0 2px 4px rgba(0,0,0,0.02);border:1px solid #f3f4f6;">"${giftCardMessage}"<div style="margin-top:12px;font-style:normal;font-weight:600;font-size:13px;color:#111827;letter-spacing:0.02em;">— ${senderName}</div></div>`;
+                    result = result.replace('To redeem your gift card', messageBubble + '<br/><br/>To redeem your gift card');
+                }
+                return result;
+            }
+
+            // Fetch system template
+            const { data: template } = await supabase
+                .from('email_templates')
+                .select('mjml_source, subject')
+                .eq('is_system', true)
+                .eq('system_key', 'gift_card_delivery')
+                .single();
+
+            let emailHtml: string;
+            let emailSubject: string;
+
+            if (template?.mjml_source) {
+                emailHtml = replaceGcTags(template.mjml_source);
+                emailSubject = replaceGcTags(template.subject || 'You\'ve received a Gift Card! 🎁');
+            } else {
+                // Fallback inline HTML
+                emailSubject = 'You\'ve received a Gift Card! 🎁';
+                const messageBlock = giftCardMessage
+                    ? `<div style="background:#f9fafb;border-radius:8px;padding:16px 20px;margin:16px 20px;font-style:italic;color:#555;font-size:14px;line-height:1.5;">"${giftCardMessage}"<div style="margin-top:8px;font-style:normal;font-size:12px;color:#888;">— ${senderName}</div></div>`
+                    : '';
+                emailHtml = `<!DOCTYPE html><html><head><meta charset="utf-8"></head><body style="font-family:Helvetica,Arial,sans-serif;margin:0;padding:0;background:#f4f4f4;"><div style="max-width:600px;margin:0 auto;background:#ffffff;"><div style="background:#1a1a1a;padding:30px 20px;text-align:center;"><h1 style="color:#ffffff;margin:0;font-size:24px;">${businessName}</h1></div><div style="padding:30px 20px;"><h2 style="margin-top:0;color:#dc2626;text-align:center;">You've Received a Gift Card! 🎁</h2><p>Hi ${recipientName},</p><p>${senderName} has sent you a gift card${messageIntro}!</p><div style="text-align:center;padding:20px 0;">${giftCardVisual}</div>${messageBlock}<p style="text-align:center;font-size:13px;color:#888;">To redeem your gift card, enter the code at checkout.</p></div><div style="text-align:center;padding:20px;background:#f4f4f4;"><p style="font-size:12px;color:#aaa;margin:0;">This gift card expires on ${giftCardExpiry}. • ${businessName}</p></div></div></body></html>`;
+            }
+
+            await client.send({ from: fromAddress, to: gc.recipient_email, subject: emailSubject, mimeContent: htmlMime(emailHtml), replyTo });
+            await client.close();
+            return jsonRes({ ok: true, sentTo: gc.recipient_email });
         }
 
         return jsonRes({ error: `Unknown action: ${action}` }, 400);

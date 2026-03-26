@@ -6,7 +6,13 @@ import type { GiftCardDesignTemplate, GiftCardInsert } from '@/types/database';
 import { Gift, CheckCircle, ArrowRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { sfPath } from './storefrontPaths';
+import { supabase } from '@/lib/supabase';
 import '../store/GiftCardDesign.css';
+import { loadStripe } from '@stripe/stripe-js';
+import { Elements, CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
+
+const stripePublishableKey = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY;
+const stripePromise = stripePublishableKey ? loadStripe(stripePublishableKey) : null;
 
 const DEFAULT_AMOUNTS = [25, 50, 75, 100, 150, 200];
 
@@ -30,6 +36,18 @@ function expiryMonthsToDate(months: number): string {
 }
 
 export function StorefrontGiftCards() {
+  if (!stripePromise) {
+    return <StorefrontGiftCardsInner />;
+  }
+
+  return (
+    <Elements stripe={stripePromise}>
+      <StorefrontGiftCardsInner />
+    </Elements>
+  );
+}
+
+function StorefrontGiftCardsInner() {
   const { formatPrice, config } = useStoreConfig();
   const currencySymbol = config?.currency_symbol || '£';
 
@@ -49,6 +67,11 @@ export function StorefrontGiftCards() {
   const showCustomAmount = tpl.showCustomAmount !== false;
   const validityMonths = tpl.validityMonths || 12;
 
+  const isTestMode = config?.test_mode === true;
+  const stripe = useStripe();
+  const elements = useElements();
+  const stripeEnabled = !isTestMode && !!stripePromise && !!stripe && !!elements;
+
   // Form state
   const [selectedDesign, setSelectedDesign] = useState<GiftCardDesignTemplate>('classic');
   const [selectedAmount, setSelectedAmount] = useState<number | null>(null);
@@ -56,6 +79,7 @@ export function StorefrontGiftCards() {
   const [recipientName, setRecipientName] = useState('');
   const [recipientEmail, setRecipientEmail] = useState('');
   const [senderName, setSenderName] = useState('');
+  const [buyerEmail, setBuyerEmail] = useState('');
   const [message, setMessage] = useState('');
   const [purchasing, setPurchasing] = useState(false);
   const [purchased, setPurchased] = useState(false);
@@ -89,6 +113,10 @@ export function StorefrontGiftCards() {
       setError('Please enter the recipient\'s name.');
       return;
     }
+    if (!buyerEmail.trim()) {
+      setError('Please enter your email address.');
+      return;
+    }
 
     setPurchasing(true);
     try {
@@ -97,7 +125,7 @@ export function StorefrontGiftCards() {
         code,
         initial_balance: effectiveAmount,
         current_balance: effectiveAmount,
-        purchaser_email: null,
+        purchaser_email: buyerEmail.trim(),
         recipient_email: recipientEmail.trim() || null,
         recipient_name: recipientName.trim(),
         message: message.trim() || null,
@@ -106,7 +134,100 @@ export function StorefrontGiftCards() {
         is_active: true,
       };
 
-      await api.createGiftCard(card);
+      const giftCard = await api.createGiftCard(card);
+
+      // Create a contact + order so the buyer gets an order confirmation
+      const buyerName = senderName.trim() || buyerEmail.trim();
+      const contact = await api.findOrCreateContact(buyerEmail.trim(), buyerName);
+
+      const order = await api.createOrder({
+        contact_id: contact.id,
+        company_id: null,
+        customer_email: buyerEmail.trim(),
+        customer_name: buyerName,
+        customer_phone: null,
+        shipping_address: null,
+        shipping_method: null,
+        shipping_cost: 0,
+        subtotal: effectiveAmount,
+        discount_amount: 0,
+        discount_code: null,
+        gift_card_amount: 0,
+        gift_card_code: null,
+        tax_amount: 0,
+        total: effectiveAmount,
+        status: isTestMode ? 'paid' : 'pending',
+        payment_intent_id: null,
+        payment_status: isTestMode ? 'paid' : 'unpaid',
+        tracking_number: null,
+        tracking_url: null,
+        shipping_carrier: null,
+        notes: isTestMode ? `[TEST ORDER] Gift Card Purchase — ${code}` : `Gift Card Purchase — ${code}`,
+      });
+
+      await api.createOrderItems([{
+        order_id: order.id,
+        product_id: null,
+        variant_id: null,
+        product_name: `Gift Card — ${formatPrice(effectiveAmount)}`,
+        variant_label: `For ${recipientName.trim()}`,
+        product_image_url: null,
+        sku: code,
+        quantity: 1,
+        unit_price: effectiveAmount,
+        total_price: effectiveAmount,
+        unit_weight_kg: 0,
+      }]);
+
+      // --- Stripe Payment ---
+      if (stripeEnabled && effectiveAmount > 0) {
+        // Call stripe-checkout edge function to create PaymentIntent
+        const { data: piData, error: piError } = await supabase.functions.invoke('stripe-checkout', {
+          body: { orderId: order.id },
+        });
+
+        if (piError || piData?.error) {
+          throw new Error(piData?.error || piError?.message || 'Failed to create payment');
+        }
+
+        const { clientSecret } = piData;
+
+        // Confirm the card payment
+        const cardElement = elements!.getElement(CardElement);
+        if (!cardElement) throw new Error('Card element not found');
+
+        const { error: confirmError } = await stripe!.confirmCardPayment(clientSecret, {
+          payment_method: {
+            card: cardElement,
+            billing_details: {
+              name: buyerName,
+              email: buyerEmail.trim(),
+            },
+          },
+        });
+
+        if (confirmError) {
+          setError(confirmError.message || 'Payment failed. Please try again.');
+          setPurchasing(false);
+          return;
+        }
+      }
+
+      // In test mode, trigger logic directly (webhook logic usually handles real payments)
+      if (isTestMode) {
+        // Send order confirmation to buyer
+        supabase.functions.invoke('send-email', {
+          body: { action: 'send_order_confirmation', orderId: order.id },
+        }).catch(err => console.error('Gift card buyer confirmation email failed:', err));
+
+        // Send gift card notification to recipient (if email provided)
+        if (recipientEmail.trim()) {
+          supabase.functions.invoke('send-email', {
+            body: { action: 'send_gift_card_notification', giftCardId: giftCard.id, senderName: buyerName },
+          }).catch(err => console.error('Gift card recipient notification email failed:', err));
+        }
+      }
+
       setPurchasedCode(code);
       setPurchased(true);
     } catch (err) {
@@ -257,7 +378,16 @@ export function StorefrontGiftCards() {
                   type="email"
                   value={recipientEmail}
                   onChange={(e) => setRecipientEmail(e.target.value)}
-                  placeholder="Optional — send them a notification"
+                  placeholder="Optional — send them the gift card"
+                />
+              </div>
+              <div className="sf-gc-field">
+                <label>Your Email *</label>
+                <input
+                  type="email"
+                  value={buyerEmail}
+                  onChange={(e) => setBuyerEmail(e.target.value)}
+                  placeholder="For your order confirmation"
                 />
               </div>
               <div className="sf-gc-field">
@@ -281,6 +411,51 @@ export function StorefrontGiftCards() {
             </div>
           </div>
 
+          {/* Payment Section */}
+          <div className="sf-gc-section">
+            <div className="sf-gc-section-number">{nextStep()}</div>
+            <h3>Payment</h3>
+            {isTestMode ? (
+              <div style={{
+                background: 'linear-gradient(135deg, rgba(245,158,11,0.08), rgba(217,119,6,0.08))',
+                border: '1px dashed #f59e0b',
+                borderRadius: 12,
+                padding: '1rem 1.25rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.75rem',
+                marginBottom: '1rem'
+              }}>
+                <span style={{ fontSize: '1.5rem' }}>🧪</span>
+                <div>
+                  <div style={{ fontWeight: 700, color: '#d97706', fontSize: '0.875rem', marginBottom: 2 }}>Test Mode Active</div>
+                  <div style={{ fontSize: '0.8125rem', color: '#92400e' }}>No payment required. This form will create a test card.</div>
+                </div>
+              </div>
+            ) : stripeEnabled ? (
+              <div className="sf-stripe-card-wrapper" style={{ marginBottom: '1rem' }}>
+                <CardElement
+                  options={{
+                    style: {
+                      base: {
+                        fontSize: '16px',
+                        color: '#1a1a1a',
+                        fontFamily: 'inherit',
+                        '::placeholder': { color: '#9ca3af' },
+                      },
+                      invalid: { color: '#ef4444' },
+                    },
+                    hidePostalCode: true,
+                  }}
+                />
+              </div>
+            ) : (
+              <p style={{ fontSize: '0.875rem', color: '#6b7280', marginBottom: '1rem' }}>
+                Payment processing is not configured yet. Purchases will be pending.
+              </p>
+            )}
+          </div>
+
           {/* Error */}
           {error && <div className="sf-gc-error">{error}</div>}
 
@@ -288,12 +463,14 @@ export function StorefrontGiftCards() {
           <button
             className="sf-gc-purchase-btn"
             onClick={handlePurchase}
-            disabled={purchasing || effectiveAmount < minimumAmount || !recipientName.trim()}
+            disabled={purchasing || effectiveAmount < minimumAmount || !recipientName.trim() || !buyerEmail.trim()}
             style={btnStyle}
           >
             {purchasing
               ? 'Processing...'
-              : `Purchase Gift Card — ${effectiveAmount >= minimumAmount ? formatPrice(effectiveAmount) : formatPrice(0)}`}
+              : isTestMode 
+                ? `Purchase (Test) — ${effectiveAmount >= minimumAmount ? formatPrice(effectiveAmount) : formatPrice(0)}`
+                : `Purchase Gift Card — ${effectiveAmount >= minimumAmount ? formatPrice(effectiveAmount) : formatPrice(0)}`}
           </button>
         </div>
 

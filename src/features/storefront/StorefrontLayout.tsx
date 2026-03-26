@@ -6,6 +6,7 @@ import { CartSidebar } from './CartSidebar';
 import { ShoppingCart, ShoppingBag, ShoppingBasket, Menu, X } from 'lucide-react';
 import { SocialIcon } from './SocialIcons';
 import { useState, useEffect } from 'react';
+import { useTracking } from '@/hooks/useTracking';
 import './StorefrontLayout.css';
 
 function StorefrontShell() {
@@ -13,6 +14,8 @@ function StorefrontShell() {
   const { cartCount, openCart } = useCart();
   const [menuOpen, setMenuOpen] = useState(false);
   const location = useLocation();
+
+  useTracking();
 
   // Close mobile menu on route change
   useEffect(() => { setMenuOpen(false); }, [location.pathname]);
@@ -110,6 +113,23 @@ function StorefrontShell() {
 
   return (
     <div className="storefront" style={themeVars as React.CSSProperties}>
+      {/* Test mode banner */}
+      {config?.test_mode && (
+        <div style={{
+          background: 'linear-gradient(90deg, #f59e0b, #d97706)',
+          color: '#fff',
+          textAlign: 'center',
+          padding: '8px 16px',
+          fontSize: '0.8125rem',
+          fontWeight: 700,
+          letterSpacing: '0.05em',
+          textTransform: 'uppercase' as const,
+          zIndex: 9999,
+        }}>
+          ⚠ Test Mode — Orders will not be charged
+        </div>
+      )}
+
       {/* Announcement bar */}
       {showAnnouncement && (
         <div 

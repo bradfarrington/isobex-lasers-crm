@@ -194,6 +194,44 @@ Deno.serve(async (req: Request) => {
             // Deduct inventory
             await deductInventory(supabase, orderId);
 
+            // Check if this order contains a gift card (no product/variant, sku is the code)
+            const { data: items } = await supabase
+                .from('order_items')
+                .select('sku, product_id, variant_id')
+                .eq('order_id', orderId);
+
+            let giftCardCode = null;
+            if (items) {
+                const gcItem = items.find((i: any) => !i.product_id && !i.variant_id && i.sku);
+                if (gcItem) {
+                    giftCardCode = gcItem.sku;
+                }
+            }
+
+            if (giftCardCode) {
+                const { data: gc } = await supabase
+                    .from('gift_cards')
+                    .select('id, recipient_email')
+                    .eq('code', giftCardCode)
+                    .single();
+
+                if (gc && gc.recipient_email) {
+                    const { data: order } = await supabase
+                        .from('orders')
+                        .select('customer_name')
+                        .eq('id', orderId)
+                        .single();
+
+                    await supabase.functions.invoke('send-email', {
+                        body: { 
+                            action: 'send_gift_card_notification', 
+                            giftCardId: gc.id, 
+                            senderName: order?.customer_name || 'Someone' 
+                        },
+                    }).catch(err => console.error('Webhook gift card notification failed:', err));
+                }
+            }
+
             // Send order confirmation + invoice emails
             await triggerEmail(supabase, 'send_order_confirmation', orderId);
             await triggerEmail(supabase, 'send_invoice', orderId);

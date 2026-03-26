@@ -6,6 +6,7 @@ import { useCart } from './useCart';
 import { supabase } from '@/lib/supabase';
 import * as api from '@/lib/api';
 import type { Product, ProductMedia, ProductOptionGroup, ProductVariant, LookupItem, ProductReview } from '@/types/database';
+import { trackEcommerceEvent } from '@/hooks/useTracking';
 import { Star } from 'lucide-react';
 
 export function StorefrontProductDetail({ previewSlug }: { previewSlug?: string } = {}) {
@@ -72,6 +73,13 @@ export function StorefrontProductDetail({ previewSlug }: { previewSlug?: string 
 
         const p = await api.fetchProductBySlug(fetchSlug);
         setProduct(p);
+
+        if (slug !== 'preview') {
+          trackEcommerceEvent('view_item', {
+            product_id: p.id,
+            value: p.price
+          });
+        }
 
         const [imgs, opts, vars, compat] = await Promise.all([
           api.fetchProductImages(p.id),
@@ -150,6 +158,12 @@ export function StorefrontProductDetail({ previewSlug }: { previewSlug?: string 
       weightKg: product.weight_kg || 0,
       sku: matchingVariant?.sku || product.sku || null,
       slug: product.slug || product.id,
+    });
+
+    trackEcommerceEvent('add_to_cart', {
+      product_id: product.id,
+      variant_id: matchingVariant?.id || undefined,
+      value: effectivePrice * quantity,
     });
 
     setAddedMsg(true);

@@ -201,6 +201,61 @@ function OrderDetailsPreview({ customData }: { customData?: Record<string, strin
 }
 
 
+/* ── Gift Card Visual Preview ── */
+function GiftCardVisualPreview({ data, customData }: { data: Record<string, any>; customData?: Record<string, string> }) {
+  const design = data.design || 'classic';
+  const designs: Record<string, { bg: string; textColor: string; amountColor: string; codeColor: string; labelColor: string }> = {
+    classic: { bg: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)', textColor: '#ffffff', amountColor: '#dc2626', codeColor: 'rgba(255,255,255,0.7)', labelColor: 'rgba(255,255,255,0.35)' },
+    industrial: { bg: 'linear-gradient(145deg, #2d2d2d 0%, #1a1a1a 40%, #111111 100%)', textColor: '#e0e0e0', amountColor: '#ffffff', codeColor: '#888888', labelColor: 'rgba(255,255,255,0.35)' },
+    festive: { bg: 'linear-gradient(135deg, #b91c1c 0%, #dc2626 40%, #ef4444 100%)', textColor: '#ffffff', amountColor: '#fef3c7', codeColor: 'rgba(255,255,255,0.7)', labelColor: 'rgba(255,255,255,0.35)' },
+    minimal: { bg: '#ffffff', textColor: '#1a1a1a', amountColor: '#dc2626', codeColor: '#9ca3af', labelColor: '#9ca3af' },
+  };
+  const d = designs[design] || designs.classic;
+  const isMinimal = design === 'minimal';
+  const recipientName = customData?.['{{recipient_name}}'] || '{{recipient_name}}';
+  const giftCardCode = customData?.['{{gift_card_code}}'] || '{{gift_card_code}}';
+  const giftCardAmount = customData?.['{{gift_card_amount}}'] || '{{gift_card_amount}}';
+
+  const p = data.padding || {};
+  const pad = `${p.top||0}px ${p.right||0}px ${p.bottom||0}px ${p.left||0}px`;
+
+  return (
+    <div style={{ padding: pad, textAlign: 'center' }}>
+      <div style={{
+        display: 'inline-block',
+        width: '100%',
+        maxWidth: 400,
+        borderRadius: 16,
+        overflow: 'hidden',
+        background: d.bg,
+        fontFamily: "'Inter', Helvetica, Arial, sans-serif",
+        boxShadow: '0 8px 32px rgba(0,0,0,0.18), 0 2px 8px rgba(0,0,0,0.08)',
+        border: isMinimal ? '1px solid #e5e7eb' : 'none',
+        textAlign: 'left',
+        padding: '24px',
+      }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
+          <span style={{ fontSize: 13, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase' as const, color: d.textColor }}>🎁 GIFT CARD</span>
+          <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.2em', textTransform: 'uppercase' as const, color: d.labelColor }}>GIFT CARD</span>
+        </div>
+        <div style={{ marginBottom: 8 }}>
+          <span style={{ fontSize: 20, fontWeight: 600, color: d.amountColor, opacity: 0.8 }}>£</span>
+          <span style={{ fontSize: 40, fontWeight: 800, letterSpacing: '-0.02em', lineHeight: 1, color: d.amountColor }}>
+            {giftCardAmount.replace('£', '')}
+          </span>
+        </div>
+        <div style={{ fontFamily: "'Courier New', monospace", fontSize: 14, letterSpacing: '0.15em', color: d.codeColor, marginBottom: 16 }}>
+          {giftCardCode}
+        </div>
+        <div style={{ fontSize: 13, fontWeight: 600, textTransform: 'uppercase' as const, letterSpacing: '0.06em', color: d.textColor }}>
+          {recipientName}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
 /* ═══════════════════════════════════════
    BLOCK PREVIEW (Canvas rendering)
    ═══════════════════════════════════════ */
@@ -307,6 +362,10 @@ export function BlockPreview({ block, isPreview = false, isMobile = false, onCol
     /* ── Order Details ── */
     case 'order_details':
       return <OrderDetailsPreview customData={customData} />;
+
+    /* ── Gift Card Visual ── */
+    case 'gift_card_visual':
+      return <GiftCardVisualPreview data={data} customData={customData} />;
 
     case 'columns': {
       const cols = data.columns || [];

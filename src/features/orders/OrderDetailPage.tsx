@@ -268,8 +268,55 @@ export function OrderDetailPage() {
     (trackingUrl.trim() || '') !== (order.tracking_url || '') ||
     (shippingCarrier.trim() || '') !== (order.shipping_carrier || '');
 
+  const isTestOrder = order.notes?.includes('[TEST ORDER]') || false;
+
+  const handleTestRefund = async () => {
+    const ok = await showConfirm({
+      title: 'Test Refund',
+      message: 'This is a test order — no real money will be refunded and inventory will not change. Mark this order as refunded?',
+      confirmLabel: 'Refund Test Order',
+    });
+    if (!ok) return;
+    setRefunding(true);
+    try {
+      // Just update statuses directly — no Stripe call, no inventory change
+      await api.updateOrderStatus(order.id, 'refunded', 'refunded');
+      // Send refund confirmation email
+      try {
+        await supabase.functions.invoke('send-email', {
+          body: { action: 'send_refund_confirmation', orderId: order.id },
+        });
+      } catch {}
+      const updated = await api.fetchOrder(order.id);
+      setOrder(updated);
+      showAlert({ title: 'Test Refund Complete', message: 'Order marked as refunded. No money was moved.', variant: 'success' });
+    } catch (err: any) {
+      showAlert({ title: 'Error', message: err?.message || 'Failed to process test refund.', variant: 'danger' });
+    } finally {
+      setRefunding(false);
+    }
+  };
+
   return (
     <PageShell title={`Order #${order.order_number}`} subtitle={formatDate(order.created_at)}>
+      {isTestOrder && (
+        <div style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: '0.375rem',
+          background: 'linear-gradient(135deg, rgba(245,158,11,0.1), rgba(217,119,6,0.1))',
+          border: '1px solid #f59e0b',
+          color: '#d97706',
+          padding: '0.375rem 0.75rem',
+          borderRadius: 8,
+          fontSize: '0.75rem',
+          fontWeight: 700,
+          letterSpacing: '0.03em',
+          marginBottom: '0.75rem',
+        }}>
+          🧪 Test Order
+        </div>
+      )}
       <div className="order-top-actions">
         <Link to="/orders" className="btn btn-ghost btn-sm">
           <ArrowLeft size={16} /> Back to Orders
@@ -398,7 +445,18 @@ export function OrderDetailPage() {
                 {sendingEmail === 'send_order_confirmation' ? <Loader2 size={14} className="spin" /> : <Mail size={14} />}
                 Send Confirmation
               </button>
-              {order.payment_intent_id && order.payment_status === 'paid' && (
+              {isTestOrder && order.payment_status !== 'refunded' && (
+                <button
+                  className="btn btn-sm"
+                  style={{ width: '100%', justifyContent: 'flex-start', background: '#f59e0b', color: '#fff', border: 'none' }}
+                  onClick={handleTestRefund}
+                  disabled={refunding}
+                >
+                  {refunding ? <Loader2 size={14} className="spin" /> : <RotateCcw size={14} />}
+                  {refunding ? 'Processing…' : 'Test Refund'}
+                </button>
+              )}
+              {!isTestOrder && order.payment_intent_id && order.payment_status === 'paid' && (
                 <button
                   className="btn btn-sm"
                   style={{ width: '100%', justifyContent: 'flex-start', background: '#ef4444', color: '#fff', border: 'none' }}

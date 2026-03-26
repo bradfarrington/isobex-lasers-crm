@@ -104,6 +104,34 @@
   font-weight: 600;
 }
 
+/* ─── Delete Button ─────────────────────── */
+
+.orders-col-actions {
+  text-align: right;
+  padding-right: 16px !important;
+  width: 40px;
+}
+
+.orders-delete-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 6px;
+  color: var(--color-text-secondary);
+  opacity: 0;
+  transition: opacity 0.2s, color 0.2s, background 0.2s;
+}
+
+.orders-table-row:hover .orders-delete-btn {
+  opacity: 1;
+}
+
+.orders-delete-btn:hover {
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.08);
+}
+
 /* ─── Order Detail Layout ───────────────── */
 
 .order-detail-layout {

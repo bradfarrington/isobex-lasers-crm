@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import * as api from '@/lib/api';
 import type { Order } from '@/types/database';
+import { trackEcommerceEvent } from '@/hooks/useTracking';
 
 export function StorefrontThankYou() {
   const { orderId } = useParams<{ orderId: string }>();
@@ -11,7 +12,15 @@ export function StorefrontThankYou() {
   useEffect(() => {
     if (!orderId) return;
     api.fetchOrder(orderId)
-      .then(setOrder)
+      .then(fetchedOrder => {
+        setOrder(fetchedOrder);
+        if (fetchedOrder) {
+          trackEcommerceEvent('purchase', {
+            order_id: fetchedOrder.id,
+            value: fetchedOrder.total,
+          });
+        }
+      })
       .catch(console.error)
       .finally(() => setLoading(false));
   }, [orderId]);

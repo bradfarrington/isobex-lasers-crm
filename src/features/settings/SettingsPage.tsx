@@ -8,7 +8,7 @@ import type { LookupItem } from '@/types/database';
 import { useAlert } from '@/components/ui/AlertDialog';
 import {
   Plus, Pencil, Trash2, X, Check, Mail, Save, Send, Loader2,
-  CheckCircle2, Info, ListFilter, Building2, Star, CreditCard
+  CheckCircle2, Info, ListFilter, Building2, Star, CreditCard, Activity, Copy
 } from 'lucide-react';
 import type { BusinessProfile } from '@/types/database';
 import './SettingsPage.css';
@@ -23,6 +23,7 @@ const TABS = [
   { id: 'email', label: 'Email / SMTP', icon: Mail },
   { id: 'payments', label: 'Payments', icon: CreditCard },
   { id: 'google', label: 'Google', icon: Star },
+  { id: 'tracking', label: 'Tracking Pixel', icon: Activity },
 ];
 
 export function SettingsPage() {
@@ -58,6 +59,7 @@ export function SettingsPage() {
           {activeTab === 'email' && <SmtpPanel />}
           {activeTab === 'payments' && <PaymentsPanel />}
           {activeTab === 'google' && <GooglePanel />}
+          {activeTab === 'tracking' && <TrackingPanel />}
         </div>
       </div>
     </PageShell>
@@ -1244,6 +1246,97 @@ function PaymentsPanel() {
             : <><Save size={16} /> Save Changes</>}
         </button>
       </div>
+
+      {/* Test Mode Section */}
+      <TestModeToggle />
+    </>
+  );
+}
+
+/* ═══════════════════════════════════════════
+   Test Mode Toggle (inside Payments panel)
+   ═══════════════════════════════════════════ */
+
+function TestModeToggle() {
+  const { showAlert } = useAlert();
+  const [testMode, setTestMode] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [toggling, setToggling] = useState(false);
+
+  useEffect(() => {
+    api.fetchStoreConfig()
+      .then((cfg) => setTestMode(cfg.test_mode ?? false))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  const handleToggle = async () => {
+    const newValue = !testMode;
+    setToggling(true);
+    try {
+      await api.updateStoreConfig({ test_mode: newValue });
+      setTestMode(newValue);
+      showAlert({
+        title: newValue ? 'Test Mode Enabled' : 'Test Mode Disabled',
+        message: newValue
+          ? 'Orders placed on the storefront will skip payment and inventory. Test orders are marked with [TEST ORDER].'
+          : 'The storefront is back to live mode. Payments and inventory tracking are active.',
+        variant: newValue ? 'warning' : 'success',
+      });
+    } catch {
+      showAlert({ title: 'Error', message: 'Failed to update test mode.', variant: 'danger' });
+    } finally {
+      setToggling(false);
+    }
+  };
+
+  if (loading) return null;
+
+  return (
+    <>
+      <div style={{ borderTop: '1px solid var(--border)', margin: 'var(--space-8) 0' }} />
+      <div className="settings-section">
+        <div className="settings-section-title">Test Mode</div>
+        <div
+          className={`settings-integration-card ${testMode ? 'connected' : ''}`}
+          style={testMode ? { borderColor: '#f59e0b', background: 'rgba(245, 158, 11, 0.06)' } : {}}
+        >
+          <div className="settings-integration-icon" style={testMode ? { background: 'rgba(245, 158, 11, 0.12)', color: '#d97706' } : {}}>
+            {testMode ? <CheckCircle2 size={24} /> : <Info size={24} />}
+          </div>
+          <div className="settings-integration-info">
+            <h4>{testMode ? 'Test Mode is Active' : 'Test Mode'}</h4>
+            <p>Place test orders without processing real payments or affecting inventory levels.</p>
+          </div>
+          <div className="settings-integration-action">
+            <button
+              onClick={handleToggle}
+              disabled={toggling}
+              className={testMode ? 'btn-brand' : 'btn-outline'}
+              style={{
+                minWidth: 100,
+                padding: '0.5rem 1rem',
+                fontSize: '0.8125rem',
+                fontWeight: 600,
+                borderRadius: 8,
+                ...(testMode ? { background: '#f59e0b', borderColor: '#f59e0b' } : {}),
+              }}
+            >
+              {toggling ? <Loader2 size={14} className="spin" /> : testMode ? 'Disable' : 'Enable'}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div className="smtp-info-box" style={testMode ? { borderColor: '#f59e0b', background: 'rgba(245, 158, 11, 0.06)' } : {}}>
+        <Info size={14} />
+        <span>
+          When test mode is enabled: <strong>no real payments</strong> are taken,{' '}
+          <strong>inventory levels are unchanged</strong>, and discount/gift card codes are not consumed.
+          Test orders are tagged with <code>[TEST ORDER]</code> so you can identify them.
+          Confirmation and refund emails will still send normally.
+        </span>
+      </div>
     </>
   );
 }
@@ -1324,6 +1417,113 @@ function TestEmailModal({ defaultEmail, onClose }: { defaultEmail: string; onClo
         </div>
       </div>
     </div>
+  );
+}
+
+/* ═══════════════════════════════════════════
+   Tracking Panel
+   ═══════════════════════════════════════════ */
+
+function TrackingPanel() {
+  const { showAlert } = useAlert();
+  const projectId = import.meta.env.VITE_SUPABASE_URL?.match(/https:\/\/([^.]+)\.supabase\.co/)?.[1] || 'your-project-id';
+  
+  const pixelCode = `<script>
+  (function() {
+    var sid = localStorage.getItem('isbx_session');
+    if(!sid) { sid = crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).substring(2); localStorage.setItem('isbx_session', sid); }
+    var track = function() {
+      fetch('https://${projectId}.supabase.co/functions/v1/track', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'page_view',
+          session_id: sid,
+          url: window.location.href,
+          path: window.location.pathname,
+          title: document.title,
+          referrer: document.referrer,
+          user_agent: navigator.userAgent,
+          device_type: /Mobi|Android/i.test(navigator.userAgent) ? 'mobile' : 'desktop'
+        })
+      }).catch(function(e) {});
+    };
+    track();
+    var pushState = history.pushState;
+    history.pushState = function() { pushState.apply(history, arguments); track(); };
+  })();
+</script>`;
+
+  const copyCode = async () => {
+    try {
+      await navigator.clipboard.writeText(pixelCode);
+      showAlert({ title: 'Copied', message: 'Tracking pixel copied to clipboard.', variant: 'success' });
+    } catch (err) {
+      showAlert({ title: 'Error', message: 'Failed to copy to clipboard.', variant: 'danger' });
+    }
+  };
+
+  return (
+    <>
+      <div className="settings-panel-head">
+        <h3>Tracking Pixel</h3>
+        <p className="settings-panel-desc">
+          Embed this lightweight tracking script into your Framer website settings. It will securely send all page visits to your CRM Analytics dashboard.
+        </p>
+      </div>
+
+      <div className="settings-integration-card connected">
+        <div className="settings-integration-icon">
+          <Activity size={24} />
+        </div>
+        <div className="settings-integration-info">
+          <h4>Framer Analytics Pixel</h4>
+          <p>Native website tracking without the complexity of Google Analytics.</p>
+        </div>
+        <div className="settings-integration-action">
+          <span className="badge badge-confirmed"><CheckCircle2 size={12} /> Ready</span>
+        </div>
+      </div>
+
+      <div className="settings-section">
+        <div className="settings-section-title">Installation Instructions</div>
+        <ol style={{ paddingLeft: '1.25rem', marginBottom: 'var(--space-6)', color: 'var(--color-text-secondary)', lineHeight: 1.6 }}>
+          <li>Go to your Framer project settings.</li>
+          <li>Navigate to the <strong>Site Settings &gt; General &gt; Custom Code</strong> section.</li>
+          <li>Paste the code below into the <strong>Start of &lt;head&gt; tag</strong> field.</li>
+          <li>Publish your site. Data will instantly start flowing into your CRM Reporting tab.</li>
+        </ol>
+
+        <div style={{ position: 'relative', marginTop: 'var(--space-4)' }}>
+          <pre style={{
+            background: 'var(--color-surface)',
+            border: '1px solid var(--border)',
+            padding: '1rem',
+            borderRadius: 8,
+            overflowX: 'auto',
+            fontSize: '0.8125rem',
+            color: 'var(--color-text-primary)'
+          }}>
+            <code>{pixelCode}</code>
+          </pre>
+          <button 
+            className="btn-outline" 
+            style={{ position: 'absolute', top: 12, right: 12, padding: '6px 12px' }}
+            onClick={copyCode}
+          >
+            <Copy size={14} style={{ marginRight: 6 }} /> Copy Code
+          </button>
+        </div>
+      </div>
+      
+      <div className="smtp-info-box" style={{ marginTop: 'var(--space-6)' }}>
+        <Info size={14} />
+        <span>
+          The script tracks page views, unique visitors, devices, and traffic sources automatically.
+          Ecommerce tracking (e.g. Add to Cart, Purchases) is handled automatically by the CRM storefront.
+        </span>
+      </div>
+    </>
   );
 }
 

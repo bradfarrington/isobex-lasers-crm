@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import * as api from '@/lib/api';
 import type { Order } from '@/types/database';
-import { ShoppingCart, Package } from 'lucide-react';
+import { ShoppingCart } from 'lucide-react';
 import './ContactOrdersTab.css';
 
 const STATUS_COLORS: Record<string, string> = {
@@ -72,19 +72,6 @@ export function ContactOrdersTab({ contactId }: Props) {
             <ShoppingCart size={32} />
             <h4>No orders yet</h4>
             <p>Orders linked to this contact will appear here.</p>
-          </div>
-        </div>
-        <div className="contact-detail-card">
-          <div className="contact-detail-card-header">
-            <div className="contact-detail-card-title">
-              <Package size={14} />
-              Installations
-            </div>
-          </div>
-          <div className="tab-placeholder">
-            <Package size={32} />
-            <h4>No installations yet</h4>
-            <p>Installation jobs for this contact will appear here.</p>
           </div>
         </div>
       </div>

@@ -498,6 +498,8 @@ export interface StoreConfig {
   // Currency
   currency_symbol: string;
   currency_code: string;
+  // Test mode
+  test_mode: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -597,6 +599,39 @@ export interface DiscountCode {
 
 export type DiscountCodeInsert = Omit<DiscountCode, 'id' | 'created_at' | 'updated_at' | 'current_uses'>;
 export type DiscountCodeUpdate = Partial<DiscountCodeInsert>;
+
+// ─── Analytics ──────────────────────────────────────────────
+
+export interface PageView {
+  id: string;
+  session_id: string;
+  url: string;
+  path: string;
+  title: string | null;
+  referrer: string | null;
+  user_agent: string | null;
+  device_type: 'desktop' | 'mobile' | 'tablet' | null;
+  browser: string | null;
+  country: string | null;
+  active_seconds: number;
+  created_at: string;
+}
+
+export type PageViewInsert = Omit<PageView, 'id' | 'created_at' | 'active_seconds'> & { active_seconds?: number };
+
+export interface EcommerceEvent {
+  id: string;
+  session_id: string;
+  event_type: 'view_item' | 'add_to_cart' | 'begin_checkout' | 'purchase' | 'form_view' | 'form_submit';
+  product_id: string | null;
+  variant_id: string | null;
+  order_id: string | null;
+  value: number | null;
+  currency: string;
+  created_at: string;
+}
+
+export type EcommerceEventInsert = Omit<EcommerceEvent, 'id' | 'created_at'>;
 
 // ─── Gift Cards ─────────────────────────────────────────────
 

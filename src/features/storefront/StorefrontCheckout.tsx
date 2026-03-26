@@ -9,6 +9,7 @@ import { sfPath } from './storefrontPaths';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements, CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import { supabase } from '@/lib/supabase';
+import { trackEcommerceEvent } from '@/hooks/useTracking';
 
 const stripePublishableKey = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY;
 const stripePromise = stripePublishableKey ? loadStripe(stripePublishableKey) : null;
@@ -63,6 +64,13 @@ function StorefrontCheckoutInner() {
   const [appliedGiftCard, setAppliedGiftCard] = useState<GiftCard | null>(null);
   const [giftCardError, setGiftCardError] = useState('');
 
+  // Track checkout start
+  useEffect(() => {
+    if (items.length > 0) {
+      trackEcommerceEvent('begin_checkout', { value: cartTotal });
+    }
+  }, []); // Run once on mount
+
   useEffect(() => {
     api.fetchShippingRatesForWeight(cartWeight)
       .then((rates) => {
@@ -114,7 +122,8 @@ function StorefrontCheckoutInner() {
     }
   };
 
-  const stripeEnabled = !!stripePromise && !!stripe && !!elements;
+  const isTestMode = config?.test_mode === true;
+  const stripeEnabled = !isTestMode && !!stripePromise && !!stripe && !!elements;
 
   const handlePlaceOrder = async () => {
     if (!email || !name || !line1 || !city || !postcode) return;
@@ -143,13 +152,13 @@ function StorefrontCheckoutInner() {
         gift_card_code: appliedGiftCard?.code || null,
         tax_amount: vatAmount,
         total,
-        status: 'pending',
+        status: isTestMode ? 'paid' : 'pending',
         payment_intent_id: null,
-        payment_status: 'unpaid',
+        payment_status: isTestMode ? 'paid' : 'unpaid',
         tracking_number: null,
         tracking_url: null,
         shipping_carrier: null,
-        notes: null,
+        notes: isTestMode ? '[TEST ORDER]' : null,
       });
 
       // Create order items
@@ -169,12 +178,14 @@ function StorefrontCheckoutInner() {
         }))
       );
 
-      // Post-order: increment discount usage, deduct gift card
-      if (appliedDiscount) {
-        await api.incrementDiscountCodeUsage(appliedDiscount.id);
-      }
-      if (appliedGiftCard && giftCardAmount > 0) {
-        await api.deductGiftCardBalance(appliedGiftCard.id, giftCardAmount);
+      // Post-order: increment discount usage, deduct gift card (skip in test mode)
+      if (!isTestMode) {
+        if (appliedDiscount) {
+          await api.incrementDiscountCodeUsage(appliedDiscount.id);
+        }
+        if (appliedGiftCard && giftCardAmount > 0) {
+          await api.deductGiftCardBalance(appliedGiftCard.id, giftCardAmount);
+        }
       }
 
       // --- Stripe Payment ---
@@ -219,6 +230,13 @@ function StorefrontCheckoutInner() {
         }
       } else if (!stripeEnabled && total > 0) {
         // Stripe not configured — order stays pending (legacy behaviour)
+      }
+
+      // In test mode, trigger confirmation email directly (normally Stripe webhook does this)
+      if (isTestMode) {
+        supabase.functions.invoke('send-email', {
+          body: { action: 'send_order_confirmation', orderId: order.id },
+        }).catch(err => console.error('Test order confirmation email failed:', err));
       }
 
       clearCart();
@@ -351,7 +369,23 @@ function StorefrontCheckoutInner() {
         {/* Payment */}
         <div className="sf-checkout-section" style={sectionStyle}>
           <h3>Payment</h3>
-          {stripeEnabled ? (
+          {isTestMode ? (
+            <div style={{
+              background: 'linear-gradient(135deg, rgba(245,158,11,0.08), rgba(217,119,6,0.08))',
+              border: '1px dashed #f59e0b',
+              borderRadius: 12,
+              padding: '1rem 1.25rem',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.75rem',
+            }}>
+              <span style={{ fontSize: '1.5rem' }}>🧪</span>
+              <div>
+                <div style={{ fontWeight: 700, color: '#d97706', fontSize: '0.875rem', marginBottom: 2 }}>Test Mode Active</div>
+                <div style={{ fontSize: '0.8125rem', color: '#92400e' }}>No payment required. This order will be processed as a test.</div>
+              </div>
+            </div>
+          ) : stripeEnabled ? (
             <div className="sf-stripe-card-wrapper">
               <CardElement
                 options={{
@@ -387,7 +421,7 @@ function StorefrontCheckoutInner() {
             borderRadius: `${buttonRadius}px`,
           }}
         >
-          {placing ? 'Processing Payment...' : `${buttonText} — ${formatPrice(total)}`}
+          {placing ? 'Processing...' : isTestMode ? `${buttonText} (Test) — ${formatPrice(total)}` : `${buttonText} — ${formatPrice(total)}`}
         </button>
       </div>
 

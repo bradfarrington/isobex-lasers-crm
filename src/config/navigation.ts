@@ -8,8 +8,6 @@ import {
   Mail,
   Star,
   FileText,
-  Wrench,
-  LifeBuoy,
   BarChart3,
   Settings,
 } from 'lucide-react';
@@ -33,18 +31,16 @@ export const navigationSections: NavSection[] = [
     ],
   },
   {
-    title: 'Marketing & Support',
+    title: 'Marketing',
     items: [
       { label: 'Email Marketing', path: '/email-marketing', icon: Mail },
       { label: 'Reviews', path: '/reviews', icon: Star },
-      { label: 'Support', path: '/support', icon: LifeBuoy },
     ],
   },
   {
     title: 'Operations',
     items: [
       { label: 'Documents', path: '/documents', icon: FileText },
-      { label: 'Installations', path: '/installations', icon: Wrench },
       { label: 'Reporting', path: '/reporting', icon: BarChart3 },
       { label: 'Settings', path: '/settings', icon: Settings },
     ],

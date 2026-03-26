@@ -198,8 +198,53 @@ export function blockToMjml(block: BlockData, gs: Record<string, any> = {}, pres
       }).join('');
       return `<mj-section padding="${ps}">${html}</mj-section>`;
     }
+    /* ── Gift Card Visual ── */
+    case 'gift_card_visual': {
+      return buildGiftCardMjml(data.design || 'classic', gs, ps, preserveTags, customData);
+    }
+
     default: return '';
   }
+}
+
+function buildGiftCardMjml(design: string, gs: Record<string, any>, ps: string, preserveTags: boolean, customData?: Record<string, string>): string {
+  const designs: Record<string, { bg: string; textColor: string; amountColor: string; codeColor: string; labelColor: string }> = {
+    classic: { bg: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)', textColor: '#ffffff', amountColor: '#dc2626', codeColor: 'rgba(255,255,255,0.7)', labelColor: 'rgba(255,255,255,0.35)' },
+    industrial: { bg: 'linear-gradient(145deg, #2d2d2d 0%, #1a1a1a 40%, #111111 100%)', textColor: '#e0e0e0', amountColor: '#ffffff', codeColor: '#888888', labelColor: 'rgba(255,255,255,0.35)' },
+    festive: { bg: 'linear-gradient(135deg, #b91c1c 0%, #dc2626 40%, #ef4444 100%)', textColor: '#ffffff', amountColor: '#fef3c7', codeColor: 'rgba(255,255,255,0.7)', labelColor: 'rgba(255,255,255,0.35)' },
+    minimal: { bg: '#ffffff', textColor: '#1a1a1a', amountColor: '#dc2626', codeColor: '#9ca3af', labelColor: '#9ca3af' },
+  };
+  const d = designs[design] || designs.classic;
+  const isMinimal = design === 'minimal';
+  const border = isMinimal ? 'border:1px solid #e5e7eb;' : '';
+  const font = gs.fontFamily || "'Inter', sans-serif";
+
+  const recipientName = replaceMergeTags('{{recipient_name}}', preserveTags, customData);
+  const giftCardCode = replaceMergeTags('{{gift_card_code}}', preserveTags, customData);
+  const giftCardAmount = replaceMergeTags('{{gift_card_amount}}', preserveTags, customData);
+
+  const cardHtml = `<table cellpadding="0" cellspacing="0" border="0" width="400" style="max-width:400px;margin:0 auto;border-radius:16px;overflow:hidden;${border}background:${d.bg};font-family:'Inter',Helvetica,Arial,sans-serif;box-shadow:0 8px 32px rgba(0,0,0,0.18),0 2px 8px rgba(0,0,0,0.08);">
+  <tr><td style="padding:24px 24px 0 24px;">
+    <table cellpadding="0" cellspacing="0" border="0" width="100%">
+      <tr>
+        <td style="font-size:13px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:${d.textColor};">🎁 GIFT CARD</td>
+        <td style="text-align:right;font-size:11px;font-weight:700;letter-spacing:0.2em;text-transform:uppercase;color:${d.labelColor};">GIFT CARD</td>
+      </tr>
+    </table>
+  </td></tr>
+  <tr><td style="padding:20px 24px 4px 24px;">
+    <span style="font-size:20px;font-weight:600;color:${d.amountColor};opacity:0.8;">£</span>
+    <span style="font-size:40px;font-weight:800;letter-spacing:-0.02em;line-height:1;color:${d.amountColor};">${giftCardAmount.replace('£', '')}</span>
+  </td></tr>
+  <tr><td style="padding:8px 24px 0 24px;">
+    <span style="font-family:'Courier New',monospace;font-size:14px;letter-spacing:0.15em;color:${d.codeColor};">${giftCardCode}</span>
+  </td></tr>
+  <tr><td style="padding:16px 24px 24px 24px;">
+    <div style="font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:${d.textColor};">${recipientName}</div>
+  </td></tr>
+</table>`;
+
+  return `<mj-section padding="${ps}"><mj-column width="100%"><mj-text padding="0" font-family="${font}" align="center">${cardHtml}</mj-text></mj-column></mj-section>`;
 }
 
 export function generateEmailHtml(blocks: BlockData[], settings: Record<string, any>, preserveTags = false, customData?: Record<string, string>): string {
@@ -220,7 +265,7 @@ export function generateEmailHtml(blocks: BlockData[], settings: Record<string, 
   const blocksMjml = blocks.map(b => {
     const piece = blockToMjml(b, settings, preserveTags, customData);
     if (!piece) return '';
-    if (b.type === 'columns' || b.type === 'countdown' || b.type === 'product' || b.type === 'order_details') return piece;
+    if (b.type === 'columns' || b.type === 'countdown' || b.type === 'product' || b.type === 'order_details' || b.type === 'gift_card_visual') return piece;
     return `<mj-section padding="8px 0"><mj-column width="100%">${piece}</mj-column></mj-section>`;
   }).join('');
 

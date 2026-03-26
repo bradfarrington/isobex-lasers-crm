@@ -2091,6 +2091,20 @@ const SYSTEM_TEMPLATES = [
     ],
     settings: { width: 600, bodyBg: '#f4f4f4', contentBg: '#ffffff', fontFamily: "'Inter', sans-serif", textColor: '#1f2937', linkColor: '#dc2626', logoUrl: '', footerText: '© {{business_name}}', subject: 'Refund Processed — Order #{{order_number}}', previewText: 'Your refund has been processed' },
   },
+  {
+    system_key: 'gift_card_delivery',
+    name: 'Gift Card Delivery',
+    subject: 'You\'ve received a Gift Card! 🎁',
+    blocks: [
+      { id: 'sys-gc-1', type: 'heading', data: { content: '<p style="text-align: center">You\'ve Received a Gift Card! 🎁</p>', level: 'h2', color: '#dc2626', bgColor: '', fontFamily: '', padding: { top: 8, right: 0, bottom: 0, left: 0 } } },
+      { id: 'sys-gc-2', type: 'text', data: { content: '<p>Hi {{recipient_name}},</p><p>{{sender_name}} has sent you a gift card{{gift_card_message_intro}}!</p>', color: '', bgColor: '', fontFamily: '', padding: { top: 8, right: 20, bottom: 0, left: 20 } } },
+      { id: 'sys-gc-3', type: 'gift_card_visual', data: { padding: { top: 12, right: 20, bottom: 12, left: 20 } } },
+      { id: 'sys-gc-4', type: 'text', data: { content: '<p style="text-align: center; font-size: 13px; color: #888;">To redeem your gift card, enter the code above at checkout.</p>', color: '', bgColor: '', fontFamily: '', padding: { top: 4, right: 20, bottom: 0, left: 20 } } },
+      { id: 'sys-gc-5', type: 'divider', data: { style: 'solid', color: '#e5e7eb', thickness: '1', width: '100', marginTop: '8', marginBottom: '8', padding: { top: 0, right: 0, bottom: 0, left: 0 } } },
+      { id: 'sys-gc-6', type: 'text', data: { content: '<p style="font-size: 12px; color: #aaa; text-align: center;">This gift card expires on {{gift_card_expiry}}. • {{business_name}}</p>', color: '', bgColor: '', fontFamily: '', padding: { top: 0, right: 20, bottom: 8, left: 20 } } },
+    ],
+    settings: { width: 600, bodyBg: '#f4f4f4', contentBg: '#ffffff', fontFamily: "'Inter', sans-serif", textColor: '#1f2937', linkColor: '#dc2626', logoUrl: '', footerText: '© {{business_name}}', subject: 'You\'ve received a Gift Card! 🎁', previewText: 'Someone special sent you a gift card' },
+  },
 ];
 
 async function seedSystemEmailTemplates(): Promise<void> {
@@ -2103,26 +2117,19 @@ async function seedSystemEmailTemplates(): Promise<void> {
 
   for (const tpl of SYSTEM_TEMPLATES) {
     if (existingKeys.has(tpl.system_key)) {
-      // Update existing system template with latest block structure
-      await supabase.from('email_templates').update({
-        name: tpl.name,
-        subject: tpl.subject,
-        blocks: tpl.blocks,
-        settings: tpl.settings,
-        mjml_source: '',
-      }).eq('is_system', true).eq('system_key', tpl.system_key);
-    } else {
-      await supabase.from('email_templates').insert({
-        name: tpl.name,
-        subject: tpl.subject,
-        blocks: tpl.blocks,
-        settings: tpl.settings,
-        mjml_source: '',
-        active: true,
-        is_system: true,
-        system_key: tpl.system_key,
-      });
+      // Template already exists — do NOT overwrite user customizations
+      continue;
     }
+    await supabase.from('email_templates').insert({
+      name: tpl.name,
+      subject: tpl.subject,
+      blocks: tpl.blocks,
+      settings: tpl.settings,
+      mjml_source: '',
+      active: true,
+      is_system: true,
+      system_key: tpl.system_key,
+    });
   }
 }
 

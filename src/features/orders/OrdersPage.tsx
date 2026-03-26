@@ -2,9 +2,10 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PageShell } from '@/components/layout/PageShell';
 import * as api from '@/lib/api';
+import { supabase } from '@/lib/supabase';
 import type { Order } from '@/types/database';
 import './Orders.css';
-import { PackageCheck, Search } from 'lucide-react';
+import { PackageCheck, Search, Trash2 } from 'lucide-react';
 
 const STATUS_COLORS: Record<string, string> = {
   pending: '#f59e0b',
@@ -48,6 +49,21 @@ export function OrdersPage() {
     const matchesStatus = statusFilter === 'all' || order.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
+
+  const handleDelete = async (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    if (!confirm('Are you absolutely sure you want to delete this order? This action permanently removes it from the database and your analytics.')) return;
+    
+    // Optimistic UI Removal
+    setOrders(prev => prev.filter(o => o.id !== id));
+    
+    // Server Execution
+    const { error } = await supabase.from('orders').delete().eq('id', id);
+    if (error) {
+       console.error("Deletion failed:", error);
+       alert("Failed to delete the order from the server.");
+    }
+  };
 
   const formatDate = (d: string) =>
     new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
@@ -108,13 +124,28 @@ export function OrdersPage() {
                 <th>Status</th>
                 <th>Payment</th>
                 <th>Total</th>
+                <th style={{ width: 40 }}></th>
               </tr>
             </thead>
             <tbody>
               {filteredOrders.map((order) => (
-                <tr key={order.id} className="orders-table-row" onClick={() => navigate(`/orders/${order.id}`)}>
+                <tr key={order.id} className="orders-table-row group" onClick={() => navigate(`/orders/${order.id}`)}>
                   <td className="orders-col-number">
                     <strong>#{order.order_number}</strong>
+                    {order.notes?.includes('[TEST ORDER]') && (
+                      <span style={{
+                        display: 'inline-block',
+                        marginLeft: 6,
+                        padding: '1px 6px',
+                        fontSize: '0.625rem',
+                        fontWeight: 700,
+                        background: 'rgba(245,158,11,0.12)',
+                        color: '#d97706',
+                        borderRadius: 4,
+                        verticalAlign: 'middle',
+                        letterSpacing: '0.04em',
+                      }}>TEST</span>
+                    )}
                   </td>
                   <td className="orders-col-date">{formatDate(order.created_at)}</td>
                   <td className="orders-col-customer">
@@ -139,6 +170,15 @@ export function OrdersPage() {
                   </td>
                   <td className="orders-col-total">
                     <strong>£{Number(order.total).toFixed(2)}</strong>
+                  </td>
+                  <td className="orders-col-actions">
+                    <button 
+                       className="orders-delete-btn"
+                       onClick={(e) => handleDelete(e, order.id)}
+                       title="Delete Order"
+                    >
+                      <Trash2 size={16} />
+                    </button>
                   </td>
                 </tr>
               ))}
