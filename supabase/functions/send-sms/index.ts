@@ -76,7 +76,7 @@ serve(async (req) => {
         const senderName = profile.sms_sender_name || 'CRM';
 
         if (!twilioSid || !twilioAuthToken || !defaultFrom) {
-             return jsonResponse({ error: 'Twilio is not configured. Missing environment variables.' }, 400);
+             return jsonResponse({ error: 'SMS Provider is not configured. Missing environment variables.' }, 400);
         }
 
         let recipientPhone = phone;
@@ -191,8 +191,8 @@ serve(async (req) => {
                 status: `failed: ${twilioData.message || 'unknown'}`,
                 credits_used: 0
             });
-            console.error('Twilio Error:', twilioData);
-            return jsonResponse({ error: twilioData.message || 'Failed to send SMS via Twilio' }, 500);
+            console.error('SMS Provider Error:', twilioData);
+            return jsonResponse({ error: twilioData.message || 'Failed to send SMS' }, 500);
         }
         
     } catch (err) {

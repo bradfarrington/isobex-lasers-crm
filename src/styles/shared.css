@@ -383,5 +383,36 @@
 
   .modal {
     width: 95%;
+    max-height: 85vh;
+  }
+  
+  .modal-body {
+    padding: var(--space-4);
+  }
+}
+
+.desktop-only-builder-msg {
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  text-align: center;
+  padding: 2rem;
+  background: var(--color-bg-surface);
+  color: var(--color-text-secondary);
+}
+
+.desktop-only-builder-msg svg {
+  margin-bottom: 1rem;
+  opacity: 0.5;
+}
+
+@media (max-width: 1024px) {
+  .desktop-only-builder-msg {
+    display: flex;
+  }
+  .builder-desktop-wrapper {
+    display: none !important;
   }
 }

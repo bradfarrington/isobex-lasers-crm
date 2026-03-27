@@ -6,7 +6,7 @@ import {
   useCallback,
   type ReactNode,
 } from 'react';
-import type { Contact, Company, LookupItem } from '@/types/database';
+import type { Contact, Company, LookupItem, Tag } from '@/types/database';
 import * as api from '@/lib/api';
 import type { DashboardStats } from '@/lib/api';
 
@@ -15,6 +15,7 @@ import type { DashboardStats } from '@/lib/api';
 interface DataState {
   contacts: Contact[];
   companies: Company[];
+  tags: Tag[];
   leadSources: LookupItem[];
   leadStatuses: LookupItem[];
   companyStatuses: LookupItem[];
@@ -28,6 +29,7 @@ interface DataState {
 const initialState: DataState = {
   contacts: [],
   companies: [],
+  tags: [],
   leadSources: [],
   leadStatuses: [],
   companyStatuses: [],
@@ -50,6 +52,9 @@ type Action =
   | { type: 'SET_ERROR'; payload: string | null }
   | { type: 'SET_CONTACTS'; payload: Contact[] }
   | { type: 'SET_COMPANIES'; payload: Company[] }
+  | { type: 'SET_TAGS'; payload: Tag[] }
+  | { type: 'ADD_TAG'; payload: Tag }
+  | { type: 'DELETE_TAG'; payload: string }
   | { type: 'SET_LEAD_SOURCES'; payload: LookupItem[] }
   | { type: 'SET_LEAD_STATUSES'; payload: LookupItem[] }
   | { type: 'SET_COMPANY_STATUSES'; payload: LookupItem[] }
@@ -77,6 +82,12 @@ function dataReducer(state: DataState, action: Action): DataState {
       return { ...state, contacts: action.payload };
     case 'SET_COMPANIES':
       return { ...state, companies: action.payload };
+    case 'SET_TAGS':
+      return { ...state, tags: action.payload };
+    case 'ADD_TAG':
+      return { ...state, tags: [...state.tags, action.payload] };
+    case 'DELETE_TAG':
+      return { ...state, tags: state.tags.filter(t => t.id !== action.payload) };
     case 'SET_LEAD_SOURCES':
       return { ...state, leadSources: action.payload };
     case 'SET_LEAD_STATUSES':
@@ -176,11 +187,12 @@ export function DataProvider({ children }: { children: ReactNode }) {
     dispatch({ type: 'SET_ERROR', payload: null });
 
     try {
-      const [contacts, companies, stats, leadSources, leadStatuses, companyStatuses, productLabels, compatibilityTypes] =
+      const [contacts, companies, stats, tags, leadSources, leadStatuses, companyStatuses, productLabels, compatibilityTypes] =
         await Promise.all([
           api.fetchContacts(),
           api.fetchCompanies(),
           api.fetchDashboardStats(),
+          api.fetchTags(),
           api.fetchLookup('lead_sources'),
           api.fetchLookup('lead_statuses'),
           api.fetchLookup('company_statuses'),
@@ -191,6 +203,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       dispatch({ type: 'SET_CONTACTS', payload: contacts });
       dispatch({ type: 'SET_COMPANIES', payload: companies });
       dispatch({ type: 'SET_DASHBOARD_STATS', payload: stats });
+      dispatch({ type: 'SET_TAGS', payload: tags });
       dispatch({ type: 'SET_LEAD_SOURCES', payload: leadSources });
       dispatch({ type: 'SET_LEAD_STATUSES', payload: leadStatuses });
       dispatch({ type: 'SET_COMPANY_STATUSES', payload: companyStatuses });

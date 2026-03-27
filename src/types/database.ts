@@ -38,6 +38,8 @@ export interface Contact {
   unsubscribed: boolean;
   // Joined from companies table
   company?: Company | null;
+  // Joined from contact_tags → tags
+  tags?: Tag[];
 }
 
 // Configurable lookup item (used for lead_sources, lead_statuses, company_statuses)
@@ -55,8 +57,24 @@ export type LookupInsert = {
   sort_order?: number;
 };
 
+// ─── Tags ───────────────────────────────────────────────
+
+export interface Tag {
+  id: string;
+  name: string;
+  color: string | null;
+  created_at: string;
+}
+
+export interface ContactTag {
+  id: string;
+  contact_id: string;
+  tag_id: string;
+  created_at: string;
+}
+
 // For creating/updating — omit auto-generated fields
-export type ContactInsert = Omit<Contact, 'id' | 'created_at' | 'updated_at' | 'company'>;
+export type ContactInsert = Omit<Contact, 'id' | 'created_at' | 'updated_at' | 'company' | 'tags'>;
 export type ContactUpdate = Partial<ContactInsert>;
 
 export type CompanyInsert = Omit<Company, 'id' | 'created_at' | 'updated_at'>;

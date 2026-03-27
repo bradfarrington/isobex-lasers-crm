@@ -5,7 +5,7 @@ import { TopHeader } from './TopHeader';
 import './AppLayout.css';
 
 export function AppLayout() {
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(() => window.innerWidth > 768);
 
   const toggleSidebar = () => setSidebarOpen((prev) => !prev);
 

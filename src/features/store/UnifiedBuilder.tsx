@@ -555,7 +555,18 @@ export function UnifiedBuilder() {
   };
 
   return (
-    <div className={`unified-builder-root${isPreviewMode ? ' preview-mode' : ''}`} style={themeVars as React.CSSProperties}>
+    <>
+      <div className="desktop-only-builder-msg">
+        <Monitor size={48} />
+        <h2 style={{ fontSize: '1.25rem', fontWeight: 600, marginBottom: '0.5rem', color: 'var(--color-text-primary)' }}>Desktop Required</h2>
+        <p style={{ maxWidth: '400px', lineHeight: 1.5, marginBottom: '1.5rem' }}>
+          The builder interface is optimized for larger screens. Please use a laptop or desktop computer to access this feature.
+        </p>
+        <button className="btn-primary" onClick={() => navigate('/store')}>
+          Go Back
+        </button>
+      </div>
+      <div className={`unified-builder-root builder-desktop-wrapper${isPreviewMode ? ' preview-mode' : ''}`} style={themeVars as React.CSSProperties}>
       {/* ─── LEFT SIDEBAR ─── */}
       <div className="ub-left-sidebar">
         <div className="ub-left-header">
@@ -1208,6 +1219,7 @@ export function UnifiedBuilder() {
         </div>
       )}
     </div>
+    </>
   );
 }
 

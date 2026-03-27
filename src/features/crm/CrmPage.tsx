@@ -4,8 +4,9 @@ import { PageShell } from '@/components/layout/PageShell';
 import { useData } from '@/context/DataContext';
 import { useAlert } from '@/components/ui/AlertDialog';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
+import { TagInput } from '@/components/ui/TagInput';
 import * as api from '@/lib/api';
-import type { Contact, ContactInsert, ContactType } from '@/types/database';
+import type { Contact, ContactInsert, ContactType, Tag } from '@/types/database';
 import {
   Users,
   Search,
@@ -16,6 +17,7 @@ import {
   Building2,
   ChevronUp,
   ChevronDown,
+  Tags,
 } from 'lucide-react';
 import './CrmPage.css';
 
@@ -54,6 +56,10 @@ export function CrmPage() {
   const [saving, setSaving] = useState(false);
   const [sortColumn, setSortColumn] = useState<SortColumn | null>('name');
   const [sortDir, setSortDir] = useState<SortDir>('asc');
+
+  // Multi-select
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [tagModalOpen, setTagModalOpen] = useState(false);
 
   // Filter and sort contacts
   const filtered = useMemo(() => {
@@ -203,6 +209,42 @@ export function CrmPage() {
     }
   };
 
+  // ── Multi-select helpers ──
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === filtered.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filtered.map(c => c.id)));
+    }
+  };
+
+  // ── Tag handlers for bulk modal ──
+  const handleBulkAddTag = async (tagId: string) => {
+    const ids = Array.from(selectedIds);
+    try {
+      await api.addTagToContacts(tagId, ids);
+      // Refresh contacts from server to get updated tags
+      const contacts = await api.fetchContacts();
+      dispatch({ type: 'SET_CONTACTS', payload: contacts });
+    } catch (err) {
+      console.error('Failed to bulk add tag:', err);
+    }
+  };
+
+  const handleCreateTag = async (name: string): Promise<Tag> => {
+    const tag = await api.createTag(name);
+    dispatch({ type: 'ADD_TAG', payload: tag });
+    return tag;
+  };
+
   if (state.loading) {
     return (
       <PageShell title="Contacts" subtitle="Manage your customers and leads in one place.">
@@ -271,6 +313,14 @@ export function CrmPage() {
           <table className="data-table">
             <thead>
               <tr>
+                <th style={{ width: 36 }}>
+                  <input
+                    type="checkbox"
+                    checked={selectedIds.size === filtered.length && filtered.length > 0}
+                    onChange={toggleSelectAll}
+                    style={{ accentColor: 'var(--color-primary)' }}
+                  />
+                </th>
                 <SortHeader col="name" label="Name" />
                 <SortHeader col="email" label="Email" />
                 <SortHeader col="phone" label="Phone" />
@@ -287,7 +337,16 @@ export function CrmPage() {
                   key={contact.id}
                   style={{ cursor: 'pointer' }}
                   onClick={() => navigate(`/crm/${contact.id}`)}
+                  className={selectedIds.has(contact.id) ? 'selected-row' : ''}
                 >
+                  <td onClick={(e) => e.stopPropagation()}>
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.has(contact.id)}
+                      onChange={() => toggleSelect(contact.id)}
+                      style={{ accentColor: 'var(--color-primary)' }}
+                    />
+                  </td>
                   <td>
                     <div className="name-primary">
                       {contact.first_name} {contact.last_name}
@@ -303,6 +362,16 @@ export function CrmPage() {
                         }}
                       >
                         {contact.message}
+                      </div>
+                    )}
+                    {(contact.tags?.length ?? 0) > 0 && (
+                      <div className="contact-row-tags">
+                        {contact.tags!.slice(0, 3).map(t => (
+                          <span key={t.id} className="tag-pill">{t.name}</span>
+                        ))}
+                        {contact.tags!.length > 3 && (
+                          <span className="tag-pill" style={{ opacity: 0.6 }}>+{contact.tags!.length - 3}</span>
+                        )}
                       </div>
                     )}
                   </td>
@@ -372,6 +441,50 @@ export function CrmPage() {
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {/* Bulk action bar */}
+      {selectedIds.size > 0 && (
+        <div className="crm-bulk-bar">
+          <span>{selectedIds.size} contact{selectedIds.size !== 1 ? 's' : ''} selected</span>
+          <button className="btn-primary" onClick={() => setTagModalOpen(true)}>
+            <Tags size={14} /> Add Tags
+          </button>
+          <button className="btn-secondary" onClick={() => setSelectedIds(new Set())}>
+            <X size={14} /> Clear
+          </button>
+        </div>
+      )}
+
+      {/* Bulk Tag Modal */}
+      {tagModalOpen && (
+        <div className="modal-overlay" onClick={() => setTagModalOpen(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 420 }}>
+            <div className="modal-header">
+              <h2>Add Tags to {selectedIds.size} Contact{selectedIds.size !== 1 ? 's' : ''}</h2>
+              <button className="modal-close" onClick={() => setTagModalOpen(false)}>
+                <X size={18} />
+              </button>
+            </div>
+            <div className="modal-body">
+              <p style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)', marginBottom: 'var(--space-4)' }}>
+                Search for an existing tag or type a new name to create one. Tags will be added to all selected contacts.
+              </p>
+              <TagInput
+                assignedTags={[]}
+                allTags={state.tags}
+                onAdd={handleBulkAddTag}
+                onRemove={() => {}}
+                onCreate={handleCreateTag}
+              />
+            </div>
+            <div className="modal-footer">
+              <button className="btn-secondary" onClick={() => { setTagModalOpen(false); setSelectedIds(new Set()); }}>
+                Done
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

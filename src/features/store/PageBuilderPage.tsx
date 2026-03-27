@@ -7,7 +7,7 @@ import * as api from '@/lib/api';
 import type { StorePage, PageBlock, BlockType } from '@/types/database';
 import {
   ArrowLeft, Plus, Save, Eye, ArrowUp, ArrowDown, Trash2,
-  GripVertical, X, Loader2,
+  GripVertical, X, Loader2, Monitor,
   Home, ShoppingBag, Package, Grid3x3, CreditCard, PartyPopper,
 } from 'lucide-react';
 import './PageBuilder.css';
@@ -137,7 +137,18 @@ export function PageBuilderPage() {
   }
 
   return (
-    <div className="pb2-root">
+    <>
+      <div className="desktop-only-builder-msg">
+        <Monitor size={48} />
+        <h2 style={{ fontSize: '1.25rem', fontWeight: 600, marginBottom: '0.5rem', color: 'var(--color-text-primary)' }}>Desktop Required</h2>
+        <p style={{ maxWidth: '400px', lineHeight: 1.5, marginBottom: '1.5rem' }}>
+          The builder interface is optimized for larger screens. Please use a laptop or desktop computer to access this feature.
+        </p>
+        <button className="btn-primary" onClick={() => navigate('/store')}>
+          Go Back
+        </button>
+      </div>
+      <div className="pb2-root builder-desktop-wrapper">
       {/* Top bar */}
       <div className="pb2-topbar">
         <div className="pb2-topbar-left">
@@ -249,6 +260,7 @@ export function PageBuilderPage() {
         <BlockLibrary onSelect={addBlock} onClose={() => setShowLibrary(false)} />
       )}
     </div>
+    </>
   );
 }
 

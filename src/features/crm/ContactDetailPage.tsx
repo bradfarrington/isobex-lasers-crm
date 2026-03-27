@@ -5,8 +5,9 @@ import { useData } from '@/context/DataContext';
 import { useAlert } from '@/components/ui/AlertDialog';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { InlineEdit } from '@/components/ui/InlineEdit';
+import { TagInput } from '@/components/ui/TagInput';
 import * as api from '@/lib/api';
-import type { Contact, ContactUpdate } from '@/types/database';
+import type { Contact, ContactUpdate, Tag } from '@/types/database';
 import { ContactDocumentsTab } from './ContactDocumentsTab';
 import { ContactDealsTab } from './ContactDealsTab';
 import { ContactOrdersTab } from './ContactOrdersTab';
@@ -23,6 +24,7 @@ import {
   Target,
   Activity,
   UserCheck,
+  Tags,
 } from 'lucide-react';
 import './ContactDetailPage.css';
 
@@ -89,6 +91,36 @@ export function ContactDetailPage() {
     } catch (err) {
       console.error('Failed to update field:', err);
     }
+  };
+
+  // ── Tag handlers ──
+  const handleAddTag = async (tagId: string) => {
+    if (!contact) return;
+    try {
+      await api.addTagToContacts(tagId, [contact.id]);
+      // Refresh the contact to get updated tags
+      const updated = await api.fetchContact(contact.id);
+      dispatch({ type: 'UPDATE_CONTACT', payload: updated });
+    } catch (err) {
+      console.error('Failed to add tag:', err);
+    }
+  };
+
+  const handleRemoveTag = async (tagId: string) => {
+    if (!contact) return;
+    try {
+      await api.removeTagFromContact(contact.id, tagId);
+      const updated = await api.fetchContact(contact.id);
+      dispatch({ type: 'UPDATE_CONTACT', payload: updated });
+    } catch (err) {
+      console.error('Failed to remove tag:', err);
+    }
+  };
+
+  const handleCreateTag = async (name: string): Promise<Tag> => {
+    const tag = await api.createTag(name);
+    dispatch({ type: 'ADD_TAG', payload: tag });
+    return tag;
   };
 
   const handleDelete = async () => {
@@ -307,6 +339,20 @@ export function ContactDetailPage() {
             />
           </div>
         )}
+      </div>
+
+      {/* Tags Card */}
+      <div className="contact-detail-card">
+        {cardHeader(<Tags size={14} />, 'Tags')}
+        <div style={{ padding: '0 var(--space-1)' }}>
+          <TagInput
+            assignedTags={contact.tags || []}
+            allTags={state.tags}
+            onAdd={handleAddTag}
+            onRemove={handleRemoveTag}
+            onCreate={handleCreateTag}
+          />
+        </div>
       </div>
 
       {/* Lead Information Card — leads only */}

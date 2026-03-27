@@ -8,6 +8,7 @@ import type {
   CompanyUpdate,
   LookupItem,
   LookupInsert,
+  Tag,
   ContactDocument,
   DocumentFolder,
   DocumentCategory,
@@ -79,22 +80,32 @@ import type {
 export async function fetchContacts(): Promise<Contact[]> {
   const { data, error } = await supabase
     .from('contacts')
-    .select('*, company:companies(*)')
+    .select('*, company:companies(*), contact_tags(tag:tags(*))')
     .order('created_at', { ascending: false });
 
   if (error) throw error;
-  return data as Contact[];
+  // Flatten the nested contact_tags→tag join into a simple tags array
+  return (data || []).map((c: any) => ({
+    ...c,
+    tags: (c.contact_tags || []).map((ct: any) => ct.tag).filter(Boolean),
+    contact_tags: undefined,
+  })) as Contact[];
 }
 
 export async function fetchContact(id: string): Promise<Contact> {
   const { data, error } = await supabase
     .from('contacts')
-    .select('*, company:companies(*)')
+    .select('*, company:companies(*), contact_tags(tag:tags(*))')
     .eq('id', id)
     .single();
 
   if (error) throw error;
-  return data as Contact;
+  const c = data as any;
+  return {
+    ...c,
+    tags: (c.contact_tags || []).map((ct: any) => ct.tag).filter(Boolean),
+    contact_tags: undefined,
+  } as Contact;
 }
 
 export async function createContact(contact: ContactInsert): Promise<Contact> {
@@ -122,6 +133,54 @@ export async function updateContact(id: string, updates: ContactUpdate): Promise
 
 export async function deleteContact(id: string): Promise<void> {
   const { error } = await supabase.from('contacts').delete().eq('id', id);
+  if (error) throw error;
+}
+
+// ─── Tags ────────────────────────────────────────────────
+
+export async function fetchTags(): Promise<Tag[]> {
+  const { data, error } = await supabase
+    .from('tags')
+    .select('*')
+    .order('name', { ascending: true });
+
+  if (error) throw error;
+  return data as Tag[];
+}
+
+export async function createTag(name: string, color?: string): Promise<Tag> {
+  const { data, error } = await supabase
+    .from('tags')
+    .insert({ name: name.trim(), color: color || null })
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as Tag;
+}
+
+export async function deleteTag(id: string): Promise<void> {
+  const { error } = await supabase.from('tags').delete().eq('id', id);
+  if (error) throw error;
+}
+
+export async function addTagToContacts(tagId: string, contactIds: string[]): Promise<void> {
+  const rows = contactIds.map(contactId => ({
+    contact_id: contactId,
+    tag_id: tagId,
+  }));
+  const { error } = await supabase
+    .from('contact_tags')
+    .upsert(rows, { onConflict: 'contact_id,tag_id', ignoreDuplicates: true });
+  if (error) throw error;
+}
+
+export async function removeTagFromContact(contactId: string, tagId: string): Promise<void> {
+  const { error } = await supabase
+    .from('contact_tags')
+    .delete()
+    .eq('contact_id', contactId)
+    .eq('tag_id', tagId);
   if (error) throw error;
 }
 

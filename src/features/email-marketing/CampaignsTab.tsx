@@ -1,6 +1,8 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useAlert } from '@/components/ui/AlertDialog';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useData } from '@/context/DataContext';
+import { TagInput } from '@/components/ui/TagInput';
 import {
   fetchEmailCampaigns,
   fetchEmailTemplates,
@@ -14,19 +16,22 @@ import {
   deleteCampaignRecipients,
   sendCampaign,
   fetchEmailCampaign,
+  addTagToContacts,
+  createTag,
 } from '@/lib/api';
 import type {
   EmailCampaign,
   EmailTemplate,
   CampaignRecipient,
   Contact,
+  Tag,
 } from '@/types/database';
 import {
   Plus, ArrowLeft, Trash2, Copy, Mail, Users, Send,
   Calendar, Clock, Layers, BarChart3, Eye, Pencil,
   MousePointerClick, AlertTriangle, CheckCircle2, XCircle,
   Search, ChevronRight, Loader2, TrendingUp, ShoppingCart,
-  RefreshCw,
+  RefreshCw, EyeOff, Tags, X,
 } from 'lucide-react';
 import {
   AreaChart, Area, XAxis, YAxis, Tooltip,
@@ -61,6 +66,7 @@ export function CampaignsTab({ activeSubTab = 'campaigns' }: CampaignsTabProps) 
   const { showAlert, showConfirm } = useAlert();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
+  const { state: globalState, dispatch } = useData();
 
   const [campaigns, setCampaigns] = useState<EmailCampaign[]>([]);
   const [templates, setTemplates] = useState<EmailTemplate[]>([]);
@@ -93,6 +99,10 @@ export function CampaignsTab({ activeSubTab = 'campaigns' }: CampaignsTabProps) 
   const [sending, setSending] = useState(false);
   // Track campaign ID when resuming from builder
   const [editingCampaignId, setEditingCampaignId] = useState<string | null>(null);
+
+  // Stat drill-down modal
+  type DrillDownFilter = 'sent' | 'opened' | 'clicked' | 'failed' | 'unopened';
+  const [drillFilter, setDrillFilter] = useState<DrillDownFilter | null>(null);
 
   // Load data
   const loadData = useCallback(async () => {
@@ -483,7 +493,45 @@ export function CampaignsTab({ activeSubTab = 'campaigns' }: CampaignsTabProps) 
     const opened = recipients.filter(r => r.status === 'opened' || r.status === 'clicked').length;
     const clicked = recipients.filter(r => r.status === 'clicked').length;
     const failed = recipients.filter(r => r.status === 'failed' || r.status === 'bounced').length;
+    const unopened = sent - opened;
     const total = recipients.length || 1;
+
+    // Drill-down: filter recipients by stat category
+    const drillRecipients = drillFilter ? recipients.filter(r => {
+      switch (drillFilter) {
+        case 'sent': return r.status !== 'pending' && r.status !== 'failed';
+        case 'opened': return r.status === 'opened' || r.status === 'clicked';
+        case 'clicked': return r.status === 'clicked';
+        case 'failed': return r.status === 'failed' || r.status === 'bounced';
+        case 'unopened': return (r.status === 'sent' || r.status === 'delivered') && !r.opened_at;
+        default: return false;
+      }
+    }) : [];
+
+    const drillContactIds = drillRecipients
+      .map(r => r.contact_id)
+      .filter((id): id is string => !!id);
+
+    const drillLabels: Record<DrillDownFilter, string> = {
+      sent: 'Sent', opened: 'Opened', clicked: 'Clicked', failed: 'Failed', unopened: 'Unopened',
+    };
+
+    const handleDrillAddTag = async (tagId: string) => {
+      if (drillContactIds.length === 0) return;
+      try {
+        await addTagToContacts(tagId, drillContactIds);
+        showAlert({ title: 'Tags Added', message: `Tag added to ${drillContactIds.length} contact${drillContactIds.length !== 1 ? 's' : ''}.`, variant: 'success' });
+      } catch (err) {
+        console.error('Failed to add tag:', err);
+        showAlert({ title: 'Error', message: 'Failed to add tag.', variant: 'danger' });
+      }
+    };
+
+    const handleDrillCreateTag = async (name: string): Promise<Tag> => {
+      const tag = await createTag(name);
+      dispatch({ type: 'ADD_TAG', payload: tag });
+      return tag;
+    };
 
     return (
       <div>
@@ -523,7 +571,7 @@ export function CampaignsTab({ activeSubTab = 'campaigns' }: CampaignsTabProps) 
         )}
 
         <div className="campaign-stats-grid" style={{ marginBottom: 'var(--space-5)' }}>
-          <div className="campaign-stat-card">
+          <div className="campaign-stat-card clickable" onClick={() => setDrillFilter('sent')}>
             <div className="campaign-stat-icon" style={{ background: 'rgba(59,130,246,0.1)' }}>
               <Send size={18} style={{ color: '#3b82f6' }} />
             </div>
@@ -532,7 +580,7 @@ export function CampaignsTab({ activeSubTab = 'campaigns' }: CampaignsTabProps) 
               <div className="campaign-stat-label">Sent</div>
             </div>
           </div>
-          <div className="campaign-stat-card">
+          <div className="campaign-stat-card clickable" onClick={() => setDrillFilter('opened')}>
             <div className="campaign-stat-icon" style={{ background: 'rgba(139,92,246,0.1)' }}>
               <Eye size={18} style={{ color: '#8b5cf6' }} />
             </div>
@@ -542,7 +590,17 @@ export function CampaignsTab({ activeSubTab = 'campaigns' }: CampaignsTabProps) 
             </div>
             <div className="campaign-stat-pct">{((opened / total) * 100).toFixed(1)}%</div>
           </div>
-          <div className="campaign-stat-card">
+          <div className="campaign-stat-card clickable" onClick={() => setDrillFilter('unopened')}>
+            <div className="campaign-stat-icon" style={{ background: 'rgba(156,163,175,0.1)' }}>
+              <EyeOff size={18} style={{ color: '#9ca3af' }} />
+            </div>
+            <div className="campaign-stat-info">
+              <div className="campaign-stat-value">{unopened}</div>
+              <div className="campaign-stat-label">Unopened</div>
+            </div>
+            <div className="campaign-stat-pct">{((unopened / total) * 100).toFixed(1)}%</div>
+          </div>
+          <div className="campaign-stat-card clickable" onClick={() => setDrillFilter('clicked')}>
             <div className="campaign-stat-icon" style={{ background: 'rgba(16,185,129,0.1)' }}>
               <MousePointerClick size={18} style={{ color: '#10b981' }} />
             </div>
@@ -552,7 +610,7 @@ export function CampaignsTab({ activeSubTab = 'campaigns' }: CampaignsTabProps) 
             </div>
             <div className="campaign-stat-pct">{((clicked / total) * 100).toFixed(1)}%</div>
           </div>
-          <div className="campaign-stat-card">
+          <div className="campaign-stat-card clickable" onClick={() => setDrillFilter('failed')}>
             <div className="campaign-stat-icon" style={{ background: 'rgba(239,68,68,0.1)' }}>
               <XCircle size={18} style={{ color: '#ef4444' }} />
             </div>
@@ -620,6 +678,74 @@ export function CampaignsTab({ activeSubTab = 'campaigns' }: CampaignsTabProps) 
             </table>
           </div>
         </div>
+
+        {/* Stat drill-down modal */}
+        {drillFilter && (
+          <div className="modal-overlay" onClick={() => setDrillFilter(null)}>
+            <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 600 }}>
+              <div className="modal-header">
+                <h2>{drillLabels[drillFilter]} Recipients ({drillRecipients.length})</h2>
+                <button className="modal-close" onClick={() => setDrillFilter(null)}>
+                  <X size={18} />
+                </button>
+              </div>
+              <div className="modal-body">
+                {/* Tag these contacts */}
+                {drillContactIds.length > 0 && (
+                  <div style={{ marginBottom: 'var(--space-4)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 'var(--space-2)', fontSize: 'var(--font-size-sm)', fontWeight: 600, color: 'var(--color-text-primary)' }}>
+                      <Tags size={14} /> Tag these {drillContactIds.length} contacts
+                    </div>
+                    <TagInput
+                      assignedTags={[]}
+                      allTags={globalState.tags}
+                      onAdd={handleDrillAddTag}
+                      onRemove={() => {}}
+                      onCreate={handleDrillCreateTag}
+                      compact
+                    />
+                  </div>
+                )}
+
+                {/* Recipient list */}
+                <div className="campaign-recipients-table-wrap" style={{ maxHeight: 320 }}>
+                  <table className="campaign-recipients-table">
+                    <thead>
+                      <tr>
+                        <th>Name</th>
+                        <th>Email</th>
+                        <th>Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {drillRecipients.map(r => (
+                        <tr key={r.id}>
+                          <td>
+                            {r.contact
+                              ? `${(r.contact as any).first_name} ${(r.contact as any).last_name}`
+                              : '—'}
+                          </td>
+                          <td>{r.email}</td>
+                          <td>
+                            <span className="campaign-recipient-status" style={{ color: statusColor(r.status) }}>
+                              {r.status}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                      {drillRecipients.length === 0 && (
+                        <tr><td colSpan={3} style={{ textAlign: 'center', padding: 24, color: 'var(--color-text-tertiary)' }}>No recipients</td></tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+              <div className="modal-footer">
+                <button className="btn-secondary" onClick={() => setDrillFilter(null)}>Close</button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   }

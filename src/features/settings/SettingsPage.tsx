@@ -23,7 +23,7 @@ const TABS = [
   { id: 'business', label: 'Business Profile', icon: Building2 },
   { id: 'lookups', label: 'Lookups', icon: ListFilter },
   { id: 'email', label: 'Email / SMTP', icon: Mail },
-  { id: 'sms', label: 'SMS / Twilio', icon: MessageSquare },
+  { id: 'sms', label: 'SMS Provider', icon: MessageSquare },
   { id: 'payments', label: 'Payments', icon: CreditCard },
   // { id: 'google', label: 'Google', icon: Star }, // Hidden until business is accepted on Google Places
   { id: 'tracking', label: 'Tracking Pixel', icon: Activity },
