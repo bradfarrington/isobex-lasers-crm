@@ -127,11 +127,19 @@ serve(async (req) => {
              return jsonResponse({ error: 'Missing recipient phone' }, 400);
         }
 
+        // Normalize phone number: strip whitespace/dashes/parens, convert UK 0-prefix to +44
+        let normalizedPhone = recipientPhone.replace(/[\s\-\(\)]/g, '');
+        if (normalizedPhone.startsWith('0')) {
+            normalizedPhone = '+44' + normalizedPhone.slice(1);
+        } else if (!normalizedPhone.startsWith('+')) {
+            normalizedPhone = '+' + normalizedPhone;
+        }
+
         // 4. Send SMS via Twilio using basic auth
         const fromValue = (senderName && /^[a-zA-Z0-9 ]{1,11}$/.test(senderName)) ? senderName.replace(/ /g, '') : defaultFrom;
 
         const formData = new URLSearchParams();
-        formData.append('To', recipientPhone);
+        formData.append('To', normalizedPhone);
         formData.append('From', fromValue);
         formData.append('Body', messageBody);
 

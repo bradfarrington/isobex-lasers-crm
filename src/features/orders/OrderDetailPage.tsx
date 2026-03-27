@@ -281,10 +281,15 @@ export function OrderDetailPage() {
     try {
       // Just update statuses directly — no Stripe call, no inventory change
       await api.updateOrderStatus(order.id, 'refunded', 'refunded');
-      // Send refund confirmation email
+      // Send refund confirmation email + SMS
       try {
         await supabase.functions.invoke('send-email', {
           body: { action: 'send_refund_confirmation', orderId: order.id },
+        });
+      } catch {}
+      try {
+        await supabase.functions.invoke('send-sms', {
+          body: { action: 'order_refunded', orderId: order.id },
         });
       } catch {}
       const updated = await api.fetchOrder(order.id);

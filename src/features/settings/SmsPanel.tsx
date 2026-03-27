@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAlert } from '@/components/ui/AlertDialog';
-import { MessageSquare, CheckCircle2, XCircle, AlertTriangle, Loader2, Save, Send } from 'lucide-react';
+import { MessageSquare, CheckCircle2, XCircle, AlertTriangle, Loader2, Save, Send, Edit2 } from 'lucide-react';
 
 const CREDIT_PACKAGES = [
     { credits: 50, pricePence: 500, label: '50 credits', price: '£5.00' },
@@ -31,6 +31,11 @@ export function SmsPanel() {
     const [testPhone, setTestPhone] = useState('');
     const [sendingTest, setSendingTest] = useState(false);
     const [buyingCredits, setBuyingCredits] = useState(false);
+
+    // Templates
+    const [templates, setTemplates] = useState<any[]>([]);
+    const [loadingTemplates, setLoadingTemplates] = useState(true);
+    const [savingTemplate, setSavingTemplate] = useState<string | null>(null);
 
     const fetchData = async () => {
         try {
@@ -73,9 +78,45 @@ export function SmsPanel() {
         }
     };
 
+    const fetchTemplates = async () => {
+        setLoadingTemplates(true);
+        try {
+            const { data } = await supabase
+                .from('sms_templates')
+                .select('*')
+                .order('created_at', { ascending: true });
+            setTemplates(data || []);
+        } catch (err) {
+            console.error('Error fetching templates:', err);
+        } finally {
+            setLoadingTemplates(false);
+        }
+    };
+
+    const handleSaveTemplate = async (template: any) => {
+        setSavingTemplate(template.id);
+        try {
+            const { error } = await supabase
+                .from('sms_templates')
+                .update({ body: template.body, active: template.active, updated_at: new Date().toISOString() })
+                .eq('id', template.id);
+            if (error) throw error;
+            showAlert({ title: 'Saved', message: `Template "${template.name}" updated`, variant: 'success' });
+        } catch (err: any) {
+            showAlert({ title: 'Error', message: err.message || 'Failed to save template', variant: 'danger' });
+        } finally {
+            setSavingTemplate(null);
+        }
+    };
+
+    const updateTemplate = (id: string, field: string, value: any) => {
+        setTemplates(prev => prev.map(t => t.id === id ? { ...t, [field]: value } : t));
+    };
+
     useEffect(() => {
         fetchData();
         fetchPurchases();
+        fetchTemplates();
 
         // Check if returning from Stripe purchase
         const params = new URLSearchParams(window.location.search);
@@ -324,6 +365,81 @@ export function SmsPanel() {
                         );
                     })}
                 </div>
+            </div>
+
+            <hr className="divider" style={{ margin: 'var(--space-8) 0', borderTop: '1px solid var(--border-color)' }} />
+
+            {/* Message Templates */}
+            <div className="settings-section">
+                <div className="settings-section-title">
+                    <Edit2 size={16} style={{ marginRight: 6, verticalAlign: 'text-bottom' }} />
+                    Message Templates
+                </div>
+                <p style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-muted)', marginBottom: 'var(--space-4)' }}>
+                    Customise the SMS messages sent for each event. Use merge tags: <code style={{ background: 'var(--bg-muted)', padding: '1px 5px', borderRadius: 4, fontSize: '0.75rem' }}>{'{{customer_name}}'}</code> <code style={{ background: 'var(--bg-muted)', padding: '1px 5px', borderRadius: 4, fontSize: '0.75rem' }}>{'{{order_number}}'}</code> <code style={{ background: 'var(--bg-muted)', padding: '1px 5px', borderRadius: 4, fontSize: '0.75rem' }}>{'{{business_name}}'}</code>
+                </p>
+
+                {loadingTemplates ? (
+                    <div style={{ display: 'flex', justifyContent: 'center', padding: 'var(--space-4)' }}>
+                        <Loader2 className="loading-spinner" size={20} />
+                    </div>
+                ) : templates.length === 0 ? (
+                    <div style={{ padding: 'var(--space-6)', textAlign: 'center', color: 'var(--text-muted)', background: 'var(--bg-muted)', borderRadius: 'var(--radius-md)' }}>
+                        <p>No templates found. Check your database migration.</p>
+                    </div>
+                ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+                        {templates.map(tpl => (
+                            <div key={tpl.id} style={{
+                                border: '1px solid var(--border-color)',
+                                borderRadius: 'var(--radius-md)',
+                                padding: 'var(--space-4)',
+                                backgroundColor: 'var(--bg-surface)',
+                            }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-3)' }}>
+                                    <div>
+                                        <strong style={{ fontSize: 'var(--font-size-sm)' }}>{tpl.name}</strong>
+                                        {tpl.system_key && (
+                                            <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginLeft: 8, background: 'var(--bg-muted)', padding: '1px 6px', borderRadius: 4 }}>
+                                                {tpl.system_key}
+                                            </span>
+                                        )}
+                                    </div>
+                                    <label className="smtp-checkbox-label" style={{ fontSize: 'var(--font-size-xs)', fontWeight: 500 }}>
+                                        <input
+                                            type="checkbox"
+                                            checked={tpl.active}
+                                            onChange={(e) => updateTemplate(tpl.id, 'active', e.target.checked)}
+                                        />
+                                        Active
+                                    </label>
+                                </div>
+                                <textarea
+                                    className="smtp-field-input"
+                                    value={tpl.body}
+                                    onChange={(e) => updateTemplate(tpl.id, 'body', e.target.value)}
+                                    rows={3}
+                                    style={{ width: '100%', resize: 'vertical', fontFamily: 'inherit', fontSize: 'var(--font-size-sm)' }}
+                                />
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 'var(--space-2)' }}>
+                                    <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-muted)' }}>
+                                        {tpl.body.length} characters
+                                    </span>
+                                    <button
+                                        className="btn-outline"
+                                        style={{ fontSize: 'var(--font-size-xs)', padding: '4px 12px' }}
+                                        onClick={() => handleSaveTemplate(tpl)}
+                                        disabled={savingTemplate === tpl.id}
+                                    >
+                                        {savingTemplate === tpl.id
+                                            ? <><Loader2 size={12} className="spin" /> Saving…</>
+                                            : <><Save size={12} /> Save</>}
+                                    </button>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
             </div>
 
             {/* Send Test SMS */}

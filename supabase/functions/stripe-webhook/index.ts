@@ -128,22 +128,24 @@ Deno.serve(async (req: Request) => {
             Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
         );
 
-        // Read Stripe webhook secret from stripe_settings
+        // Collect webhook secrets: customer's store secret + platform secret (for SMS credits)
         const { data: settings } = await supabase
             .from('stripe_settings')
             .select('stripe_webhook_secret')
             .limit(1)
             .single();
 
-        const webhookSecret = settings?.stripe_webhook_secret;
+        const webhookSecrets = [
+            settings?.stripe_webhook_secret,
+            Deno.env.get('PLATFORM_STRIPE_WEBHOOK_SECRET'),
+        ].filter(Boolean) as string[];
 
         // Get the raw body for signature verification
         const rawBody = await req.text();
         const sig = req.headers.get('stripe-signature');
 
-        // If we have a webhook secret and signature, verify
-        if (webhookSecret && sig) {
-            // Simple Stripe signature verification using crypto
+        // Verify signature against any known secret
+        if (webhookSecrets.length > 0 && sig) {
             const parts = sig.split(',');
             const timestamp = parts.find(p => p.startsWith('t='))?.split('=')[1];
             const v1Signatures = parts.filter(p => p.startsWith('v1=')).map(p => p.split('=')[1]);
@@ -152,29 +154,39 @@ Deno.serve(async (req: Request) => {
                 return jsonRes({ error: 'Invalid signature format' }, 400);
             }
 
-            const payload = `${timestamp}.${rawBody}`;
-            const encoder = new TextEncoder();
-            const key = await crypto.subtle.importKey(
-                'raw',
-                encoder.encode(webhookSecret),
-                { name: 'HMAC', hash: 'SHA-256' },
-                false,
-                ['sign'],
-            );
-            const signatureBytes = await crypto.subtle.sign('HMAC', key, encoder.encode(payload));
-            const expectedSig = Array.from(new Uint8Array(signatureBytes))
-                .map(b => b.toString(16).padStart(2, '0'))
-                .join('');
-
-            if (!v1Signatures.includes(expectedSig)) {
-                return jsonRes({ error: 'Invalid webhook signature' }, 400);
-            }
-
             // Check timestamp tolerance (5 minutes)
             const tolerance = 300;
             const now = Math.floor(Date.now() / 1000);
             if (Math.abs(now - Number(timestamp)) > tolerance) {
                 return jsonRes({ error: 'Webhook timestamp too old' }, 400);
+            }
+
+            // Try each secret — accept if any one matches
+            const payload = `${timestamp}.${rawBody}`;
+            const encoder = new TextEncoder();
+            let verified = false;
+
+            for (const secret of webhookSecrets) {
+                const key = await crypto.subtle.importKey(
+                    'raw',
+                    encoder.encode(secret),
+                    { name: 'HMAC', hash: 'SHA-256' },
+                    false,
+                    ['sign'],
+                );
+                const signatureBytes = await crypto.subtle.sign('HMAC', key, encoder.encode(payload));
+                const expectedSig = Array.from(new Uint8Array(signatureBytes))
+                    .map(b => b.toString(16).padStart(2, '0'))
+                    .join('');
+
+                if (v1Signatures.includes(expectedSig)) {
+                    verified = true;
+                    break;
+                }
+            }
+
+            if (!verified) {
+                return jsonRes({ error: 'Invalid webhook signature' }, 400);
             }
         }
 

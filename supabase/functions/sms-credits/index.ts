@@ -59,11 +59,12 @@ serve(async (req) => {
 
         /* ━━━ CREATE CHECKOUT SESSION ━━━ */
         if (action === 'createCheckout') {
-            const { data: settings } = await supabase.from('stripe_settings').select('stripe_secret_key').limit(1).single();
-            const STRIPE_SECRET_KEY = settings?.stripe_secret_key;
+            // Use the PLATFORM Stripe key (Brad's account) — not the customer's store Stripe key.
+            // SMS credits are a service sold by the platform, so revenue goes to the platform account.
+            const STRIPE_SECRET_KEY = Deno.env.get('PLATFORM_STRIPE_SECRET_KEY');
 
             if (!STRIPE_SECRET_KEY) {
-                return jsonResponse({ error: 'Stripe is not configured. Configure in Payments settings.' }, 400);
+                return jsonResponse({ error: 'Platform Stripe is not configured. Contact support.' }, 400);
             }
 
             const { credits } = body;

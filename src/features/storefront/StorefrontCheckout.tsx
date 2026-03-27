@@ -255,11 +255,15 @@ function StorefrontCheckoutInner() {
         // Stripe not configured — order stays pending (legacy behaviour)
       }
 
-      // In test mode, trigger confirmation email directly (normally Stripe webhook does this)
+      // In test mode, trigger confirmation email + SMS directly (normally Stripe webhook does this)
       if (isTestMode) {
         supabase.functions.invoke('send-email', {
           body: { action: 'send_order_confirmation', orderId: order.id },
         }).catch(err => console.error('Test order confirmation email failed:', err));
+
+        supabase.functions.invoke('send-sms', {
+          body: { action: 'order_confirmation', orderId: order.id },
+        }).catch(err => console.error('Test order confirmation SMS failed:', err));
       }
 
       clearCart();
