@@ -882,3 +882,37 @@ export interface ReviewRequest {
 
 export type ReviewRequestInsert = Omit<ReviewRequest, 'id' | 'created_at'>;
 
+// ─── SMS Integration ────────────────────────────────────────
+
+export interface SmsTemplate {
+  id: string;
+  name: string;
+  system_key: string | null;
+  body: string;
+  active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export type SmsTemplateInsert = Omit<SmsTemplate, 'id' | 'created_at' | 'updated_at'>;
+export type SmsTemplateUpdate = Partial<SmsTemplateInsert>;
+
+export interface SmsLog {
+  id: string;
+  order_id: string | null;
+  recipient_phone: string;
+  message_body: string;
+  twilio_sid: string | null;
+  status: string;
+  credits_used: number;
+  created_at: string;
+}
+
+export interface SmsCreditPurchase {
+  id: string;
+  credits_purchased: number;
+  amount_paid_pence: number;
+  stripe_session_id: string | null;
+  status: string;
+  created_at: string;
+}

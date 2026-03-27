@@ -2453,3 +2453,53 @@ export async function createReviewRequest(
   if (error) throw error;
   return data as ReviewRequest;
 }
+
+// ─── Stripe Settings ────────────────────────────────────────
+
+export async function getStripePublishableKey(): Promise<string | null> {
+  const { data, error } = await supabase.rpc('get_stripe_publishable_key');
+  if (error) {
+    console.error('Error fetching publishable key:', error);
+    return null;
+  }
+  return data as string | null;
+}
+
+// ─── Inventory Management ───────────────────────────────────
+
+export async function deductInventoryForOrder(orderId: string): Promise<void> {
+  const { data: items, error } = await supabase
+    .from('order_items')
+    .select('product_id, variant_id, quantity')
+    .eq('order_id', orderId);
+
+  if (error || !items) return;
+
+  for (const item of items) {
+    if (item.variant_id) {
+      const { data: variant } = await supabase
+        .from('product_variants')
+        .select('stock_quantity')
+        .eq('id', item.variant_id)
+        .single();
+      if (variant) {
+        await supabase
+          .from('product_variants')
+          .update({ stock_quantity: Math.max(0, (variant.stock_quantity || 0) - item.quantity) })
+          .eq('id', item.variant_id);
+      }
+    } else if (item.product_id) {
+      const { data: product } = await supabase
+        .from('products')
+        .select('stock_quantity')
+        .eq('id', item.product_id)
+        .single();
+      if (product) {
+        await supabase
+          .from('products')
+          .update({ stock_quantity: Math.max(0, (product.stock_quantity || 0) - item.quantity) })
+          .eq('id', item.product_id);
+      }
+    }
+  }
+}

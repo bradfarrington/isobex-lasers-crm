@@ -9,9 +9,10 @@ import { useAlert } from '@/components/ui/AlertDialog';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import {
   Plus, Pencil, Trash2, X, Check, Mail, Save, Send, Loader2,
-  CheckCircle2, Info, ListFilter, Building2, Star, CreditCard, Activity, Copy
+  CheckCircle2, Info, ListFilter, Building2, Star, CreditCard, Activity, Copy, MessageSquare
 } from 'lucide-react';
 import type { BusinessProfile } from '@/types/database';
+import { SmsPanel } from './SmsPanel';
 import './SettingsPage.css';
 
 /* ═══════════════════════════════════════════
@@ -22,6 +23,7 @@ const TABS = [
   { id: 'business', label: 'Business Profile', icon: Building2 },
   { id: 'lookups', label: 'Lookups', icon: ListFilter },
   { id: 'email', label: 'Email / SMTP', icon: Mail },
+  { id: 'sms', label: 'SMS / Twilio', icon: MessageSquare },
   { id: 'payments', label: 'Payments', icon: CreditCard },
   // { id: 'google', label: 'Google', icon: Star }, // Hidden until business is accepted on Google Places
   { id: 'tracking', label: 'Tracking Pixel', icon: Activity },
@@ -58,6 +60,7 @@ export function SettingsPage() {
           {activeTab === 'business' && <BusinessProfilePanel />}
           {activeTab === 'lookups' && <LookupsPanel />}
           {activeTab === 'email' && <SmtpPanel />}
+          {activeTab === 'sms' && <SmsPanel />}
           {activeTab === 'payments' && <PaymentsPanel />}
           {/* {activeTab === 'google' && <GooglePanel />} */}
           {activeTab === 'tracking' && <TrackingPanel />}
@@ -1082,22 +1085,33 @@ function GooglePanel() {
 
 interface StripeSettings {
   id: string;
+  stripe_publishable_key: string;
   stripe_secret_key: string;
   stripe_webhook_secret: string;
   stripe_configured: boolean;
 }
 
+function maskKey(key: string): string {
+  if (!key || key.length < 12) return '••••••••';
+  return key.slice(0, 7) + '•••' + key.slice(-4);
+}
+
 function PaymentsPanel() {
   const { showAlert } = useAlert();
-  const [form, setForm] = useState({
-    stripe_secret_key: '',
-    stripe_webhook_secret: '',
-  });
   const [settingsId, setSettingsId] = useState<string | null>(null);
   const [isConfigured, setIsConfigured] = useState(false);
+  const [maskedPublishable, setMaskedPublishable] = useState('');
+  const [maskedSecret, setMaskedSecret] = useState('');
+  const [maskedWebhook, setMaskedWebhook] = useState('');
   const [loading, setLoading] = useState(true);
+
+  // Connect form state
+  const [showForm, setShowForm] = useState(false);
+  const [publishableKey, setPublishableKey] = useState('');
+  const [secretKey, setSecretKey] = useState('');
+  const [webhookSecret, setWebhookSecret] = useState('');
   const [saving, setSaving] = useState(false);
-  const [dirty, setDirty] = useState(false);
+  const [disconnecting, setDisconnecting] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -1112,10 +1126,9 @@ function PaymentsPanel() {
           const s = data as StripeSettings;
           setSettingsId(s.id);
           setIsConfigured(s.stripe_configured);
-          setForm({
-            stripe_secret_key: s.stripe_secret_key || '',
-            stripe_webhook_secret: s.stripe_webhook_secret || '',
-          });
+          if (s.stripe_publishable_key) setMaskedPublishable(maskKey(s.stripe_publishable_key));
+          if (s.stripe_secret_key) setMaskedSecret(maskKey(s.stripe_secret_key));
+          if (s.stripe_webhook_secret) setMaskedWebhook(maskKey(s.stripe_webhook_secret));
         }
       } catch (err) {
         console.error('Failed to fetch Stripe settings:', err);
@@ -1125,18 +1138,18 @@ function PaymentsPanel() {
     })();
   }, []);
 
-  const handleChange = (field: string, value: string) => {
-    setForm(prev => ({ ...prev, [field]: value }));
-    setDirty(true);
-  };
-
-  const handleSave = async () => {
+  const handleConnect = async () => {
+    if (!publishableKey.trim() || !secretKey.trim()) {
+      showAlert({ title: 'Missing Keys', message: 'Please enter both your Publishable Key and Secret Key.', variant: 'warning' });
+      return;
+    }
     setSaving(true);
     try {
-      const configured = !!form.stripe_secret_key;
       const payload = {
-        ...form,
-        stripe_configured: configured,
+        stripe_publishable_key: publishableKey.trim(),
+        stripe_secret_key: secretKey.trim(),
+        stripe_webhook_secret: webhookSecret.trim(),
+        stripe_configured: true,
         updated_at: new Date().toISOString(),
       };
 
@@ -1156,9 +1169,15 @@ function PaymentsPanel() {
         if (data) setSettingsId(data.id);
       }
 
-      setIsConfigured(configured);
-      setDirty(false);
-      showAlert({ title: 'Saved', message: 'Stripe settings saved successfully.', variant: 'success' });
+      setIsConfigured(true);
+      setMaskedPublishable(maskKey(publishableKey.trim()));
+      setMaskedSecret(maskKey(secretKey.trim()));
+      setMaskedWebhook(webhookSecret.trim() ? maskKey(webhookSecret.trim()) : '');
+      setShowForm(false);
+      setPublishableKey('');
+      setSecretKey('');
+      setWebhookSecret('');
+      showAlert({ title: 'Connected!', message: 'Stripe has been connected successfully.', variant: 'success' });
     } catch (err: unknown) {
       const msg = err && typeof err === 'object' && 'message' in err
         ? (err as { message: string }).message
@@ -1166,6 +1185,38 @@ function PaymentsPanel() {
       showAlert({ title: 'Error', message: msg, variant: 'danger' });
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleDisconnect = async () => {
+    if (!settingsId) return;
+    setDisconnecting(true);
+    try {
+      const { error } = await supabase
+        .from('stripe_settings')
+        .update({
+          stripe_publishable_key: '',
+          stripe_secret_key: '',
+          stripe_webhook_secret: '',
+          stripe_configured: false,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', settingsId);
+      if (error) throw error;
+
+      setIsConfigured(false);
+      setMaskedPublishable('');
+      setMaskedSecret('');
+      setMaskedWebhook('');
+      setShowForm(false);
+      showAlert({ title: 'Disconnected', message: 'Stripe integration has been removed.', variant: 'success' });
+    } catch (err: unknown) {
+      const msg = err && typeof err === 'object' && 'message' in err
+        ? (err as { message: string }).message
+        : 'Failed to disconnect Stripe';
+      showAlert({ title: 'Error', message: msg, variant: 'danger' });
+    } finally {
+      setDisconnecting(false);
     }
   };
 
@@ -1192,71 +1243,137 @@ function PaymentsPanel() {
         </p>
       </div>
 
-      {/* Status card */}
+      {/* Integration card */}
       <div className={`settings-integration-card ${isConfigured ? 'connected' : ''}`}>
-        <div className="settings-integration-icon">
-          <CreditCard size={24} />
+        <div className="settings-integration-icon" style={{ background: 'none', padding: 0 }}>
+          <img src="/stripe-logo.png" alt="Stripe" style={{ width: 40, height: 40, objectFit: 'contain', borderRadius: 'var(--radius-md)' }} />
         </div>
         <div className="settings-integration-info">
           <h4>Stripe</h4>
-          <p>Accept credit/debit card payments, process refunds, and manage transactions.</p>
+          <p>{isConfigured
+            ? 'Your Stripe account is connected and processing payments.'
+            : 'Connect your Stripe account to accept credit/debit card payments.'
+          }</p>
         </div>
         <div className="settings-integration-action">
-          {isConfigured
-            ? <span className="badge badge-confirmed"><CheckCircle2 size={12} /> Configured</span>
-            : <span className="badge badge-warning">Not Configured</span>}
+          {isConfigured ? (
+            <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+              <span className="badge badge-confirmed"><CheckCircle2 size={12} /> Connected</span>
+              <button className="btn-outline" onClick={handleDisconnect} disabled={disconnecting}>
+                {disconnecting ? <><Loader2 size={14} className="spin" /> Removing…</> : 'Disconnect'}
+              </button>
+            </div>
+          ) : (
+            <button className="btn-brand" onClick={() => setShowForm(true)} disabled={showForm}>
+              Connect Stripe
+            </button>
+          )}
         </div>
       </div>
 
-      {/* API Keys */}
-      <div className="settings-section">
-        <div className="settings-section-title">API Keys</div>
-        <div className="smtp-field">
-          <label className="smtp-field-label">Secret Key</label>
-          <input
-            className="smtp-field-input"
-            type="password"
-            value={form.stripe_secret_key}
-            onChange={(e) => handleChange('stripe_secret_key', e.target.value)}
-            placeholder="sk_test_..."
-          />
+      {/* Connected: show masked keys */}
+      {isConfigured && (maskedPublishable || maskedSecret || maskedWebhook) && (
+        <div className="settings-section">
+          <div className="settings-section-title">Account Details</div>
+          {maskedPublishable && (
+            <div className="smtp-field" style={{ marginBottom: 'var(--space-3)' }}>
+              <label className="smtp-field-label">Publishable Key</label>
+              <div style={{
+                padding: 'var(--space-2) var(--space-3)',
+                background: 'var(--color-bg-surface)',
+                border: '1px solid var(--color-border)',
+                borderRadius: 'var(--radius-md)',
+                fontSize: 'var(--font-size-sm)',
+                color: 'var(--color-text-tertiary)',
+                fontFamily: 'monospace',
+                letterSpacing: '0.03em',
+              }}>{maskedPublishable}</div>
+            </div>
+          )}
+          {maskedSecret && (
+            <div className="smtp-field" style={{ marginBottom: 'var(--space-3)' }}>
+              <label className="smtp-field-label">Secret Key</label>
+              <div style={{
+                padding: 'var(--space-2) var(--space-3)',
+                background: 'var(--color-bg-surface)',
+                border: '1px solid var(--color-border)',
+                borderRadius: 'var(--radius-md)',
+                fontSize: 'var(--font-size-sm)',
+                color: 'var(--color-text-tertiary)',
+                fontFamily: 'monospace',
+                letterSpacing: '0.03em',
+              }}>{maskedSecret}</div>
+            </div>
+          )}
+          {maskedWebhook && (
+            <div className="smtp-field">
+              <label className="smtp-field-label">Webhook Secret</label>
+              <div style={{
+                padding: 'var(--space-2) var(--space-3)',
+                background: 'var(--color-bg-surface)',
+                border: '1px solid var(--color-border)',
+                borderRadius: 'var(--radius-md)',
+                fontSize: 'var(--font-size-sm)',
+                color: 'var(--color-text-tertiary)',
+                fontFamily: 'monospace',
+                letterSpacing: '0.03em',
+              }}>{maskedWebhook}</div>
+            </div>
+          )}
         </div>
-        <div className="smtp-field" style={{ marginTop: 'var(--space-4)' }}>
-          <label className="smtp-field-label">Webhook Signing Secret</label>
-          <input
-            className="smtp-field-input"
-            type="password"
-            value={form.stripe_webhook_secret}
-            onChange={(e) => handleChange('stripe_webhook_secret', e.target.value)}
-            placeholder="whsec_..."
-          />
+      )}
+
+      {/* Connect form (inline, shown when "Connect Stripe" is clicked) */}
+      {!isConfigured && showForm && (
+        <div className="settings-section">
+          <div className="settings-section-title">Connect Your Stripe Account</div>
+          <div className="smtp-field" style={{ marginBottom: 'var(--space-4)' }}>
+            <label className="smtp-field-label">Publishable Key *</label>
+            <input
+              className="smtp-field-input"
+              type="text"
+              value={publishableKey}
+              onChange={(e) => setPublishableKey(e.target.value)}
+              placeholder="pk_test_... or pk_live_..."
+              autoFocus
+            />
+          </div>
+          <div className="smtp-field">
+            <label className="smtp-field-label">Secret Key *</label>
+            <input
+              className="smtp-field-input"
+              type="password"
+              value={secretKey}
+              onChange={(e) => setSecretKey(e.target.value)}
+              placeholder="sk_test_... or sk_live_..."
+            />
+          </div>
+          <div className="smtp-field" style={{ marginTop: 'var(--space-4)' }}>
+            <label className="smtp-field-label">Webhook Signing Secret</label>
+            <input
+              className="smtp-field-input"
+              type="password"
+              value={webhookSecret}
+              onChange={(e) => setWebhookSecret(e.target.value)}
+              placeholder="whsec_..."
+            />
+          </div>
+          <div className="settings-form-actions">
+            <button className="btn-outline" onClick={() => { setShowForm(false); setPublishableKey(''); setSecretKey(''); setWebhookSecret(''); }}>
+              Cancel
+            </button>
+            <button
+              className="btn-brand"
+              onClick={handleConnect}
+              disabled={saving || !secretKey.trim() || !publishableKey.trim()}
+            >
+              {saving
+                ? <><Loader2 size={16} className="spin" /> Connecting…</>
+                : <><CheckCircle2 size={16} /> Connect</>}
+            </button>
+          </div>
         </div>
-      </div>
-
-      {/* Publishable key info */}
-      <div className="smtp-info-box">
-        <Info size={14} />
-        <span>
-          Your <strong>Stripe Publishable Key</strong> (<code>pk_test_...</code>) is set in
-          the <code>.env</code> file as <code>VITE_STRIPE_PUBLISHABLE_KEY</code>.
-          The <strong>Secret Key</strong> above is stored securely and only used by server-side edge functions.
-          After deploying, configure a Stripe webhook pointing to
-          your <code>stripe-webhook</code> Supabase Edge Function and paste the signing secret above.
-        </span>
-      </div>
-
-      {/* Actions */}
-      <div className="settings-form-actions">
-        <button
-          className="btn-brand"
-          onClick={handleSave}
-          disabled={saving || !dirty}
-        >
-          {saving
-            ? <><Loader2 size={16} className="spin" /> Saving…</>
-            : <><Save size={16} /> Save Changes</>}
-        </button>
-      </div>
+      )}
 
       {/* Test Mode Section */}
       <TestModeToggle />
@@ -1325,8 +1442,7 @@ function TestModeToggle() {
               disabled={toggling}
               className={testMode ? 'btn-brand' : 'btn-outline'}
               style={{
-                minWidth: 100,
-                padding: '0.5rem 1rem',
+                padding: '0.375rem 0.875rem',
                 fontSize: '0.8125rem',
                 fontWeight: 600,
                 borderRadius: 8,

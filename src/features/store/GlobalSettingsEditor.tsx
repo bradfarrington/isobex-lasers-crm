@@ -1,8 +1,26 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import type { StoreConfig } from '@/types/database';
-import { Plus, Upload, ChevronDown, Search } from 'lucide-react';
+import { Plus, Upload, ChevronDown, Search, Eye, EyeOff } from 'lucide-react';
 import { ColorPicker } from '@/components/ui/ColorPicker';
+
+const DEFAULT_LINKS = [
+  { key: 'home', label: 'Home', url: '/shop' },
+  { key: 'products', label: 'Products', url: '/shop/products' },
+  { key: 'collections', label: 'Collections', url: '/shop/collections' },
+  { key: 'gift_cards', label: 'Gift Cards', url: '/shop/gift-cards' },
+];
+
+export function getResolvedDefaultLinks(headerLayout: any) {
+  const saved: any[] | undefined = headerLayout?.default_links;
+  if (!saved || saved.length === 0) {
+    return DEFAULT_LINKS.map(d => ({ ...d, hidden: false }));
+  }
+  return DEFAULT_LINKS.map(d => {
+    const s = saved.find((x: any) => x.key === d.key);
+    return s ? { ...d, ...s } : { ...d, hidden: false };
+  });
+}
 
 interface Props {
   panel: string;
@@ -408,12 +426,23 @@ export function GlobalSettingsEditor({ panel, draft, updateDraft }: Props) {
             </div>
           </div>
 
-          <div className="form-group">
-            <label className="form-label">Navigation Font</label>
-            <select className="form-input" value={headerLayout.nav_font || 'inherit'} onChange={(e) => updateDraft({ header_layout: { ...headerLayout, nav_font: e.target.value } } as any)}>
-              <option value="inherit">Use Theme Body Font</option>
-              {GOOGLE_FONTS.map(f => <option key={f} value={f}>{f}</option>)}
-            </select>
+          <div className="form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+            <div className="form-group">
+              <label className="form-label">Navigation Font</label>
+              <select className="form-input" value={headerLayout.nav_font || 'inherit'} onChange={(e) => updateDraft({ header_layout: { ...headerLayout, nav_font: e.target.value } } as any)}>
+                <option value="inherit">Use Theme Body Font</option>
+                {GOOGLE_FONTS.map(f => <option key={f} value={f}>{f}</option>)}
+              </select>
+            </div>
+            <div className="form-group">
+              <label className="form-label">Font Weight</label>
+              <select className="form-input" value={headerLayout.nav_weight || '500'} onChange={(e) => updateDraft({ header_layout: { ...headerLayout, nav_weight: e.target.value } } as any)}>
+                <option value="400">Normal (400)</option>
+                <option value="500">Medium (500)</option>
+                <option value="600">Semi-Bold (600)</option>
+                <option value="700">Bold (700)</option>
+              </select>
+            </div>
           </div>
 
           <div className="form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
@@ -440,25 +469,30 @@ export function GlobalSettingsEditor({ panel, draft, updateDraft }: Props) {
           </div>
           
           <div className="form-group">
-            {/* Static Uneditable Links */}
-            <div className="ub-settings-item-box" style={{ opacity: 0.7 }}>
-              <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem' }}>
-                <input type="text" className="form-input" disabled value="Home" style={{ width: '40%' }} />
-                <input type="text" className="form-input" disabled value="/shop" style={{ flex: 1 }} />
-              </div>
-              <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem' }}>
-                <input type="text" className="form-input" disabled value="Products" style={{ width: '40%' }} />
-                <input type="text" className="form-input" disabled value="/shop/products" style={{ flex: 1 }} />
-              </div>
-              <div style={{ display: 'flex', gap: '0.5rem' }}>
-                <input type="text" className="form-input" disabled value="Collections" style={{ width: '40%' }} />
-                <input type="text" className="form-input" disabled value="/shop/collections" style={{ flex: 1 }} />
-              </div>
-              <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
-                <input type="text" className="form-input" disabled value="Gift Cards" style={{ width: '40%' }} />
-                <input type="text" className="form-input" disabled value="/shop/gift-cards" style={{ flex: 1 }} />
-              </div>
-            </div>
+            {/* Default Store Links (editable label + show/hide) */}
+            {(() => {
+              const defaultLinks = getResolvedDefaultLinks(headerLayout);
+              const updateDefaultLink = (key: string, field: string, value: any) => {
+                const updated = defaultLinks.map(d => d.key === key ? { ...d, [field]: value } : d);
+                updateDraft({ header_layout: { ...headerLayout, default_links: updated } } as any);
+              };
+              return defaultLinks.map(dl => (
+                <div key={dl.key} className="ub-settings-item-box" style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', marginBottom: '0.5rem', opacity: dl.hidden ? 0.5 : 1 }}>
+                  <div style={{ flex: 1 }}>
+                    <input type="text" className="form-input" value={dl.label} onChange={(e) => updateDefaultLink(dl.key, 'label', e.target.value)} style={{ width: '100%', marginBottom: '0.375rem' }} />
+                    <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{dl.url}</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => updateDefaultLink(dl.key, 'hidden', !dl.hidden)}
+                    title={dl.hidden ? 'Show link' : 'Hide link'}
+                    style={{ flexShrink: 0, background: 'none', border: 'none', cursor: 'pointer', padding: 6, borderRadius: 6, color: dl.hidden ? '#9ca3af' : 'var(--text-secondary, #6b7280)' }}
+                  >
+                    {dl.hidden ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+              ));
+            })()}
 
             {/* Custom Editable Links */}
             {navLinks.map((link, i) => (
@@ -554,13 +588,13 @@ export function GlobalSettingsEditor({ panel, draft, updateDraft }: Props) {
                 <div className="form-group color-field">
                   <label className="form-label">Background Color</label>
                   <div className="color-input-wrap">
-                    <ColorPicker value={headerLayout.announcement_bg || '#111827'} onChange={(val) => updateDraft({ header_layout: { ...headerLayout, announcement_bg: val } } as any)} />
+                    <ColorPicker value={headerLayout.announcement_bg_color || '#111827'} onChange={(val) => updateDraft({ header_layout: { ...headerLayout, announcement_bg_color: val } } as any)} />
                   </div>
                 </div>
                 <div className="form-group color-field">
                   <label className="form-label">Text Color</label>
                   <div className="color-input-wrap">
-                    <ColorPicker value={headerLayout.announcement_color || '#ffffff'} onChange={(val) => updateDraft({ header_layout: { ...headerLayout, announcement_color: val } } as any)} />
+                    <ColorPicker value={headerLayout.announcement_text_color || '#ffffff'} onChange={(val) => updateDraft({ header_layout: { ...headerLayout, announcement_text_color: val } } as any)} />
                   </div>
                 </div>
               </div>

@@ -7,6 +7,7 @@ import { ColorPicker } from '@/components/ui/ColorPicker';
 import { supabase } from '@/lib/supabase';
 import * as api from '@/lib/api';
 import type { Collection } from '@/types/database';
+import { LinkPicker } from './LinkPicker';
 
 interface Props {
   block: PageBlock;
@@ -149,14 +150,12 @@ function renderBlockEditor(block: PageBlock, c: Record<string, any>, set: (key: 
       return (
         <div className="builder-panel-content">
           <Card title="Button">
-            <div className="form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-              <Field label="Text">
-                <input className="form-input" value={c.text || ''} onChange={(e) => set('text', e.target.value)} />
-              </Field>
-              <Field label="Link">
-                <input className="form-input" value={c.link || ''} onChange={(e) => set('link', e.target.value)} placeholder="/shop" />
-              </Field>
-            </div>
+            <Field label="Text">
+              <input className="form-input" value={c.text || ''} onChange={(e) => set('text', e.target.value)} />
+            </Field>
+            <Field label="Link">
+              <LinkPicker value={c.link || ''} onChange={(val) => set('link', val)} />
+            </Field>
           </Card>
           <Card title="Style">
             <div className="form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
@@ -868,7 +867,7 @@ function Card({ title, desc, children }: { title: string; desc?: string; childre
 /* ─── Inline colour row (label + picker side-by-side) ─── */
 function InlineColor({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
   return (
-    <div className="form-group color-field" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+    <div className="form-group color-field" style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
       <label className="form-label" style={{ margin: 0 }}>{label}</label>
       <div className="color-input-wrap">
         <ColorPicker value={value} onChange={onChange} />
@@ -1155,14 +1154,12 @@ function HalfHeroEditor({ config: c, set }: { config: Record<string, any>; set: 
 
       {/* CTA Button */}
       <Card title="CTA Button">
-        <div className="form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-          <Field label="Button Text">
-            <input className="form-input" value={c.ctaText || ''} onChange={(e) => set('ctaText', e.target.value)} />
-          </Field>
-          <Field label="Button Link">
-            <input className="form-input" value={c.ctaLink || ''} onChange={(e) => set('ctaLink', e.target.value)} placeholder="/shop" />
-          </Field>
-        </div>
+        <Field label="Button Text">
+          <input className="form-input" value={c.ctaText || ''} onChange={(e) => set('ctaText', e.target.value)} />
+        </Field>
+        <Field label="Button Link">
+          <LinkPicker value={c.ctaLink || ''} onChange={(val) => set('ctaLink', val)} />
+        </Field>
         <div className="form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
           <InlineColor label="Button BG" value={c.ctaBgColor || ''} onChange={(val) => set('ctaBgColor', val)} />
           <InlineColor label="Button Text" value={c.ctaTextColor || '#ffffff'} onChange={(val) => set('ctaTextColor', val)} />
@@ -1347,14 +1344,12 @@ function HeroBannerEditor({ config: c, set }: { config: Record<string, any>; set
                   </button>
                   <div style={{ fontWeight: 600, marginBottom: '0.75rem', fontSize: '0.875rem' }}>Button {i + 1}</div>
                   
-                  <div className="form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                    <Field label="Text">
-                      <input className="form-input" value={btn.text || ''} onChange={(e) => updateBtn(i, 'text', e.target.value)} />
-                    </Field>
-                    <Field label="Link">
-                      <input className="form-input" value={btn.link || ''} onChange={(e) => updateBtn(i, 'link', e.target.value)} placeholder="/shop" />
-                    </Field>
-                  </div>
+                  <Field label="Text">
+                    <input className="form-input" value={btn.text || ''} onChange={(e) => updateBtn(i, 'text', e.target.value)} />
+                  </Field>
+                  <Field label="Link">
+                    <LinkPicker value={btn.link || ''} onChange={(val) => updateBtn(i, 'link', val)} />
+                  </Field>
                   <div className="form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                     <InlineColor label="Background" value={btn.bgColor || ''} onChange={(val) => updateBtn(i, 'bgColor', val)} />
                     <InlineColor label="Text Colour" value={btn.textColor || '#ffffff'} onChange={(val) => updateBtn(i, 'textColor', val)} />
@@ -1367,9 +1362,8 @@ function HeroBannerEditor({ config: c, set }: { config: Record<string, any>; set
                       <input className="form-input" type="number" value={btn.radius ?? 99} min="0" max="99" onChange={(e) => updateBtn(i, 'radius', Number(e.target.value))} />
                     </Field>
                   </div>
-                  <div className="form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                    <Field label="Padding Size">
-                      <SearchableSelect className="form-input" value={btn.size || 'md'} onChange={(val) => updateBtn(i, 'size', val)}
+                  <Field label="Padding Size">
+                    <SearchableSelect value={btn.size || 'md'} onChange={(val) => updateBtn(i, 'size', val)}
   searchable={false}
   sort={false}
   options={[
@@ -1378,8 +1372,7 @@ function HeroBannerEditor({ config: c, set }: { config: Record<string, any>; set
     { label: 'Large', value: 'lg' }
   ]}
 />
-                    </Field>
-                  </div>
+                  </Field>
                 </div>
               ))}
               <button className="btn btn-secondary btn-sm" style={{ alignSelf: 'flex-start' }} onClick={addBtn}>+ Add Button</button>
@@ -1768,7 +1761,7 @@ function ImageBlockEditor({ config: c, set }: { config: Record<string, any>; set
       
       <Card title="Action">
         <Field label="Link (Optional)">
-          <input className="form-input" value={c.link || ''} onChange={(e) => set('link', e.target.value)} placeholder="/shop or https://..." />
+          <LinkPicker value={c.link || ''} onChange={(val) => set('link', val)} />
         </Field>
       </Card>
       
@@ -2155,14 +2148,12 @@ function CollectionShowcaseEditor({ config: c, set }: { config: Record<string, a
       </Card>
 
       <Card title="Call to Action">
-        <div className="form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-          <Field label="CTA Text">
-            <input className="form-input" value={c.ctaText || ''} onChange={(e) => set('ctaText', e.target.value)} />
-          </Field>
-          <Field label="CTA Link">
-            <input className="form-input" value={c.ctaLink || ''} onChange={(e) => set('ctaLink', e.target.value)} />
-          </Field>
-        </div>
+        <Field label="CTA Text">
+          <input className="form-input" value={c.ctaText || ''} onChange={(e) => set('ctaText', e.target.value)} />
+        </Field>
+        <Field label="CTA Link">
+          <LinkPicker value={c.ctaLink || ''} onChange={(val) => set('ctaLink', val)} />
+        </Field>
       </Card>
     </div>
   );
@@ -2250,14 +2241,12 @@ function ProductCarouselEditor({ config: c, set }: { config: Record<string, any>
       </Card>
 
       <Card title="Call to Action (Left Sidebar)">
-        <div className="form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-          <Field label="CTA Text">
-            <input className="form-input" value={c.ctaText || ''} onChange={(e) => set('ctaText', e.target.value)} />
-          </Field>
-          <Field label="CTA Link">
-            <input className="form-input" value={c.ctaLink || ''} onChange={(e) => set('ctaLink', e.target.value)} />
-          </Field>
-        </div>
+        <Field label="CTA Text">
+          <input className="form-input" value={c.ctaText || ''} onChange={(e) => set('ctaText', e.target.value)} />
+        </Field>
+        <Field label="CTA Link">
+          <LinkPicker value={c.ctaLink || ''} onChange={(val) => set('ctaLink', val)} />
+        </Field>
       </Card>
     </div>
   );

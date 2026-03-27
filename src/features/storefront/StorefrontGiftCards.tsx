@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useStoreConfig } from './useStoreConfig';
 import { GiftCardDesign, DESIGN_OPTIONS, getDesignLabel } from '../store/GiftCardDesign';
 import * as api from '@/lib/api';
@@ -11,8 +11,8 @@ import '../store/GiftCardDesign.css';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements, CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
 
-const stripePublishableKey = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY;
-const stripePromise = stripePublishableKey ? loadStripe(stripePublishableKey) : null;
+let globalStripePromise: Promise<any> | null = null;
+let hasRequestedStripe = false;
 
 const DEFAULT_AMOUNTS = [25, 50, 75, 100, 150, 200];
 
@@ -36,12 +36,33 @@ function expiryMonthsToDate(months: number): string {
 }
 
 export function StorefrontGiftCards() {
-  if (!stripePromise) {
-    return <StorefrontGiftCardsInner />;
+  const [stripePromise, setStripePromise] = useState<Promise<any> | null>(() => globalStripePromise);
+  const [loading, setLoading] = useState(!globalStripePromise);
+
+  useEffect(() => {
+    if (!globalStripePromise && !hasRequestedStripe) {
+      hasRequestedStripe = true;
+      api.getStripePublishableKey().then(key => {
+        if (key) {
+          globalStripePromise = loadStripe(key);
+          setStripePromise(globalStripePromise);
+        }
+        setLoading(false);
+      }).catch(() => setLoading(false));
+    } else if (globalStripePromise && !stripePromise) {
+      setStripePromise(globalStripePromise);
+      setLoading(false);
+    } else {
+      setLoading(false);
+    }
+  }, [stripePromise]);
+
+  if (loading) {
+    return <div style={{ display: 'flex', justifyContent: 'center', padding: '10vh' }}><div className="loading-spinner" /></div>;
   }
 
   return (
-    <Elements stripe={stripePromise}>
+    <Elements stripe={stripePromise || null}>
       <StorefrontGiftCardsInner />
     </Elements>
   );
@@ -70,7 +91,7 @@ function StorefrontGiftCardsInner() {
   const isTestMode = config?.test_mode === true;
   const stripe = useStripe();
   const elements = useElements();
-  const stripeEnabled = !isTestMode && !!stripePromise && !!stripe && !!elements;
+  const stripeEnabled = !isTestMode && !!stripe && !!elements;
 
   // Form state
   const [selectedDesign, setSelectedDesign] = useState<GiftCardDesignTemplate>('classic');

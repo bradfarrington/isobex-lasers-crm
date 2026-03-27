@@ -106,6 +106,17 @@ async function triggerEmail(supabase: any, action: string, orderId: string) {
     }
 }
 
+// Helper to trigger SMS via send-sms function
+async function triggerSms(supabase: any, action: string, orderId: string) {
+    try {
+        await supabase.functions.invoke('send-sms', {
+            body: { action, orderId },
+        });
+    } catch (err) {
+        console.error(`Failed to trigger ${action} SMS:`, err);
+    }
+}
+
 Deno.serve(async (req: Request) => {
     if (req.method === 'OPTIONS') {
         return new Response('ok', { headers: corsHeaders });
@@ -169,6 +180,40 @@ Deno.serve(async (req: Request) => {
 
         const event = JSON.parse(rawBody);
         const eventType = event.type;
+
+        // Handle checkout.session.completed (for SMS Credits)
+        if (eventType === 'checkout.session.completed') {
+            const session = event.data.object;
+            const credits = Number(session.metadata?.credits || 0);
+
+            if (credits > 0) {
+                // 1. Add credits atomically
+                const { data: profile } = await supabase
+                    .from('business_profile')
+                    .select('id, sms_credits_balance')
+                    .limit(1)
+                    .single();
+
+                if (profile) {
+                    await supabase
+                        .from('business_profile')
+                        .update({
+                            sms_credits_balance: (profile.sms_credits_balance || 0) + credits,
+                            sms_low_credit_notified: false,
+                        })
+                        .eq('id', profile.id);
+                }
+
+                // 2. Record the purchase
+                await supabase.from('sms_credit_purchases').insert({
+                    credits_purchased: credits,
+                    amount_paid_pence: session.amount_total || 0,
+                    stripe_session_id: session.id,
+                    status: 'completed',
+                });
+            }
+            return jsonRes({ received: true });
+        }
 
         // Handle payment_intent.succeeded
         if (eventType === 'payment_intent.succeeded') {
@@ -236,6 +281,9 @@ Deno.serve(async (req: Request) => {
             await triggerEmail(supabase, 'send_order_confirmation', orderId);
             await triggerEmail(supabase, 'send_invoice', orderId);
 
+            // Send SMS
+            await triggerSms(supabase, 'order_confirmation', orderId);
+
             return jsonRes({ received: true });
         }
 
@@ -278,6 +326,9 @@ Deno.serve(async (req: Request) => {
 
                 // Send refund confirmation email
                 await triggerEmail(supabase, 'send_refund_confirmation', order.id);
+
+                // Send SMS
+                await triggerSms(supabase, 'order_refunded', order.id);
             }
 
             return jsonRes({ received: true });

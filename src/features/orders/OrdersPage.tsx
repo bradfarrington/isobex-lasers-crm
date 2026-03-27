@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PageShell } from '@/components/layout/PageShell';
+import { useAlert } from '@/components/ui/AlertDialog';
 import * as api from '@/lib/api';
 import { supabase } from '@/lib/supabase';
 import type { Order } from '@/types/database';
 import './Orders.css';
-import { PackageCheck, Search, Trash2 } from 'lucide-react';
+import { PackageCheck, Search, Trash2, Eye } from 'lucide-react';
 
 const STATUS_COLORS: Record<string, string> = {
   pending: '#f59e0b',
@@ -28,6 +29,7 @@ const PAYMENT_COLORS: Record<string, string> = {
 
 export function OrdersPage() {
   const navigate = useNavigate();
+  const { showAlert, showConfirm } = useAlert();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -50,9 +52,16 @@ export function OrdersPage() {
     return matchesSearch && matchesStatus;
   });
 
-  const handleDelete = async (e: React.MouseEvent, id: string) => {
+  const handleDelete = async (e: React.MouseEvent, id: string, orderNumber: number) => {
     e.stopPropagation();
-    if (!confirm('Are you absolutely sure you want to delete this order? This action permanently removes it from the database and your analytics.')) return;
+    
+    const ok = await showConfirm({
+      title: 'Delete Order',
+      message: `Are you sure you want to delete Order #${orderNumber}? This action permanently removes it from the database and your analytics.`,
+      confirmLabel: 'Delete',
+    });
+    
+    if (!ok) return;
     
     // Optimistic UI Removal
     setOrders(prev => prev.filter(o => o.id !== id));
@@ -61,7 +70,9 @@ export function OrdersPage() {
     const { error } = await supabase.from('orders').delete().eq('id', id);
     if (error) {
        console.error("Deletion failed:", error);
-       alert("Failed to delete the order from the server.");
+       showAlert({ title: 'Error', message: 'Failed to delete the order from the server.', variant: 'danger' });
+    } else {
+       showAlert({ title: 'Deleted', message: `Order #${orderNumber} was deleted.`, variant: 'success' });
     }
   };
 
@@ -124,7 +135,7 @@ export function OrdersPage() {
                 <th>Status</th>
                 <th>Payment</th>
                 <th>Total</th>
-                <th style={{ width: 40 }}></th>
+                <th style={{ width: 80 }}></th>
               </tr>
             </thead>
             <tbody>
@@ -173,8 +184,15 @@ export function OrdersPage() {
                   </td>
                   <td className="orders-col-actions">
                     <button 
+                       className="orders-view-btn"
+                       onClick={(e) => { e.stopPropagation(); navigate(`/orders/${order.id}`); }}
+                       title="View Order"
+                    >
+                      <Eye size={16} />
+                    </button>
+                    <button 
                        className="orders-delete-btn"
-                       onClick={(e) => handleDelete(e, order.id)}
+                       onClick={(e) => handleDelete(e, order.id, order.order_number)}
                        title="Delete Order"
                     >
                       <Trash2 size={16} />

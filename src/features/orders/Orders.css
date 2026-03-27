@@ -109,21 +109,24 @@
 .orders-col-actions {
   text-align: right;
   padding-right: 16px !important;
-  width: 40px;
+  width: 80px;
+  white-space: nowrap;
 }
 
-.orders-delete-btn {
+.orders-delete-btn,
+.orders-view-btn {
   background: transparent;
   border: none;
   cursor: pointer;
   padding: 6px;
   border-radius: 6px;
   color: var(--color-text-secondary);
-  opacity: 0;
+  opacity: 0.6;
   transition: opacity 0.2s, color 0.2s, background 0.2s;
 }
 
-.orders-table-row:hover .orders-delete-btn {
+.orders-table-row:hover .orders-delete-btn,
+.orders-table-row:hover .orders-view-btn {
   opacity: 1;
 }
 

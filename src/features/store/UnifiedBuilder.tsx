@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 import './UnifiedBuilder.css';
 import '../storefront/StorefrontLayout.css';
-import { GlobalSettingsEditor } from './GlobalSettingsEditor';
+import { GlobalSettingsEditor, getResolvedDefaultLinks } from './GlobalSettingsEditor';
 import { BLOCK_OPTIONS, CATEGORIES } from './BlockLibrary';
 import { StoreConfigContext } from '../storefront/useStoreConfig';
 import { BlockContent } from '../storefront/BlockRenderer';
@@ -514,6 +514,7 @@ export function UnifiedBuilder() {
   const hColor = headerLayout.nav_color || '#000000';
   const hFont = headerLayout.nav_font && headerLayout.nav_font !== 'inherit' ? `"${headerLayout.nav_font}", sans-serif` : 'inherit';
   const cartIconColor = headerLayout.cart_icon_color || hColor;
+  const hWeight = headerLayout.nav_weight || '500';
   
   const annBg = headerLayout.announcement_bg_color || '#000000';
   const annColor = headerLayout.announcement_text_color || '#ffffff';
@@ -855,12 +856,11 @@ export function UnifiedBuilder() {
                       )}
                     </div>
                     <nav className="sf-nav" style={{ pointerEvents: 'none' }}>
-                      <span className="sf-nav-link" style={{ color: hColor }}>Home</span>
-                      <span className="sf-nav-link" style={{ color: hColor }}>Products</span>
-                      <span className="sf-nav-link" style={{ color: hColor }}>Collections</span>
-                      <span className="sf-nav-link" style={{ color: hColor }}>Gift Cards</span>
+                      {getResolvedDefaultLinks(headerLayout).filter(dl => !dl.hidden).map(dl => (
+                        <span key={dl.key} className="sf-nav-link" style={{ color: hColor, fontWeight: hWeight }}>{dl.label}</span>
+                      ))}
                       {navLinks.map((link: any, i: number) => (
-                         <span key={i} className="sf-nav-link" style={{ color: hColor }}>{link.label}</span>
+                         <span key={i} className="sf-nav-link" style={{ color: hColor, fontWeight: hWeight }}>{link.label}</span>
                       ))}
                     </nav>
                     <button className="sf-cart-btn" style={{ color: cartIconColor }}><CartIconCmp size={22} /></button>

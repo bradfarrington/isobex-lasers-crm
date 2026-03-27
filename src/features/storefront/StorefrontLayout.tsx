@@ -1,6 +1,7 @@
 import { Outlet, Link, useLocation } from 'react-router-dom';
 import { sfPath } from './storefrontPaths';
 import { StoreConfigProvider, useStoreConfig } from './useStoreConfig';
+import { getResolvedDefaultLinks } from '../store/GlobalSettingsEditor';
 import { CartProvider, useCart } from './useCart';
 import { CartSidebar } from './CartSidebar';
 import { ShoppingCart, ShoppingBag, ShoppingBasket, Menu, X } from 'lucide-react';
@@ -71,6 +72,7 @@ function StorefrontShell() {
   const logoWidthMobile = headerLayout.logo_width_mobile || 120;
   const CartIconCmp = headerLayout.cart_icon_type === 'ShoppingBag' ? ShoppingBag : (headerLayout.cart_icon_type === 'ShoppingBasket' ? ShoppingBasket : ShoppingCart);
   const cartIconColor = headerLayout.cart_icon_color || hColor;
+  const hWeight = headerLayout.nav_weight || '500';
   
   // Apply theme CSS vars
   const mobileCfg = (config as any)?.mobile_settings || {};
@@ -167,12 +169,11 @@ function StorefrontShell() {
           </Link>
 
           <nav className="sf-nav desktop-only">
-            <Link to={sfPath('/')} className="sf-nav-link" style={{ color: hColor }}>Home</Link>
-            <Link to={sfPath('/products')} className="sf-nav-link" style={{ color: hColor }}>Products</Link>
-            <Link to={sfPath('/collections')} className="sf-nav-link" style={{ color: hColor }}>Collections</Link>
-            <Link to={sfPath('/gift-cards')} className="sf-nav-link" style={{ color: hColor }}>Gift Cards</Link>
+            {getResolvedDefaultLinks(headerLayout).filter(dl => !dl.hidden).map(dl => (
+              <Link key={dl.key} to={sfPath(dl.url.replace('/shop', '') || '/')} className="sf-nav-link" style={{ color: hColor, fontWeight: hWeight }}>{dl.label}</Link>
+            ))}
             {navLinks.map((link, i) => (
-              <Link key={i} to={link.url} className="sf-nav-link" style={{ color: hColor }}>{link.label}</Link>
+              <Link key={i} to={link.url} className="sf-nav-link" style={{ color: hColor, fontWeight: hWeight }}>{link.label}</Link>
             ))}
           </nav>
 
@@ -187,21 +188,20 @@ function StorefrontShell() {
       <div className={`sf-mobile-menu-overlay ${menuOpen ? 'open' : ''}`} onClick={() => setMenuOpen(false)} />
 
       {/* Mobile nav drawer */}
-      <nav className={`sf-nav-mobile ${menuOpen ? 'open' : ''}`} style={{ backgroundColor: hBg }}>
-        <div className="sf-nav-close-header" style={{ backgroundColor: hBg }}>
-          <span style={{ fontWeight: 700, fontSize: '1.125rem', color: hColor }}>Menu</span>
-          <button onClick={() => setMenuOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: hColor, padding: 4 }}>
-            <X size={22} />
-          </button>
-        </div>
-        <Link to={sfPath('/')} className="sf-nav-link" style={{ color: hColor }} onClick={() => setMenuOpen(false)}>Home</Link>
-        <Link to={sfPath('/products')} className="sf-nav-link" style={{ color: hColor }} onClick={() => setMenuOpen(false)}>Products</Link>
-        <Link to={sfPath('/collections')} className="sf-nav-link" style={{ color: hColor }} onClick={() => setMenuOpen(false)}>Collections</Link>
-        <Link to={sfPath('/gift-cards')} className="sf-nav-link" style={{ color: hColor }} onClick={() => setMenuOpen(false)}>Gift Cards</Link>
-        {navLinks.map((link, i) => (
-          <Link key={i} to={link.url} className="sf-nav-link" style={{ color: hColor }} onClick={() => setMenuOpen(false)}>{link.label}</Link>
-        ))}
-      </nav>
+        <nav className={`sf-nav-mobile ${menuOpen ? 'open' : ''}`} style={{ backgroundColor: hBg }}>
+          <div className="sf-nav-close-header" style={{ backgroundColor: hBg }}>
+            <span style={{ fontWeight: 700, fontSize: '1.125rem', color: hColor }}>Menu</span>
+            <button onClick={() => setMenuOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: hColor, padding: 4 }}>
+              <X size={22} />
+            </button>
+          </div>
+          {getResolvedDefaultLinks(headerLayout).filter(dl => !dl.hidden).map(dl => (
+            <Link key={dl.key} to={sfPath(dl.url.replace('/shop', '') || '/')} className="sf-nav-link" style={{ color: hColor, fontWeight: hWeight }} onClick={() => setMenuOpen(false)}>{dl.label}</Link>
+          ))}
+          {navLinks.map((link, i) => (
+            <Link key={i} to={link.url} className="sf-nav-link" style={{ color: hColor, fontWeight: hWeight }} onClick={() => setMenuOpen(false)}>{link.label}</Link>
+          ))}
+        </nav>
 
       {/* Main content */}
       <main className="sf-main">

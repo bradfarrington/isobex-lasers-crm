@@ -12,16 +12,38 @@ import { Elements, CardElement, useStripe, useElements } from '@stripe/react-str
 import { supabase } from '@/lib/supabase';
 import { trackEcommerceEvent } from '@/hooks/useTracking';
 
-const stripePublishableKey = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY;
-const stripePromise = stripePublishableKey ? loadStripe(stripePublishableKey) : null;
+let globalStripePromise: Promise<any> | null = null;
+let hasRequestedStripe = false;
 
 export function StorefrontCheckout() {
-  if (!stripePromise) {
-    return <StorefrontCheckoutInner />;
+  const [stripePromise, setStripePromise] = useState<Promise<any> | null>(() => globalStripePromise);
+  const [loading, setLoading] = useState(!globalStripePromise);
+
+  useEffect(() => {
+    if (!globalStripePromise && !hasRequestedStripe) {
+      hasRequestedStripe = true;
+      api.getStripePublishableKey().then(key => {
+        if (key) {
+          globalStripePromise = loadStripe(key);
+          setStripePromise(globalStripePromise);
+        }
+        setLoading(false);
+      }).catch(() => setLoading(false));
+    } else if (globalStripePromise && !stripePromise) {
+      setStripePromise(globalStripePromise);
+      setLoading(false);
+    } else {
+      setLoading(false);
+    }
+  }, [stripePromise]);
+
+  if (loading) {
+    return <div style={{ display: 'flex', justifyContent: 'center', padding: '10vh' }}><div className="loading-spinner" /></div>;
   }
 
+  // If no stripe configured, we still wrap in Elements with stripe={null} so useStripe() doesn't crash!
   return (
-    <Elements stripe={stripePromise}>
+    <Elements stripe={stripePromise || null}>
       <StorefrontCheckoutInner />
     </Elements>
   );
@@ -124,7 +146,7 @@ function StorefrontCheckoutInner() {
   };
 
   const isTestMode = config?.test_mode === true;
-  const stripeEnabled = !isTestMode && !!stripePromise && !!stripe && !!elements;
+  const stripeEnabled = !isTestMode && !!stripe && !!elements;
 
   const handlePlaceOrder = async () => {
     if (!email || !name || !line1 || !city || !postcode) return;
@@ -340,38 +362,35 @@ function StorefrontCheckoutInner() {
         </div>
 
         {/* Shipping method */}
-        <div className="sf-checkout-section" style={sectionStyle}>
-          <h3>Shipping Method</h3>
-          <div className="sf-shipping-options">
-            {shippingRates.map((rate) => (
-              <div
-                key={rate.id}
-                className={`sf-shipping-option ${selectedShipping?.id === rate.id ? 'selected' : ''}`}
-                onClick={() => setSelectedShipping(rate)}
-              >
-                <input
-                  type="radio"
-                  checked={selectedShipping?.id === rate.id}
-                  onChange={() => setSelectedShipping(rate)}
-                />
-                <div className="sf-shipping-option-info">
-                  <div className="sf-shipping-option-name">{rate.name}</div>
-                  <div className="sf-shipping-option-est">
-                    {rate.estimated_days_min}–{rate.estimated_days_max} business days
+        {shippingRates.length > 0 && (
+          <div className="sf-checkout-section" style={sectionStyle}>
+            <h3>Shipping Method</h3>
+            <div className="sf-shipping-options">
+              {shippingRates.map((rate) => (
+                <div
+                  key={rate.id}
+                  className={`sf-shipping-option ${selectedShipping?.id === rate.id ? 'selected' : ''}`}
+                  onClick={() => setSelectedShipping(rate)}
+                >
+                  <input
+                    type="radio"
+                    checked={selectedShipping?.id === rate.id}
+                    onChange={() => setSelectedShipping(rate)}
+                  />
+                  <div className="sf-shipping-option-info">
+                    <div className="sf-shipping-option-name">{rate.name}</div>
+                    <div className="sf-shipping-option-est">
+                      {rate.estimated_days_min}–{rate.estimated_days_max} business days
+                    </div>
+                  </div>
+                  <div className="sf-shipping-option-price">
+                    {rate.price > 0 ? formatPrice(rate.price) : 'Free'}
                   </div>
                 </div>
-                <div className="sf-shipping-option-price">
-                  {rate.price > 0 ? formatPrice(rate.price) : 'Free'}
-                </div>
-              </div>
-            ))}
-            {shippingRates.length === 0 && (
-              <p style={{ fontSize: '0.875rem', color: 'var(--sf-text-secondary)' }}>
-                No shipping rates available for your cart weight. Please contact us.
-              </p>
-            )}
+              ))}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Payment */}
         <div className="sf-checkout-section" style={sectionStyle}>
