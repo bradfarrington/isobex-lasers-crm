@@ -831,6 +831,7 @@ interface GoogleLocation {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
+// @ts-ignore - Suppress TS6133 until GooglePlaces integration is live
 function GooglePanel() {
   const { showAlert } = useAlert();
   const [data, setData] = useState<{ google_place_id: string; google_business_name: string; google_access_token: string | null } | null>(null);
