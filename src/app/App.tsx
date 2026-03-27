@@ -47,9 +47,10 @@ import { ResetPasswordPage } from '@/features/auth/ResetPasswordPage';
  */
 function isStorefrontDomain(): boolean {
   const hostname = window.location.hostname;
-  // CRM is accessible on localhost and the default Vercel domain
+  // CRM is accessible on localhost, the default Vercel domain, and the app subdomain
   if (hostname === 'localhost' || hostname === '127.0.0.1') return false;
   if (hostname.endsWith('.vercel.app')) return false;
+  if (hostname === 'app.isobexlasers.co.uk') return false;
   // Everything else is a custom domain → storefront only
   return true;
 }

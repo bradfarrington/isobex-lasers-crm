@@ -7,6 +7,7 @@ export function getStorefrontBase(): string {
   const hostname = window.location.hostname;
   if (hostname === 'localhost' || hostname === '127.0.0.1') return '/shop';
   if (hostname.endsWith('.vercel.app')) return '/shop';
+  if (hostname === 'app.isobexlasers.co.uk') return '/shop';
   return '';
 }
 
