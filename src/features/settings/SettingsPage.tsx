@@ -9,10 +9,11 @@ import { useAlert } from '@/components/ui/AlertDialog';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import {
   Plus, Pencil, Trash2, X, Check, Mail, Save, Send, Loader2,
-  CheckCircle2, Info, ListFilter, Building2, Star, CreditCard, Activity, Copy, MessageSquare
+  CheckCircle2, Info, ListFilter, Building2, Star, CreditCard, Activity, Copy, MessageSquare, Users
 } from 'lucide-react';
 import type { BusinessProfile } from '@/types/database';
 import { SmsPanel } from './SmsPanel';
+import { TeamPanel } from './TeamPanel';
 import './SettingsPage.css';
 
 /* ═══════════════════════════════════════════
@@ -27,6 +28,7 @@ const TABS = [
   { id: 'payments', label: 'Payments', icon: CreditCard },
   // { id: 'google', label: 'Google', icon: Star }, // Hidden until business is accepted on Google Places
   { id: 'tracking', label: 'Tracking Pixel', icon: Activity },
+  { id: 'team', label: 'Team', icon: Users },
 ];
 
 export function SettingsPage() {
@@ -64,6 +66,7 @@ export function SettingsPage() {
           {activeTab === 'payments' && <PaymentsPanel />}
           {/* {activeTab === 'google' && <GooglePanel />} */}
           {activeTab === 'tracking' && <TrackingPanel />}
+          {activeTab === 'team' && <TeamPanel />}
         </div>
       </div>
     </PageShell>

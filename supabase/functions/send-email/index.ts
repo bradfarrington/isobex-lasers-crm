@@ -293,6 +293,21 @@ Deno.serve(async (req: Request) => {
 
             await client.send({ from: fromAddress, to: clientEmail, subject: emailSubject, mimeContent: htmlMime(emailHtml), replyTo });
             await client.close();
+
+            // Log communication
+            try {
+                await supabase.from('contact_communications').insert({
+                    contact_id: order.contact_id || null,
+                    channel: 'email',
+                    comm_type: systemKey,
+                    subject: emailSubject,
+                    body_preview: systemKey === 'order_confirmation' ? `Order #${orderNumber} confirmed — £${totalAmount.toFixed(2)}` : `Refund processed for order #${orderNumber}`,
+                    recipient: clientEmail,
+                    order_id: orderId,
+                    status: 'sent',
+                });
+            } catch (logErr) { console.error('Failed to log communication:', logErr); }
+
             return jsonRes({ ok: true, sentTo: clientEmail });
         }
 
@@ -476,6 +491,22 @@ Deno.serve(async (req: Request) => {
             // Mark as sent
             await supabase.from('review_requests').update({ status: 'sent' }).eq('id', requestId);
 
+            // Log communication
+            try {
+                const { data: contactByEmail } = await supabase
+                    .from('contacts').select('id').eq('email', clientEmail).limit(1).single();
+                await supabase.from('contact_communications').insert({
+                    contact_id: contactByEmail?.id || null,
+                    channel: 'email',
+                    comm_type: 'review_request',
+                    subject: `How did we do? — ${settings.smtp_from_name || 'Isobex Lasers'}`,
+                    body_preview: `Review request sent to ${clientName}`,
+                    recipient: clientEmail,
+                    order_id: null,
+                    status: 'sent',
+                });
+            } catch (logErr) { console.error('Failed to log communication:', logErr); }
+
             await client.close();
             return jsonRes({ ok: true, sentTo: clientEmail });
         }
@@ -567,6 +598,23 @@ Deno.serve(async (req: Request) => {
             }
 
             await client.send({ from: fromAddress, to: gc.recipient_email, subject: emailSubject, mimeContent: htmlMime(emailHtml), replyTo });
+
+            // Log communication
+            try {
+                const { data: contactByEmail } = await supabase
+                    .from('contacts').select('id').eq('email', gc.recipient_email).limit(1).single();
+                await supabase.from('contact_communications').insert({
+                    contact_id: contactByEmail?.id || null,
+                    channel: 'email',
+                    comm_type: 'gift_card',
+                    subject: emailSubject,
+                    body_preview: `Gift card £${Number(gc.initial_balance).toFixed(2)} sent to ${recipientName}`,
+                    recipient: gc.recipient_email,
+                    order_id: null,
+                    status: 'sent',
+                });
+            } catch (logErr) { console.error('Failed to log communication:', logErr); }
+
             await client.close();
             return jsonRes({ ok: true, sentTo: gc.recipient_email });
         }
@@ -638,6 +686,149 @@ Deno.serve(async (req: Request) => {
             });
 
             await client.close();
+            return jsonRes({ ok: true });
+        }
+
+        // ─── Action: invite_user ─────────────────────
+        if (action === 'invite_user') {
+            const { full_name, email, role, permissions } = body;
+            if (!email) return jsonRes({ error: 'Email is required' }, 400);
+            if (!full_name) return jsonRes({ error: 'Full name is required' }, 400);
+
+            const userRole = role || 'staff';
+            const userPermissions = permissions || {
+                dashboard: true, crm: true, companies: true, pipeline: true,
+                store: false, orders: false, email_marketing: false, reviews: false,
+                documents: false, installations: false, support: false, reporting: false, settings: false,
+            };
+
+            // Generate a temporary password
+            const tempPassword = `Isobex-${crypto.randomUUID().slice(0, 8)}!`;
+
+            // Create auth user with the admin API
+            const { data: newAuthUser, error: createErr } = await supabase.auth.admin.createUser({
+                email,
+                password: tempPassword,
+                email_confirm: true,
+            });
+
+            if (createErr) {
+                return jsonRes({ error: `Failed to create user: ${createErr.message}` }, 400);
+            }
+
+            const authUserId = newAuthUser.user.id;
+
+            // Insert app_users row
+            const { error: insertErr } = await supabase.from('app_users').insert({
+                auth_user_id: authUserId,
+                email,
+                full_name,
+                role: userRole,
+                permissions: userPermissions,
+                status: 'invited',
+            });
+
+            if (insertErr) {
+                // Clean up the auth user if DB insert fails
+                await supabase.auth.admin.deleteUser(authUserId);
+                return jsonRes({ error: `Failed to create user profile: ${insertErr.message}` }, 500);
+            }
+
+            // Fetch business profile
+            const { data: bpData } = await supabase.from('business_profile').select('business_name').limit(1).single();
+            const businessName = bpData?.business_name || settings.smtp_from_name || 'Isobex Lasers';
+
+            // Build the CRM login URL
+            const siteUrl = Deno.env.get('SITE_URL') || 'https://app.isobexlasers.co.uk';
+            const loginUrl = `${siteUrl}/login`;
+
+            // Build the welcome email HTML
+            const welcomeHtml = `<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"></head>
+<body style="font-family:'Inter',Helvetica,Arial,sans-serif;margin:0;padding:0;background:#f4f4f5;">
+  <div style="max-width:600px;margin:0 auto;background:#ffffff;border-radius:12px;overflow:hidden;margin-top:40px;margin-bottom:40px;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
+    <!-- Header -->
+    <div style="background:#1a1a1a;padding:36px 24px;text-align:center;">
+      <h1 style="color:#ffffff;margin:0;font-size:22px;font-weight:700;letter-spacing:-0.02em;">${businessName}</h1>
+    </div>
+
+    <!-- Body -->
+    <div style="padding:40px 32px;">
+      <h2 style="margin-top:0;color:#111827;font-size:20px;font-weight:700;">Welcome to the Team! 🎉</h2>
+      <p style="color:#4b5563;font-size:15px;line-height:1.7;margin-bottom:24px;">
+        Hi ${full_name},<br><br>
+        You've been invited to join <strong>${businessName}</strong> on their CRM platform.
+        Your account has been created and you can log in using the credentials below.
+      </p>
+
+      <!-- Credentials Card -->
+      <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:10px;padding:20px 24px;margin-bottom:28px;">
+        <table cellpadding="0" cellspacing="0" border="0" width="100%">
+          <tr>
+            <td style="padding:6px 0;color:#6b7280;font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;">Email</td>
+            <td style="padding:6px 0;color:#111827;font-size:15px;font-weight:500;text-align:right;">${email}</td>
+          </tr>
+          <tr>
+            <td style="padding:6px 0;color:#6b7280;font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;">Password</td>
+            <td style="padding:6px 0;color:#111827;font-size:15px;font-weight:500;text-align:right;font-family:'Courier New',monospace;">${tempPassword}</td>
+          </tr>
+          <tr>
+            <td style="padding:6px 0;color:#6b7280;font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;">Role</td>
+            <td style="padding:6px 0;color:#111827;font-size:15px;font-weight:500;text-align:right;text-transform:capitalize;">${userRole}</td>
+          </tr>
+        </table>
+      </div>
+
+      <!-- CTA -->
+      <div style="text-align:center;margin-bottom:28px;">
+        <a href="${loginUrl}" style="display:inline-block;background:#dc2626;color:#ffffff;text-decoration:none;font-weight:700;padding:14px 36px;border-radius:8px;font-size:15px;letter-spacing:0.02em;">Sign In to the CRM</a>
+      </div>
+
+      <p style="color:#9ca3af;font-size:13px;line-height:1.6;text-align:center;">
+        For security, please change your password after your first login.<br>
+        Go to <strong>Settings</strong> in the CRM to update your password.
+      </p>
+    </div>
+
+    <!-- Footer -->
+    <div style="text-align:center;padding:20px 24px;background:#f9fafb;border-top:1px solid #f3f4f6;">
+      <p style="font-size:12px;color:#9ca3af;margin:0;">${businessName} • Powered by Isobex CRM</p>
+    </div>
+  </div>
+</body>
+</html>`;
+
+            const emailSubject = `You've been invited to ${businessName}`;
+
+            await client.send({
+                from: fromAddress,
+                to: email,
+                subject: emailSubject,
+                mimeContent: htmlMime(welcomeHtml),
+                replyTo,
+            });
+
+            await client.close();
+            return jsonRes({ ok: true, sentTo: email, authUserId });
+        }
+
+        // ─── Action: reset_password ─────────────────────
+        if (action === 'reset_password') {
+            const { auth_user_id, new_password } = body;
+            if (!auth_user_id) return jsonRes({ error: 'auth_user_id is required' }, 400);
+            if (!new_password || new_password.length < 8) {
+                return jsonRes({ error: 'Password must be at least 8 characters' }, 400);
+            }
+
+            const { error: updateErr } = await supabase.auth.admin.updateUserById(auth_user_id, {
+                password: new_password,
+            });
+
+            if (updateErr) {
+                return jsonRes({ error: `Failed to update password: ${updateErr.message}` }, 400);
+            }
+
             return jsonRes({ ok: true });
         }
 

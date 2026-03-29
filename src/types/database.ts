@@ -932,3 +932,59 @@ export interface SmsCreditPurchase {
   status: string;
   created_at: string;
 }
+
+// ─── Contact Communications ────────────────────────────────
+
+export type CommChannel = 'email' | 'sms';
+export type CommType = 'order_confirmation' | 'refund_confirmation' | 'gift_card' | 'review_request' | 'sms_order_confirmation' | 'sms_order_refunded';
+
+export interface ContactCommunication {
+  id: string;
+  contact_id: string | null;
+  channel: CommChannel;
+  comm_type: CommType;
+  subject: string | null;
+  body_preview: string | null;
+  recipient: string;
+  order_id: string | null;
+  status: string;
+  created_at: string;
+}
+
+// ─── App Users (Team / Permissions) ─────────────────────
+
+export type UserRole = 'owner' | 'admin' | 'staff';
+export type UserStatus = 'active' | 'invited' | 'deactivated';
+
+export interface AppUserPermissions {
+  dashboard: boolean;
+  crm: boolean;
+  companies: boolean;
+  pipeline: boolean;
+  store: boolean;
+  orders: boolean;
+  email_marketing: boolean;
+  reviews: boolean;
+  documents: boolean;
+  installations: boolean;
+  support: boolean;
+  reporting: boolean;
+  settings: boolean;
+  [key: string]: boolean;
+}
+
+export interface AppUser {
+  id: string;
+  auth_user_id: string;
+  email: string;
+  full_name: string;
+  role: UserRole;
+  permissions: AppUserPermissions;
+  status: UserStatus;
+  invited_at: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export type AppUserInsert = Pick<AppUser, 'auth_user_id' | 'email' | 'full_name' | 'role' | 'permissions'>;
+export type AppUserUpdate = Partial<Pick<AppUser, 'full_name' | 'role' | 'permissions' | 'status'>>;

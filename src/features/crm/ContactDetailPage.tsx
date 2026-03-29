@@ -7,7 +7,7 @@ import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { InlineEdit } from '@/components/ui/InlineEdit';
 import { TagInput } from '@/components/ui/TagInput';
 import * as api from '@/lib/api';
-import type { Contact, ContactUpdate, Tag } from '@/types/database';
+import type { Contact, ContactUpdate, Tag, ContactCommunication } from '@/types/database';
 import { ContactDocumentsTab } from './ContactDocumentsTab';
 import { ContactDealsTab } from './ContactDealsTab';
 import { ContactOrdersTab } from './ContactOrdersTab';
@@ -506,9 +506,30 @@ export function ContactDetailPage() {
     </div>
   );
 
+  // ── Communications state ──
+  const [comms, setComms] = useState<ContactCommunication[]>([]);
+  const [commsLoading, setCommsLoading] = useState(false);
+
+  useEffect(() => {
+    if (activeTab !== 'comms' || !contact) return;
+    setCommsLoading(true);
+    api.fetchContactCommunications(contact.id)
+      .then(setComms)
+      .catch((err) => console.error('Failed to load comms:', err))
+      .finally(() => setCommsLoading(false));
+  }, [activeTab, contact?.id]);
+
+  const commTypeLabels: Record<string, string> = {
+    order_confirmation: 'Order Confirmation',
+    refund_confirmation: 'Refund Confirmation',
+    gift_card: 'Gift Card',
+    review_request: 'Review Request',
+    sms_order_confirmation: 'Order Confirmation',
+    sms_order_refunded: 'Refund Notification',
+  };
+
   const renderComms = () => (
     <div className="contact-detail-grid single-column">
-      {/* Enquiry message — leads */}
       {isLead && contact.message && (
         <div className="contact-detail-card full-width">
           {cardHeader(<MessageSquare size={14} />, 'Enquiry Message')}
@@ -516,14 +537,95 @@ export function ContactDetailPage() {
         </div>
       )}
 
-      {/* Email history placeholder */}
       <div className="contact-detail-card full-width">
-        {cardHeader(<Mail size={14} />, 'Email History')}
-        <div className="tab-placeholder">
-          <Mail size={32} />
-          <h4>Email history coming soon</h4>
-          <p>Emails sent to this contact via campaigns or direct mail will appear here.</p>
-        </div>
+        {cardHeader(<Mail size={14} />, 'Communication History')}
+
+        {commsLoading ? (
+          <div className="tab-placeholder">
+            <div className="loading-spinner" />
+            <p>Loading communications…</p>
+          </div>
+        ) : comms.length === 0 ? (
+          <div className="tab-placeholder">
+            <Mail size={32} />
+            <h4>No communications yet</h4>
+            <p>Emails and SMS sent to this contact will appear here.</p>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+            {comms.map((c) => (
+              <div
+                key={c.id}
+                style={{
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: 'var(--space-3)',
+                  padding: 'var(--space-3) 0',
+                  borderBottom: '1px solid var(--color-border)',
+                }}
+              >
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    width: 32,
+                    height: 32,
+                    borderRadius: 'var(--radius-md)',
+                    background: c.channel === 'sms' ? 'rgba(34,197,94,0.1)' : 'rgba(99,102,241,0.1)',
+                    color: c.channel === 'sms' ? '#16a34a' : '#6366f1',
+                    flexShrink: 0,
+                  }}
+                >
+                  {c.channel === 'sms' ? <MessageSquare size={16} /> : <Mail size={16} />}
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
+                    <span style={{ fontWeight: 600, fontSize: 'var(--font-size-sm)', color: 'var(--color-text-primary)' }}>
+                      {commTypeLabels[c.comm_type] || c.comm_type}
+                    </span>
+                    <span
+                      style={{
+                        fontSize: '10px',
+                        fontWeight: 600,
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.05em',
+                        padding: '1px 6px',
+                        borderRadius: 'var(--radius-sm)',
+                        background: c.channel === 'sms' ? 'rgba(34,197,94,0.1)' : 'rgba(99,102,241,0.1)',
+                        color: c.channel === 'sms' ? '#16a34a' : '#6366f1',
+                      }}
+                    >
+                      {c.channel.toUpperCase()}
+                    </span>
+                  </div>
+                  {c.subject && (
+                    <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)', marginTop: 2 }}>
+                      {c.subject}
+                    </div>
+                  )}
+                  {c.body_preview && (
+                    <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-tertiary)', marginTop: 2 }}>
+                      {c.body_preview}
+                    </div>
+                  )}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', marginTop: 4, fontSize: 'var(--font-size-xs)', color: 'var(--color-text-tertiary)' }}>
+                    <span>→ {c.recipient}</span>
+                    <span>
+                      {new Date(c.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}{' '}
+                      {new Date(c.created_at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                    {c.order_id && (
+                      <Link to={`/orders/${c.order_id}`} style={{ color: 'var(--color-primary)', textDecoration: 'none' }}>
+                        View order
+                      </Link>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

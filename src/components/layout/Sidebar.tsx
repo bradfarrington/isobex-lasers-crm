@@ -2,6 +2,8 @@ import { useLocation, Link } from 'react-router-dom';
 import { Settings } from 'lucide-react';
 import { navigationSections } from '@/config/navigation';
 import { useTheme } from '@/hooks/useTheme';
+import { useAuth } from '@/context/AuthContext';
+import type { AppUserPermissions } from '@/types/database';
 import './Sidebar.css';
 
 interface SidebarProps {
@@ -12,6 +14,7 @@ interface SidebarProps {
 export function Sidebar({ isOpen, onClose }: SidebarProps) {
   const location = useLocation();
   const { theme } = useTheme();
+  const { hasPermission } = useAuth();
 
   const isActive = (path: string) => {
     if (path === '/') return location.pathname === '/';
@@ -36,33 +39,44 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
 
       {/* Navigation */}
       <nav className="sidebar-nav">
-        {navigationSections.map((section) => (
-          <div key={section.title} className="sidebar-section">
-            <div className="sidebar-section-title">{section.title}</div>
-            <ul className="sidebar-section-items">
-              {section.items.map((item) => {
-                const Icon = item.icon;
-                const active = isActive(item.path);
-                return (
-                  <li key={item.path}>
-                    <Link
-                      to={item.path}
-                      className={`sidebar-item ${active ? 'active' : ''}`}
-                      onClick={() => {
-                        // Close sidebar on mobile when navigating
-                        if (window.innerWidth <= 768) onClose();
-                      }}
-                    >
-                      <Icon size={18} className="sidebar-item-icon" />
-                      <span className="sidebar-item-label">{item.label}</span>
-                      {active && <div className="sidebar-item-indicator" />}
-                    </Link>
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
-        ))}
+        {navigationSections.map((section) => {
+          // Filter items based on user permissions
+          const visibleItems = section.items.filter((item) => {
+            if (!item.permissionKey) return true;
+            return hasPermission(item.permissionKey as keyof AppUserPermissions);
+          });
+
+          // Don't render section if no visible items
+          if (visibleItems.length === 0) return null;
+
+          return (
+            <div key={section.title} className="sidebar-section">
+              <div className="sidebar-section-title">{section.title}</div>
+              <ul className="sidebar-section-items">
+                {visibleItems.map((item) => {
+                  const Icon = item.icon;
+                  const active = isActive(item.path);
+                  return (
+                    <li key={item.path}>
+                      <Link
+                        to={item.path}
+                        className={`sidebar-item ${active ? 'active' : ''}`}
+                        onClick={() => {
+                          // Close sidebar on mobile when navigating
+                          if (window.innerWidth <= 768) onClose();
+                        }}
+                      >
+                        <Icon size={18} className="sidebar-item-icon" />
+                        <span className="sidebar-item-label">{item.label}</span>
+                        {active && <div className="sidebar-item-indicator" />}
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          );
+        })}
       </nav>
 
       {/* Footer pinned settings */}

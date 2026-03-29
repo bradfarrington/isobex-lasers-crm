@@ -73,6 +73,10 @@ import type {
   GooglePlaceOverview,
   ReviewRequest,
   ReviewRequestInsert,
+  ContactCommunication,
+  AppUser,
+  AppUserUpdate,
+  AppUserPermissions,
 } from '@/types/database';
 
 // ─── Contacts ────────────────────────────────────────────
@@ -2559,4 +2563,86 @@ export async function deductInventoryForOrder(orderId: string): Promise<void> {
       }
     }
   }
+}
+
+// ─── Contact Communications ─────────────────────────────────
+
+export async function fetchContactCommunications(contactId: string): Promise<ContactCommunication[]> {
+  const { data, error } = await supabase
+    .from('contact_communications')
+    .select('*')
+    .eq('contact_id', contactId)
+    .order('created_at', { ascending: false });
+
+  if (error) throw error;
+  return data as ContactCommunication[];
+}
+
+// ─── App Users (Team Management) ────────────────────────────
+
+export async function fetchAppUsers(): Promise<AppUser[]> {
+  const { data, error } = await supabase
+    .from('app_users')
+    .select('*')
+    .order('created_at', { ascending: true });
+
+  if (error) throw error;
+  return data as AppUser[];
+}
+
+export async function fetchCurrentAppUser(): Promise<AppUser | null> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return null;
+
+  const { data, error } = await supabase
+    .from('app_users')
+    .select('*')
+    .eq('auth_user_id', user.id)
+    .single();
+
+  if (error) return null;
+  return data as AppUser;
+}
+
+export async function updateAppUser(id: string, updates: AppUserUpdate): Promise<AppUser> {
+  const { data, error } = await supabase
+    .from('app_users')
+    .update({ ...updates, updated_at: new Date().toISOString() })
+    .eq('id', id)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as AppUser;
+}
+
+export async function deactivateUser(id: string): Promise<AppUser> {
+  return updateAppUser(id, { status: 'deactivated' });
+}
+
+export async function reactivateUser(id: string): Promise<AppUser> {
+  return updateAppUser(id, { status: 'active' });
+}
+
+export async function inviteUser(payload: {
+  full_name: string;
+  email: string;
+  role: 'admin' | 'staff';
+  permissions: AppUserPermissions;
+}): Promise<{ ok: boolean; error?: string }> {
+  const { data, error } = await supabase.functions.invoke('send-email', {
+    body: { action: 'invite_user', ...payload },
+  });
+
+  if (error) throw error;
+  return data as { ok: boolean; error?: string };
+}
+
+export async function resetUserPassword(authUserId: string, newPassword: string): Promise<{ ok: boolean; error?: string }> {
+  const { data, error } = await supabase.functions.invoke('send-email', {
+    body: { action: 'reset_password', auth_user_id: authUserId, new_password: newPassword },
+  });
+
+  if (error) throw error;
+  return data as { ok: boolean; error?: string };
 }

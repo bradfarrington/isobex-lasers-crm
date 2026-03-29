@@ -175,7 +175,25 @@ serve(async (req) => {
                 status: 'sent',
                 credits_used: 1
             });
-            
+
+            // Log to contact_communications
+            if (targetOrderId) {
+                try {
+                    const { data: orderData } = await supabase
+                        .from('orders').select('contact_id').eq('id', targetOrderId).single();
+                    await supabase.from('contact_communications').insert({
+                        contact_id: orderData?.contact_id || null,
+                        channel: 'sms',
+                        comm_type: action === 'order_confirmation' ? 'sms_order_confirmation' : 'sms_order_refunded',
+                        subject: null,
+                        body_preview: messageBody.slice(0, 200),
+                        recipient: recipientPhone,
+                        order_id: targetOrderId,
+                        status: 'sent',
+                    });
+                } catch (logErr) { console.error('Failed to log SMS communication:', logErr); }
+            }
+
             // Check Low Credit Alert
             if (newBalance <= 10 && !profile.sms_low_credit_notified) {
                 await sendLowCreditAlert(supabase, profile);
