@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useAlert } from '@/components/ui/AlertDialog';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useData } from '@/context/DataContext';
@@ -95,6 +95,10 @@ export function CampaignsTab({ activeSubTab = 'campaigns' }: CampaignsTabProps) 
   });
   const [selectedRecipients, setSelectedRecipients] = useState<string[]>([]);
   const [recipientSearch, setRecipientSearch] = useState('');
+  const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
+  const [tagSearchQuery, setTagSearchQuery] = useState('');
+  const [tagDropdownOpen, setTagDropdownOpen] = useState(false);
+  const tagDropdownRef = useRef<HTMLDivElement>(null);
   const [saving, setSaving] = useState(false);
   const [sending, setSending] = useState(false);
   // Track campaign ID when resuming from builder
@@ -124,6 +128,17 @@ export function CampaignsTab({ activeSubTab = 'campaigns' }: CampaignsTabProps) 
   }, []);
 
   useEffect(() => { loadData(); }, [loadData]);
+
+  // Close tag dropdown on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (tagDropdownRef.current && !tagDropdownRef.current.contains(e.target as Node)) {
+        setTagDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
 
   // Handle return from email builder (query params: campaignId, step)
   useEffect(() => {
@@ -165,17 +180,89 @@ export function CampaignsTab({ activeSubTab = 'campaigns' }: CampaignsTabProps) 
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Eligible contacts (have email and not unsubscribed)
+  const eligibleContacts = useMemo(() =>
+    contacts.filter(c => c.email && !c.unsubscribed),
+    [contacts]
+  );
+
+  // Tag counts: how many eligible contacts per tag
+  const tagContactCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const c of eligibleContacts) {
+      for (const t of (c.tags || [])) {
+        counts.set(t.id, (counts.get(t.id) || 0) + 1);
+      }
+    }
+    return counts;
+  }, [eligibleContacts]);
+
+  // Contact IDs for each selected tag
+  const contactIdsBySelectedTags = useMemo(() => {
+    if (selectedTagIds.length === 0) return new Set<string>();
+    const ids = new Set<string>();
+    for (const c of eligibleContacts) {
+      const cTagIds = (c.tags || []).map(t => t.id);
+      if (selectedTagIds.some(tid => cTagIds.includes(tid))) {
+        ids.add(c.id);
+      }
+    }
+    return ids;
+  }, [eligibleContacts, selectedTagIds]);
+
+  // Handle tag toggle
+  const handleTagToggle = useCallback((tagId: string) => {
+    setSelectedTagIds(prev => {
+      const isRemoving = prev.includes(tagId);
+      const next = isRemoving ? prev.filter(id => id !== tagId) : [...prev, tagId];
+
+      // Compute the contact IDs for the toggled tag
+      const tagContactIds = eligibleContacts
+        .filter(c => (c.tags || []).some(t => t.id === tagId))
+        .map(c => c.id);
+
+      if (isRemoving) {
+        // Compute contact IDs still covered by remaining tags
+        const remainingTagSet = new Set(next);
+        const stillCovered = new Set<string>();
+        for (const c of eligibleContacts) {
+          const cTagIds = (c.tags || []).map(t => t.id);
+          if (cTagIds.some(tid => remainingTagSet.has(tid))) {
+            stillCovered.add(c.id);
+          }
+        }
+        // Remove contacts that were added by this tag and are NOT covered by remaining tags
+        setSelectedRecipients(sr =>
+          sr.filter(id => !tagContactIds.includes(id) || stillCovered.has(id))
+        );
+      } else {
+        // Add contacts from this tag
+        setSelectedRecipients(sr => {
+          const existing = new Set(sr);
+          const toAdd = tagContactIds.filter(id => !existing.has(id));
+          return toAdd.length > 0 ? [...sr, ...toAdd] : sr;
+        });
+      }
+
+      return next;
+    });
+  }, [eligibleContacts]);
+
   // Filtered contacts for recipient selector
   const filteredContacts = useMemo(() => {
     const q = recipientSearch.toLowerCase();
-    return contacts
-      .filter(c => c.email && !c.unsubscribed)
+    return eligibleContacts
+      .filter(c => {
+        // If tags are selected, only show contacts with at least one selected tag
+        if (selectedTagIds.length > 0 && !contactIdsBySelectedTags.has(c.id)) return false;
+        return true;
+      })
       .filter(c =>
         !q ||
         `${c.first_name} ${c.last_name}`.toLowerCase().includes(q) ||
         (c.email || '').toLowerCase().includes(q)
       );
-  }, [contacts, recipientSearch]);
+  }, [eligibleContacts, recipientSearch, selectedTagIds, contactIdsBySelectedTags]);
 
   // ── Campaign List ──
   const handleDelete = async (e: React.MouseEvent, c: EmailCampaign) => {
@@ -238,6 +325,7 @@ export function CampaignsTab({ activeSubTab = 'campaigns' }: CampaignsTabProps) 
       batchInterval: 5,
     });
     setSelectedRecipients([]);
+    setSelectedTagIds([]);
     setEditingCampaignId(null);
     setStep(0);
     setView('create');
@@ -897,6 +985,100 @@ export function CampaignsTab({ activeSubTab = 'campaigns' }: CampaignsTabProps) 
             <p className="campaign-step-desc">Choose which contacts should receive this campaign. Only contacts with email addresses are shown.</p>
 
             <div className="recipient-selector">
+              {/* Tag filter dropdown */}
+              {globalState.tags.length > 0 && (
+                <div className="campaign-tag-filter">
+                  <div className="campaign-tag-dropdown-wrap" ref={tagDropdownRef}>
+                    <button
+                      type="button"
+                      className={`campaign-tag-dropdown-trigger${selectedTagIds.length > 0 ? ' has-tags' : ''}`}
+                      onClick={() => { setTagDropdownOpen(o => !o); setTagSearchQuery(''); }}
+                    >
+                      <Tags size={14} />
+                      {selectedTagIds.length > 0
+                        ? `${selectedTagIds.length} tag${selectedTagIds.length !== 1 ? 's' : ''} selected`
+                        : 'Filter by tags'}
+                      <ChevronRight size={14} className={`campaign-tag-chevron${tagDropdownOpen ? ' open' : ''}`} />
+                    </button>
+
+                    {tagDropdownOpen && (
+                      <div className="campaign-tag-dropdown">
+                        <div className="campaign-tag-dropdown-search">
+                          <Search size={13} />
+                          <input
+                            type="text"
+                            placeholder="Search tags…"
+                            value={tagSearchQuery}
+                            onChange={e => setTagSearchQuery(e.target.value)}
+                            autoFocus
+                          />
+                        </div>
+                        <div className="campaign-tag-dropdown-list">
+                          {globalState.tags
+                            .filter(t => !tagSearchQuery.trim() || t.name.toLowerCase().includes(tagSearchQuery.toLowerCase()))
+                            .map(tag => {
+                              const count = tagContactCounts.get(tag.id) || 0;
+                              const isActive = selectedTagIds.includes(tag.id);
+                              return (
+                                <button
+                                  key={tag.id}
+                                  type="button"
+                                  className={`campaign-tag-dropdown-item${isActive ? ' active' : ''}`}
+                                  onClick={() => handleTagToggle(tag.id)}
+                                  disabled={count === 0}
+                                >
+                                  <span className="campaign-tag-dropdown-check">
+                                    {isActive && <CheckCircle2 size={14} />}
+                                  </span>
+                                  <span className="campaign-tag-dropdown-name">{tag.name}</span>
+                                  <span className="campaign-tag-dropdown-count">{count}</span>
+                                </button>
+                              );
+                            })}
+                          {globalState.tags.filter(t => !tagSearchQuery.trim() || t.name.toLowerCase().includes(tagSearchQuery.toLowerCase())).length === 0 && (
+                            <div className="campaign-tag-dropdown-empty">No tags found</div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Selected tag pills */}
+                  {selectedTagIds.length > 0 && (
+                    <div className="campaign-tag-selected-pills">
+                      {selectedTagIds.map(tid => {
+                        const tag = globalState.tags.find(t => t.id === tid);
+                        if (!tag) return null;
+                        const count = tagContactCounts.get(tid) || 0;
+                        return (
+                          <span key={tid} className="campaign-tag-pill active">
+                            {tag.name}
+                            <span className="campaign-tag-pill-count">{count}</span>
+                            <button
+                              type="button"
+                              className="campaign-tag-pill-remove"
+                              onClick={() => handleTagToggle(tid)}
+                            >
+                              <X size={10} />
+                            </button>
+                          </span>
+                        );
+                      })}
+                      <button
+                        type="button"
+                        className="campaign-tag-clear"
+                        onClick={() => {
+                          setSelectedTagIds([]);
+                          setSelectedRecipients([]);
+                        }}
+                      >
+                        Clear all
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+
               <div className="recipient-selector-header">
                 <div className="recipient-search-wrap">
                   <Search size={14} />
@@ -955,6 +1137,13 @@ export function CampaignsTab({ activeSubTab = 'campaigns' }: CampaignsTabProps) 
                     <div className="recipient-info">
                       <span className="recipient-name">{c.first_name} {c.last_name}</span>
                       <span className="recipient-email">{c.email}</span>
+                      {(c.tags || []).length > 0 && (
+                        <span className="recipient-tags">
+                          {(c.tags || []).map(t => (
+                            <span key={t.id} className="recipient-tag-badge">{t.name}</span>
+                          ))}
+                        </span>
+                      )}
                     </div>
                   </div>
                 ))}

@@ -445,6 +445,277 @@
 .recipient-name { font-size: 14px; font-weight: var(--font-weight-semibold); }
 .recipient-email { font-size: 12px; color: var(--color-text-tertiary); }
 
+/* Tag Filter Dropdown */
+.campaign-tag-filter {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-bg-surface);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.campaign-tag-dropdown-wrap {
+  position: relative;
+}
+
+.campaign-tag-dropdown-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-raised);
+  font-size: 13px;
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.campaign-tag-dropdown-trigger:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.campaign-tag-dropdown-trigger.has-tags {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  background: var(--color-primary-subtle);
+}
+
+.campaign-tag-chevron {
+  transition: transform 0.2s ease;
+}
+
+.campaign-tag-chevron.open {
+  transform: rotate(90deg);
+}
+
+.campaign-tag-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 50;
+  width: 280px;
+  background: var(--color-bg-raised);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+  animation: tagDropIn 0.15s ease-out;
+}
+
+@keyframes tagDropIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.campaign-tag-dropdown-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--color-border);
+  color: var(--color-text-tertiary);
+}
+
+.campaign-tag-dropdown-search input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  font-size: 13px;
+  color: var(--color-text-primary);
+  outline: none;
+  padding: 0;
+}
+
+.campaign-tag-dropdown-search input::placeholder {
+  color: var(--color-text-tertiary);
+}
+
+.campaign-tag-dropdown-list {
+  max-height: 220px;
+  overflow-y: auto;
+  padding: 4px 0;
+}
+
+.campaign-tag-dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 7px 12px;
+  border: none;
+  background: none;
+  font-size: 13px;
+  color: var(--color-text-primary);
+  cursor: pointer;
+  transition: background 0.1s ease;
+  text-align: left;
+}
+
+.campaign-tag-dropdown-item:hover:not(:disabled) {
+  background: var(--color-bg-surface);
+}
+
+.campaign-tag-dropdown-item.active {
+  color: var(--color-primary);
+}
+
+.campaign-tag-dropdown-item:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.campaign-tag-dropdown-check {
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border-radius: 4px;
+  border: 1.5px solid var(--color-border);
+  color: transparent;
+  transition: all 0.15s ease;
+}
+
+.campaign-tag-dropdown-item.active .campaign-tag-dropdown-check {
+  border-color: var(--color-primary);
+  background: var(--color-primary);
+  color: #fff;
+}
+
+.campaign-tag-dropdown-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.campaign-tag-dropdown-count {
+  flex-shrink: 0;
+  font-size: 11px;
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-tertiary);
+  background: var(--color-bg-surface);
+  padding: 1px 7px;
+  border-radius: var(--radius-full);
+}
+
+.campaign-tag-dropdown-empty {
+  padding: 16px 12px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--color-text-tertiary);
+}
+
+/* Selected Tag Pills */
+.campaign-tag-selected-pills {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.campaign-tag-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-raised);
+  font-size: 12px;
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+
+.campaign-tag-pill.active {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: #fff;
+}
+
+.campaign-tag-pill-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.25);
+  font-size: 10px;
+  font-weight: var(--font-weight-bold);
+  color: #fff;
+}
+
+.campaign-tag-pill-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border: none;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 50%;
+  color: #fff;
+  cursor: pointer;
+  padding: 0;
+  transition: background 0.15s ease;
+}
+
+.campaign-tag-pill-remove:hover {
+  background: rgba(255, 255, 255, 0.4);
+}
+
+.campaign-tag-clear {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border: none;
+  background: none;
+  font-size: 12px;
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-tertiary);
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.campaign-tag-clear:hover {
+  color: var(--color-danger);
+  background: rgba(220, 38, 38, 0.08);
+}
+
+/* Recipient Tag Badges */
+.recipient-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 2px;
+}
+
+.recipient-tag-badge {
+  display: inline-block;
+  padding: 1px 7px;
+  border-radius: var(--radius-full);
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border);
+  font-size: 10px;
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-tertiary);
+  line-height: 1.5;
+}
+
 /* Review */
 .campaign-review-summary {
   background: var(--color-bg-surface);
