@@ -1834,14 +1834,12 @@ export async function deleteShippingRate(id: string): Promise<void> {
   if (error) throw error;
 }
 
-export async function fetchShippingRatesForWeight(weightKg: number): Promise<ShippingRate[]> {
+export async function fetchActiveShippingRates(): Promise<ShippingRate[]> {
   const { data, error } = await supabase
     .from('shipping_rates')
     .select('*')
     .eq('is_active', true)
-    .lte('min_weight_kg', weightKg)
-    .gte('max_weight_kg', weightKg)
-    .order('price', { ascending: true });
+    .order('sort_order', { ascending: true });
 
   if (error) throw error;
   return data as ShippingRate[];

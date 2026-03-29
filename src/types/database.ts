@@ -694,8 +694,6 @@ export interface ShippingRate {
   id: string;
   zone_id: string;
   name: string;
-  min_weight_kg: number;
-  max_weight_kg: number;
   price: number;
   estimated_days_min: number;
   estimated_days_max: number;

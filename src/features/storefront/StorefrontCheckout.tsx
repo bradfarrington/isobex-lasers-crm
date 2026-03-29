@@ -53,7 +53,7 @@ function StorefrontCheckoutInner() {
   const { showAlert } = useAlert();
   const navigate = useNavigate();
   const { formatPrice, config } = useStoreConfig();
-  const { items, cartTotal, cartWeight, clearCart } = useCart();
+  const { items, cartTotal, clearCart } = useCart();
   const tpl = config?.page_templates?.checkout || {};
 
   const stripe = useStripe();
@@ -95,13 +95,13 @@ function StorefrontCheckoutInner() {
   }, []); // Run once on mount
 
   useEffect(() => {
-    api.fetchShippingRatesForWeight(cartWeight)
+    api.fetchActiveShippingRates()
       .then((rates) => {
         setShippingRates(rates);
         if (rates.length > 0) setSelectedShipping(rates[0]);
       })
       .catch(console.error);
-  }, [cartWeight]);
+  }, []);
 
   // Calculate totals
   let discountAmount = 0;

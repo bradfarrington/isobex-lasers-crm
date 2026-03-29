@@ -27,8 +27,6 @@ export function ShippingPage() {
         zone_id: zoneId,
         name: 'Standard Delivery',
         price: 5.0,
-        min_weight_kg: 0,
-        max_weight_kg: null as any,
         estimated_days_min: 3,
         estimated_days_max: 5,
         sort_order: rates.filter((r) => r.zone_id === zoneId).length,
@@ -117,8 +115,6 @@ export function ShippingPage() {
                         <thead>
                           <tr>
                             <th>Rate Name</th>
-                            <th>Min Weight (kg)</th>
-                            <th>Max Weight (kg)</th>
                             <th>Price (£)</th>
                             <th>Est. Days</th>
                             <th></th>
@@ -135,30 +131,6 @@ export function ShippingPage() {
                                   onChange={(e) => updateRate(rate.id, 'name', e.target.value)}
                                   onBlur={() => saveRate(rate)}
                                   style={{ minWidth: 120 }}
-                                />
-                              </td>
-                              <td>
-                                <input
-                                  type="number"
-                                  className="form-input"
-                                  value={rate.min_weight_kg || 0}
-                                  onChange={(e) => updateRate(rate.id, 'min_weight_kg', Number(e.target.value))}
-                                  onBlur={() => saveRate(rate)}
-                                  step="0.1"
-                                  min="0"
-                                  style={{ width: 90 }}
-                                />
-                              </td>
-                              <td>
-                                <input
-                                  type="number"
-                                  className="form-input"
-                                  value={rate.max_weight_kg || ''}
-                                  onChange={(e) => updateRate(rate.id, 'max_weight_kg', e.target.value === '' ? null : Number(e.target.value))}
-                                  onBlur={() => saveRate(rate)}
-                                  step="0.1"
-                                  min="0"
-                                  style={{ width: 90 }}
                                 />
                               </td>
                               <td>
@@ -198,9 +170,14 @@ export function ShippingPage() {
                               </td>
                               <td>
                                 <button
-                                  className="btn btn-ghost btn-icon-sm danger"
                                   onClick={() => deleteRate(rate.id)}
                                   title="Delete rate"
+                                  style={{
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                    width: 28, height: 28, padding: 0,
+                                    background: 'none', border: 'none', borderRadius: 6,
+                                    color: '#dc2626', cursor: 'pointer',
+                                  }}
                                 >
                                   <Trash2 size={14} />
                                 </button>
