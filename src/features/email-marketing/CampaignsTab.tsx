@@ -81,6 +81,11 @@ export function CampaignsTab({ activeSubTab = 'campaigns' }: CampaignsTabProps) 
   const [selectedCampaignId, setSelectedCampaignId] = useState<string | null>(null);
   const [recipients, setRecipients] = useState<CampaignRecipient[]>([]);
 
+  // Recipient table sorting
+  type RecipientSortKey = 'name' | 'email' | 'status' | 'opened_at' | 'clicked_at';
+  const [recipientSortKey, setRecipientSortKey] = useState<RecipientSortKey>('name');
+  const [recipientSortDir, setRecipientSortDir] = useState<'asc' | 'desc'>('asc');
+
   // Create wizard state
   const [step, setStep] = useState(0);
   const [form, setForm] = useState({
@@ -738,15 +743,46 @@ export function CampaignsTab({ activeSubTab = 'campaigns' }: CampaignsTabProps) 
             <table className="campaign-recipients-table">
               <thead>
                 <tr>
-                  <th>Name</th>
-                  <th>Email</th>
-                  <th>Status</th>
-                  <th>Opened</th>
-                  <th>Clicked</th>
+                  {[
+                    { key: 'name' as RecipientSortKey, label: 'Name' },
+                    { key: 'email' as RecipientSortKey, label: 'Email' },
+                    { key: 'status' as RecipientSortKey, label: 'Status' },
+                    { key: 'opened_at' as RecipientSortKey, label: 'Opened' },
+                    { key: 'clicked_at' as RecipientSortKey, label: 'Clicked' },
+                  ].map(col => (
+                    <th
+                      key={col.key}
+                      onClick={() => {
+                        if (recipientSortKey === col.key) {
+                          setRecipientSortDir(d => d === 'asc' ? 'desc' : 'asc');
+                        } else {
+                          setRecipientSortKey(col.key);
+                          setRecipientSortDir('asc');
+                        }
+                      }}
+                      style={{ cursor: 'pointer', userSelect: 'none' }}
+                    >
+                      {col.label}{' '}
+                      {recipientSortKey === col.key ? (recipientSortDir === 'asc' ? '▲' : '▼') : ''}
+                    </th>
+                  ))}
                 </tr>
               </thead>
               <tbody className="responsive-table-body">
-                {recipients.map(r => (
+                {[...recipients]
+                  .sort((a, b) => {
+                    const dir = recipientSortDir === 'asc' ? 1 : -1;
+                    const getName = (r: any) => r.contact ? `${r.contact.first_name || ''} ${r.contact.last_name || ''}`.trim().toLowerCase() : '';
+                    switch (recipientSortKey) {
+                      case 'name': return getName(a).localeCompare(getName(b)) * dir;
+                      case 'email': return (a.email || '').localeCompare(b.email || '') * dir;
+                      case 'status': return (a.status || '').localeCompare(b.status || '') * dir;
+                      case 'opened_at': return ((a.opened_at || '') > (b.opened_at || '') ? 1 : -1) * dir;
+                      case 'clicked_at': return ((a.clicked_at || '') > (b.clicked_at || '') ? 1 : -1) * dir;
+                      default: return 0;
+                    }
+                  })
+                  .map(r => (
                   <tr key={r.id} className="responsive-table-row">
                     <td data-label="Name" className="responsive-table-cell primary-cell">
                       {r.contact

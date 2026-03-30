@@ -106,20 +106,24 @@ Deno.serve(async (req: Request) => {
         // Dynamically import denomailer (avoids top-level import crash)
         const { SMTPClient } = await import('https://deno.land/x/denomailer@1.6.0/mod.ts');
 
-        const client = new SMTPClient({
-            connection: {
-                hostname: settings.smtp_host,
-                port: Number(settings.smtp_port) || 587,
-                tls: settings.smtp_secure !== false,
-                auth: {
-                    username: settings.smtp_user,
-                    password: settings.smtp_pass,
-                },
-            },
-        });
-
         const fromAddress = `${settings.smtp_from_name || 'Isobex Lasers'} <${settings.smtp_user}>`;
         const replyTo = settings.smtp_reply_to || undefined;
+
+        // Create SMTP client lazily — send_campaign creates its own per-recipient clients,
+        // so we only connect here for other actions (test, order emails, etc.)
+        function createSmtpClient() {
+            return new SMTPClient({
+                connection: {
+                    hostname: settings.smtp_host,
+                    port: Number(settings.smtp_port) || 587,
+                    tls: settings.smtp_secure !== false,
+                    auth: {
+                        username: settings.smtp_user,
+                        password: settings.smtp_pass,
+                    },
+                },
+            });
+        }
 
         // Helper: encode HTML as base64 mime to avoid encoding artifacts
         function htmlMime(html: string) {
@@ -136,6 +140,7 @@ Deno.serve(async (req: Request) => {
             }
 
             const testHtml = '<div style="font-family:Helvetica,Arial,sans-serif;padding:30px;max-width:500px;margin:auto;"><h2 style="color:#dc2626;">✓ SMTP Test Successful</h2><p>Your email settings are configured correctly.</p><p style="color:#888;font-size:13px;">Sent from Isobex Lasers CRM</p></div>';
+            const client = createSmtpClient();
             await client.send({
                 from: fromAddress,
                 to: recipient,
@@ -153,6 +158,7 @@ Deno.serve(async (req: Request) => {
             if (!toEmail) return jsonRes({ error: 'Recipient email (toEmail) is required' }, 400);
             if (!html) return jsonRes({ error: 'Email HTML content is required' }, 400);
 
+            const client = createSmtpClient();
             await client.send({
                 from: fromAddress,
                 to: toEmail,
@@ -291,6 +297,7 @@ Deno.serve(async (req: Request) => {
                 emailHtml = `<!DOCTYPE html><html><head><meta charset="utf-8"></head><body style="font-family:Helvetica,Arial,sans-serif;margin:0;padding:0;background:#f4f4f4;"><div style="max-width:600px;margin:0 auto;background:#ffffff;"><div style="background:#1a1a1a;padding:30px 20px;text-align:center;"><h1 style="color:#ffffff;margin:0;font-size:24px;">${businessName}</h1></div><div style="padding:30px 20px;"><h2 style="margin-top:0;color:#dc2626;">${heading}</h2>${bodyContent}</div><div style="text-align:center;padding:20px;background:#f4f4f4;"><p style="font-size:12px;color:#aaa;margin:0;">${businessName}</p></div></div></body></html>`;
             }
 
+            const client = createSmtpClient();
             await client.send({ from: fromAddress, to: clientEmail, subject: emailSubject, mimeContent: htmlMime(emailHtml), replyTo });
             await client.close();
 
@@ -343,12 +350,22 @@ Deno.serve(async (req: Request) => {
                 .eq('campaign_id', campaignId)
                 .eq('status', 'pending');
             if (recipErr) return jsonRes({ error: `Failed to fetch recipients: ${recipErr.message}` }, 500);
-            if (!recipients || recipients.length === 0) return jsonRes({ error: 'No pending recipients to send to.' }, 400);
+            if (!recipients || recipients.length === 0) {
+                // All recipients already sent — mark campaign as sent
+                await supabase.from('email_campaigns').update({
+                    status: 'sent',
+                    sent_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString(),
+                }).eq('id', campaignId);
+                return jsonRes({ ok: true, sent: 0, failed: 0, total: 0, message: 'All recipients already sent.' });
+            }
 
             // Get the site URL for unsubscribe links
             const siteUrl = Deno.env.get('SITE_URL') || Deno.env.get('SUPABASE_URL')?.replace('.supabase.co', '.vercel.app') || 'http://localhost:5173';
 
-            // 5. Send to each recipient
+            // send_campaign uses per-recipient SMTP clients (no shared client to close)
+
+            // 5. Send to each recipient (fresh SMTP connection per email)
             let sentCount = 0;
             let failCount = 0;
             const batchSize = campaign.batch_size || 50;
@@ -414,13 +431,28 @@ Deno.serve(async (req: Request) => {
                         },
                     );
 
-                    await client.send({
+                    // Create a fresh SMTP connection for each recipient
+                    const perRecipientClient = new SMTPClient({
+                        connection: {
+                            hostname: settings.smtp_host,
+                            port: Number(settings.smtp_port) || 587,
+                            tls: settings.smtp_secure !== false,
+                            auth: {
+                                username: settings.smtp_user,
+                                password: settings.smtp_pass,
+                            },
+                        },
+                    });
+
+                    await perRecipientClient.send({
                         from: fromAddress,
                         to: r.email,
                         subject: personalSubject,
                         mimeContent: htmlMime(personalHtml),
                         replyTo,
                     });
+
+                    await perRecipientClient.close();
 
                     await supabase.from('campaign_recipients').update({ status: 'sent' }).eq('id', r.id);
                     sentCount++;
@@ -446,7 +478,6 @@ Deno.serve(async (req: Request) => {
                 updated_at: new Date().toISOString(),
             }).eq('id', campaignId);
 
-            await client.close();
             return jsonRes({ ok: true, sent: sentCount, failed: failCount, total: recipients.length });
         }
 
@@ -531,6 +562,7 @@ Deno.serve(async (req: Request) => {
                 emailHtml = `<!DOCTYPE html><html><head><meta charset="utf-8"></head><body style="font-family:Helvetica,Arial,sans-serif;margin:0;padding:0;background:#f4f4f4;"><div style="max-width:600px;margin:0 auto;background:#ffffff;"><div style="background:#1a1a1a;padding:30px 20px;text-align:center;"><h1 style="color:#ffffff;margin:0;font-size:24px;">${businessName}</h1></div><div style="padding:40px 30px;text-align:center;"><h2 style="margin-top:0;color:#1a1a1a;">How did we do?</h2><p style="color:#555;font-size:16px;line-height:1.6;margin-bottom:30px;">Hi ${clientName},<br><br>Thank you for choosing ${businessName}. We hope you had a great experience with us. If you have a moment, we would really appreciate it if you could leave us a review on Google.</p><a href="${trackedReviewLink}" style="display:inline-block;background:#3b82f6;color:#ffffff;text-decoration:none;font-weight:bold;padding:14px 28px;border-radius:6px;font-size:16px;">Leave a Review on Google</a></div><div style="text-align:center;padding:20px;background:#f4f4f4;"><p style="font-size:12px;color:#aaa;margin:0;">${businessName}</p></div></div></body></html>`;
             }
 
+            const client = createSmtpClient();
             await client.send({
                 from: fromAddress,
                 to: clientEmail,
@@ -651,6 +683,7 @@ Deno.serve(async (req: Request) => {
                 emailHtml = `<!DOCTYPE html><html><head><meta charset="utf-8"></head><body style="font-family:Helvetica,Arial,sans-serif;margin:0;padding:0;background:#f4f4f4;"><div style="max-width:600px;margin:0 auto;background:#ffffff;"><div style="background:#1a1a1a;padding:30px 20px;text-align:center;"><h1 style="color:#ffffff;margin:0;font-size:24px;">${businessName}</h1></div><div style="padding:30px 20px;"><h2 style="margin-top:0;color:#dc2626;text-align:center;">You've Received a Gift Card! 🎁</h2><p>Hi ${recipientName},</p><p>${senderName} has sent you a gift card${messageIntro}!</p><div style="text-align:center;padding:20px 0;">${giftCardVisual}</div>${messageBlock}<p style="text-align:center;font-size:13px;color:#888;">To redeem your gift card, enter the code at checkout.</p></div><div style="text-align:center;padding:20px;background:#f4f4f4;"><p style="font-size:12px;color:#aaa;margin:0;">This gift card expires on ${giftCardExpiry}. • ${businessName}</p></div></div></body></html>`;
             }
 
+            const client = createSmtpClient();
             await client.send({ from: fromAddress, to: gc.recipient_email, subject: emailSubject, mimeContent: htmlMime(emailHtml), replyTo });
 
             // Log communication
@@ -742,6 +775,7 @@ Deno.serve(async (req: Request) => {
                 emailHtml = `<!DOCTYPE html><html><head><meta charset="utf-8"></head><body style="font-family:Helvetica,Arial,sans-serif;margin:0;padding:0;background:#f4f4f4;"><div style="max-width:600px;margin:0 auto;background:#ffffff;"><div style="background:#1a1a1a;padding:30px 20px;text-align:center;"><h1 style="color:#ffffff;margin:0;font-size:24px;">${businessName}</h1></div><div style="padding:40px 30px;text-align:center;"><h2 style="margin-top:0;color:#1a1a1a;">Password Reset</h2><p style="color:#555;font-size:16px;line-height:1.6;margin-bottom:30px;">We received a request to reset your password. Click the link below to set a new password.</p><a href="${actionLink}" style="display:inline-block;background:#3b82f6;color:#ffffff;text-decoration:none;font-weight:bold;padding:14px 28px;border-radius:6px;font-size:16px;">Reset Password</a></div><div style="text-align:center;padding:20px;background:#f4f4f4;"><p style="font-size:12px;color:#aaa;margin:0;">This link will expire in 24 hours. • ${businessName}</p></div></div></body></html>`;
             }
 
+            const client = createSmtpClient();
             await client.send({
                 from: fromAddress,
                 to: email,
@@ -897,6 +931,7 @@ Deno.serve(async (req: Request) => {
 </html>`;
             }
 
+            const client = createSmtpClient();
             await client.send({
                 from: fromAddress,
                 to: email,
