@@ -82,7 +82,7 @@ export function CampaignsTab({ activeSubTab = 'campaigns' }: CampaignsTabProps) 
   const [recipients, setRecipients] = useState<CampaignRecipient[]>([]);
 
   // Recipient table sorting
-  type RecipientSortKey = 'name' | 'email' | 'status' | 'opened_at' | 'clicked_at';
+  type RecipientSortKey = 'name' | 'email' | 'status';
   const [recipientSortKey, setRecipientSortKey] = useState<RecipientSortKey>('name');
   const [recipientSortDir, setRecipientSortDir] = useState<'asc' | 'desc'>('asc');
 
@@ -747,8 +747,6 @@ export function CampaignsTab({ activeSubTab = 'campaigns' }: CampaignsTabProps) 
                     { key: 'name' as RecipientSortKey, label: 'Name' },
                     { key: 'email' as RecipientSortKey, label: 'Email' },
                     { key: 'status' as RecipientSortKey, label: 'Status' },
-                    { key: 'opened_at' as RecipientSortKey, label: 'Opened' },
-                    { key: 'clicked_at' as RecipientSortKey, label: 'Clicked' },
                   ].map(col => (
                     <th
                       key={col.key}
@@ -777,8 +775,6 @@ export function CampaignsTab({ activeSubTab = 'campaigns' }: CampaignsTabProps) 
                       case 'name': return getName(a).localeCompare(getName(b)) * dir;
                       case 'email': return (a.email || '').localeCompare(b.email || '') * dir;
                       case 'status': return (a.status || '').localeCompare(b.status || '') * dir;
-                      case 'opened_at': return ((a.opened_at || '') > (b.opened_at || '') ? 1 : -1) * dir;
-                      case 'clicked_at': return ((a.clicked_at || '') > (b.clicked_at || '') ? 1 : -1) * dir;
                       default: return 0;
                     }
                   })
@@ -795,12 +791,10 @@ export function CampaignsTab({ activeSubTab = 'campaigns' }: CampaignsTabProps) 
                         {r.status}
                       </span>
                     </td>
-                    <td data-label="Opened" className="responsive-table-cell">{r.opened_at ? new Date(r.opened_at).toLocaleString() : '—'}</td>
-                    <td data-label="Clicked" className="responsive-table-cell">{r.clicked_at ? new Date(r.clicked_at).toLocaleString() : '—'}</td>
                   </tr>
                 ))}
                 {recipients.length === 0 && (
-                  <tr><td colSpan={5} style={{ textAlign: 'center', padding: '24px', color: 'var(--color-text-tertiary)' }}>No recipients</td></tr>
+                  <tr><td colSpan={3} style={{ textAlign: 'center', padding: '24px', color: 'var(--color-text-tertiary)' }}>No recipients</td></tr>
                 )}
               </tbody>
             </table>
