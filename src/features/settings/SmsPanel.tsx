@@ -329,33 +329,17 @@ export function SmsPanel() {
             <div className="settings-section">
                 <div className="settings-section-title">Buy SMS Credits</div>
                 
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 'var(--space-4)', marginBottom: 'var(--space-6)' }}>
+                <div className="sms-credit-packages">
                     {CREDIT_PACKAGES.map(pkg => {
                         const isPopular = pkg.credits === 250;
                         return (
-                            <div key={pkg.credits} style={{
-                                padding: 'var(--space-4)', 
-                                border: isPopular ? '2px solid var(--primary-color)' : '1px solid var(--border-color)',
-                                borderRadius: 'var(--radius-md)',
-                                backgroundColor: 'var(--bg-surface)',
-                                textAlign: 'center',
-                                position: 'relative'
-                            }}>
-                                {isPopular && (
-                                    <span style={{
-                                        position: 'absolute', top: -10, left: '50%', transform: 'translateX(-50%)',
-                                        background: 'var(--primary-color)', color: '#fff', fontSize: '10px', 
-                                        padding: '2px 8px', borderRadius: 10, fontWeight: 600, textTransform: 'uppercase'
-                                    }}>Best Value</span>
-                                )}
-                                <div style={{ fontSize: 'var(--font-size-2xl)', fontWeight: 700, margin: 'var(--space-2) 0' }}>
-                                    {pkg.credits}
-                                </div>
-                                <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--text-muted)', marginBottom: 'var(--space-4)' }}>credits</div>
-                                <div style={{ fontSize: 'var(--font-size-lg)', fontWeight: 600, marginBottom: 'var(--space-4)' }}>{pkg.price}</div>
+                            <div key={pkg.credits} className={`sms-package-card ${isPopular ? 'popular' : ''}`}>
+                                {isPopular && <span className="sms-package-badge">Best Value</span>}
+                                <div className="sms-package-credits">{pkg.credits}</div>
+                                <div className="sms-package-label">credits</div>
+                                <div className="sms-package-price">{pkg.price}</div>
                                 <button
-                                    className={`btn ${isPopular ? 'btn-brand' : 'btn-outline'}`}
-                                    style={{ width: '100%' }}
+                                    className={`btn sms-package-button ${isPopular ? 'btn-brand' : 'btn-outline'}`}
                                     onClick={() => handleBuyCredits(pkg.credits)}
                                     disabled={buyingCredits}
                                 >
@@ -388,56 +372,76 @@ export function SmsPanel() {
                         <p>No templates found. Check your database migration.</p>
                     </div>
                 ) : (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
-                        {templates.map(tpl => (
-                            <div key={tpl.id} style={{
-                                border: '1px solid var(--border-color)',
-                                borderRadius: 'var(--radius-md)',
-                                padding: 'var(--space-4)',
-                                backgroundColor: 'var(--bg-surface)',
-                            }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-3)' }}>
-                                    <div>
-                                        <strong style={{ fontSize: 'var(--font-size-sm)' }}>{tpl.name}</strong>
-                                        {tpl.system_key && (
-                                            <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginLeft: 8, background: 'var(--bg-muted)', padding: '1px 6px', borderRadius: 4 }}>
-                                                {tpl.system_key}
-                                            </span>
-                                        )}
-                                    </div>
-                                    <label className="smtp-checkbox-label" style={{ fontSize: 'var(--font-size-xs)', fontWeight: 500 }}>
-                                        <input
-                                            type="checkbox"
-                                            checked={tpl.active}
-                                            onChange={(e) => updateTemplate(tpl.id, 'active', e.target.checked)}
+                    <div className="sms-template-container">
+                        {templates.map(tpl => {
+                            const previewText = tpl.body
+                                .replace(/{{customer_name}}/gi, 'Sarah Smith')
+                                .replace(/{{order_number}}/gi, '#10492')
+                                .replace(/{{business_name}}/gi, form.sms_sender_name || 'Isobex');
+                            
+                            const len = previewText.length;
+                            const segments = len === 0 ? 0 : (len <= 160 ? 1 : Math.ceil(len / 153));
+                            const creditText = segments === 1 ? '1 credit' : `${segments} credits`;
+
+                            return (
+                                <div key={tpl.id} className="sms-template-row">
+                                    <div className="sms-template-editor">
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-4)' }}>
+                                            <div>
+                                                <strong style={{ fontSize: 'var(--font-size-md)' }}>{tpl.name}</strong>
+                                                {tpl.system_key && (
+                                                    <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginLeft: 12, background: 'var(--bg-raised)', padding: '2px 8px', borderRadius: 12, fontWeight: 600, border: '1px solid var(--border-color)' }}>
+                                                        {tpl.system_key}
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <label className="smtp-checkbox-label" style={{ fontSize: 'var(--font-size-sm)', fontWeight: 500 }}>
+                                                <input
+                                                    type="checkbox"
+                                                    checked={tpl.active}
+                                                    onChange={(e) => updateTemplate(tpl.id, 'active', e.target.checked)}
+                                                />
+                                                Active
+                                            </label>
+                                        </div>
+                                        <textarea
+                                            className="smtp-field-input"
+                                            value={tpl.body}
+                                            onChange={(e) => updateTemplate(tpl.id, 'body', e.target.value)}
+                                            rows={5}
+                                            style={{ width: '100%', resize: 'vertical', fontFamily: 'inherit', fontSize: 'var(--font-size-md)' }}
+                                            placeholder="Write your SMS message..."
                                         />
-                                        Active
-                                    </label>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 'var(--space-4)' }}>
+                                            <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-muted)' }}>
+                                                {previewText.length} characters • <strong style={{color: 'var(--color-primary)'}}>Est. {segments} segment{segments !== 1 ? 's' : ''} ({creditText})</strong>
+                                            </div>
+                                            <button
+                                                className="btn-brand"
+                                                onClick={() => handleSaveTemplate(tpl)}
+                                                disabled={savingTemplate === tpl.id}
+                                            >
+                                                {savingTemplate === tpl.id
+                                                    ? <><Loader2 size={14} className="spin" /> Saving…</>
+                                                    : <><Save size={14} /> Save Template</>}
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    {/* Simulated Phone Mockup */}
+                                    <div className="sms-phone-mockup">
+                                        <div className="sms-phone-header">
+                                            <div className="sms-phone-notch"></div>
+                                        </div>
+                                        <div className="sms-phone-body">
+                                            <div className="sms-bubble">
+                                                {previewText}
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
-                                <textarea
-                                    className="smtp-field-input"
-                                    value={tpl.body}
-                                    onChange={(e) => updateTemplate(tpl.id, 'body', e.target.value)}
-                                    rows={3}
-                                    style={{ width: '100%', resize: 'vertical', fontFamily: 'inherit', fontSize: 'var(--font-size-sm)' }}
-                                />
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 'var(--space-2)' }}>
-                                    <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-muted)' }}>
-                                        {tpl.body.length} characters
-                                    </span>
-                                    <button
-                                        className="btn-outline"
-                                        style={{ fontSize: 'var(--font-size-xs)', padding: '4px 12px' }}
-                                        onClick={() => handleSaveTemplate(tpl)}
-                                        disabled={savingTemplate === tpl.id}
-                                    >
-                                        {savingTemplate === tpl.id
-                                            ? <><Loader2 size={12} className="spin" /> Saving…</>
-                                            : <><Save size={12} /> Save</>}
-                                    </button>
-                                </div>
-                            </div>
-                        ))}
+                            );
+                        })}
                     </div>
                 )}
             </div>
@@ -482,8 +486,8 @@ export function SmsPanel() {
                         <p>No purchases yet. Buy credits above to get started.</p>
                     </div>
                 ) : (
-                    <div className="data-table-wrapper">
-                        <table className="data-table">
+                    <div className="data-table-wrapper" style={{ overflowX: 'auto', width: '100%' }}>
+                        <table className="data-table" style={{ minWidth: '500px' }}>
                             <thead>
                                 <tr>
                                     <th>Date</th>

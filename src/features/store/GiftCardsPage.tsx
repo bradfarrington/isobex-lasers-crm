@@ -4,7 +4,7 @@ import { StoreTabBar } from './StoreTabBar';
 import { useAlert } from '@/components/ui/AlertDialog';
 import * as api from '@/lib/api';
 import type { GiftCard, GiftCardInsert, GiftCardDesignTemplate } from '@/types/database';
-import { Plus, Trash2, X, Gift } from 'lucide-react';
+import { Plus, Trash2, X, Gift, ChevronDown } from 'lucide-react';
 import { GiftCardDesign, DESIGN_OPTIONS, getDesignLabel } from './GiftCardDesign';
 import './Discounts.css';
 import './GiftCardDesign.css';
@@ -59,6 +59,18 @@ export function GiftCardsPage() {
   const [formExpiryMonths, setFormExpiryMonths] = useState<ExpiryOption>('12');
   const [formDesign, setFormDesign] = useState<GiftCardDesignTemplate>('classic');
   const [editingId, setEditingId] = useState<string | null>(null);
+
+  const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
+
+  const toggleExpand = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setExpandedCards((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
 
   useEffect(() => {
     api.fetchGiftCards()
@@ -281,12 +293,12 @@ export function GiftCardsPage() {
           <p>Create gift cards to offer as presents or store credit.</p>
         </div>
       ) : (
-        <div className="discounts-table-wrap">
-          <table className="orders-table">
+        <div className="products-table-wrap">
+          <table className="products-table giftcards-table">
             <thead>
               <tr>
-                <th>Design</th>
                 <th>Code</th>
+                <th>Design</th>
                 <th>Initial</th>
                 <th>Balance</th>
                 <th>Recipient</th>
@@ -297,8 +309,66 @@ export function GiftCardsPage() {
             </thead>
             <tbody>
               {cards.map((gc) => (
-                <tr key={gc.id}>
-                  <td>
+                <tr 
+                  key={gc.id}
+                  className={`products-table-row ${expandedCards.has(gc.id) ? 'expanded' : 'collapsed'}`}
+                  onClick={() => {
+                    if (window.innerWidth <= 768) {
+                      setExpandedCards((prev) => {
+                        const next = new Set(prev);
+                        if (next.has(gc.id)) next.delete(gc.id);
+                        else next.add(gc.id);
+                        return next;
+                      });
+                    }
+                  }}
+                >
+                  <td className="product-name-cell" data-label="Gift Card">
+                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', width: '100%' }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <span className="product-name">{gc.code}</span>
+                      </div>
+                      <button
+                        className="mobile-expand-toggle"
+                        onClick={(e) => toggleExpand(gc.id, e)}
+                      >
+                        <ChevronDown size={16} />
+                      </button>
+                    </div>
+
+                    <div className="mobile-preview-pills">
+                      <span className="preview-pill">
+                        £{Number(gc.current_balance).toFixed(2)}
+                      </span>
+                      <span className={`stock-badge ${gc.is_active ? 'good' : 'out'}`}>
+                        {gc.is_active ? 'Active' : 'Inactive'}
+                      </span>
+                    </div>
+
+                    <div className="mobile-only-detail">
+                      <button
+                        className="btn btn-secondary btn-sm"
+                        style={{ flex: 1, justifyContent: 'center' }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          populateForm(gc);
+                        }}
+                      >
+                        Edit Card
+                      </button>
+                      <button
+                        className="btn btn-danger btn-sm"
+                        style={{ flex: 1, justifyContent: 'center' }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDelete(gc.id);
+                        }}
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </td>
+                  <td data-label="Design" className="mobile-secondary-detail">
                     <div className="gc-table-preview">
                       <GiftCardDesign
                         design={(gc.design_template as GiftCardDesignTemplate) || 'classic'}
@@ -309,27 +379,29 @@ export function GiftCardsPage() {
                       />
                     </div>
                   </td>
-                  <td><strong style={{ fontFamily: 'monospace' }}>{gc.code}</strong></td>
-                  <td>£{Number(gc.initial_balance).toFixed(2)}</td>
-                  <td>
+                  <td data-label="Initial" className="mobile-secondary-detail">£{Number(gc.initial_balance).toFixed(2)}</td>
+                  <td data-label="Balance" className="mobile-secondary-detail">
                     <strong style={{ color: gc.current_balance > 0 ? '#22c55e' : '#ef4444' }}>
                       £{Number(gc.current_balance).toFixed(2)}
                     </strong>
                   </td>
-                  <td>{gc.recipient_name || gc.recipient_email || '—'}</td>
-                  <td>
+                  <td data-label="Recipient" className="mobile-secondary-detail">{gc.recipient_name || gc.recipient_email || '—'}</td>
+                  <td data-label="Status" className="mobile-secondary-detail">
                     <button
                       className={`btn btn-ghost btn-sm ${gc.is_active ? 'text-success' : 'text-muted'}`}
-                      onClick={() => handleToggle(gc)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleToggle(gc);
+                      }}
                     >
                       {gc.is_active ? 'Active' : 'Inactive'}
                     </button>
                   </td>
-                  <td>{gc.expires_at ? new Date(gc.expires_at).toLocaleDateString('en-GB') : '—'}</td>
-                  <td>
-                    <div style={{ display: 'flex', gap: '0.25rem' }}>
-                      <button className="btn btn-ghost btn-icon-sm" onClick={() => populateForm(gc)} title="Edit">✎</button>
-                      <button className="btn btn-ghost btn-icon-sm danger" onClick={() => handleDelete(gc.id)} title="Delete">
+                  <td data-label="Expires" className="mobile-secondary-detail">{gc.expires_at ? new Date(gc.expires_at).toLocaleDateString('en-GB') : '—'}</td>
+                  <td data-label="Actions" className="mobile-secondary-detail desktop-only">
+                    <div style={{ display: 'flex', gap: '0.25rem', justifyContent: 'flex-end' }}>
+                      <button className="btn btn-ghost btn-icon-sm" onClick={(e) => { e.stopPropagation(); populateForm(gc); }} title="Edit">✎</button>
+                      <button className="btn btn-ghost btn-icon-sm text-danger" onClick={(e) => { e.stopPropagation(); handleDelete(gc.id); }} title="Delete">
                         <Trash2 size={14} />
                       </button>
                     </div>

@@ -624,16 +624,20 @@ export function CampaignsTab({ activeSubTab = 'campaigns' }: CampaignsTabProps) 
     return (
       <div>
         <div className="campaign-detail-header">
-          <button className="btn-secondary" onClick={() => { setView('list'); setSelectedCampaignId(null); }}>
-            <ArrowLeft size={14} /> Back
-          </button>
-          <div style={{ flex: 1 }}>
+          <div className="campaign-detail-header-top">
+            <button className="btn-secondary" onClick={() => { setView('list'); setSelectedCampaignId(null); }}>
+              <ArrowLeft size={14} /> <span className="hide-on-mobile">Back</span>
+            </button>
+            <span className={`campaign-status-badge ${selectedCampaign.status}`}>{selectedCampaign.status}</span>
+          </div>
+          
+          <div className="campaign-detail-title-wrap">
             <h2>{selectedCampaign.name}</h2>
             <p className="campaign-detail-subject">{selectedCampaign.subject}</p>
           </div>
-          <span className={`campaign-status-badge ${selectedCampaign.status}`}>{selectedCampaign.status}</span>
+          
           {(selectedCampaign.status === 'draft' || selectedCampaign.status === 'scheduled') && (
-            <>
+            <div className="campaign-detail-actions">
               <button
                 className="btn-secondary"
                 onClick={() => navigate(`/email-marketing/builder?campaignId=${selectedCampaign.id}`)}
@@ -648,7 +652,7 @@ export function CampaignsTab({ activeSubTab = 'campaigns' }: CampaignsTabProps) 
               >
                 {sending ? <><Loader2 size={14} className="eb-spin" /> Sending…</> : <><Send size={14} /> Send Now</>}
               </button>
-            </>
+            </div>
           )}
         </div>
 
@@ -741,22 +745,22 @@ export function CampaignsTab({ activeSubTab = 'campaigns' }: CampaignsTabProps) 
                   <th>Clicked</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="responsive-table-body">
                 {recipients.map(r => (
-                  <tr key={r.id}>
-                    <td>
+                  <tr key={r.id} className="responsive-table-row">
+                    <td data-label="Name" className="responsive-table-cell primary-cell">
                       {r.contact
                         ? `${(r.contact as any).first_name} ${(r.contact as any).last_name}`
                         : '—'}
                     </td>
-                    <td>{r.email}</td>
-                    <td>
+                    <td data-label="Email" className="responsive-table-cell">{r.email}</td>
+                    <td data-label="Status" className="responsive-table-cell">
                       <span className="campaign-recipient-status" style={{ color: statusColor(r.status) }}>
                         {r.status}
                       </span>
                     </td>
-                    <td>{r.opened_at ? new Date(r.opened_at).toLocaleString() : '—'}</td>
-                    <td>{r.clicked_at ? new Date(r.clicked_at).toLocaleString() : '—'}</td>
+                    <td data-label="Opened" className="responsive-table-cell">{r.opened_at ? new Date(r.opened_at).toLocaleString() : '—'}</td>
+                    <td data-label="Clicked" className="responsive-table-cell">{r.clicked_at ? new Date(r.clicked_at).toLocaleString() : '—'}</td>
                   </tr>
                 ))}
                 {recipients.length === 0 && (
@@ -805,16 +809,16 @@ export function CampaignsTab({ activeSubTab = 'campaigns' }: CampaignsTabProps) 
                         <th>Status</th>
                       </tr>
                     </thead>
-                    <tbody>
+                    <tbody className="responsive-table-body">
                       {drillRecipients.map(r => (
-                        <tr key={r.id}>
-                          <td>
+                        <tr key={r.id} className="responsive-table-row">
+                          <td data-label="Name" className="responsive-table-cell primary-cell">
                             {r.contact
                               ? `${(r.contact as any).first_name} ${(r.contact as any).last_name}`
                               : '—'}
                           </td>
-                          <td>{r.email}</td>
-                          <td>
+                          <td data-label="Email" className="responsive-table-cell">{r.email}</td>
+                          <td data-label="Status" className="responsive-table-cell">
                             <span className="campaign-recipient-status" style={{ color: statusColor(r.status) }}>
                               {r.status}
                             </span>
@@ -1556,25 +1560,23 @@ function EmailAnalyticsDashboard() {
         </div>
         <div className="ea-funnel-wrap">
           <div className="ea-funnel-bars">
-            {funnelData.map(f => (
-              <div className="ea-funnel-row" key={f.label}>
-                <span className="ea-funnel-label">{f.label}</span>
-                <div className="ea-funnel-track">
-                  <div
-                    className="ea-funnel-fill"
-                    style={{ width: `${Math.max(f.pct, 2)}%`, background: f.color }}
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
-          <span className="ea-funnel-pct-label">Cumulative</span>
-          <div className="ea-funnel-pcts">
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '8px' }}>
+              <span className="ea-funnel-pct-label hide-on-mobile">Cumulative</span>
+            </div>
             {funnelData.map(f => {
               const displayPct = f.pct > 0 && f.pct < 1 ? '<1%' : `${f.pct.toFixed(0)}%`;
               return (
-                <div className="ea-funnel-pct-pill" key={f.label}>
-                  {displayPct}
+                <div className="ea-funnel-row" key={f.label}>
+                  <span className="ea-funnel-label">{f.label}</span>
+                  <div className="ea-funnel-track">
+                    <div
+                      className="ea-funnel-fill"
+                      style={{ width: `${Math.max(f.pct, 2)}%`, background: f.color }}
+                    />
+                  </div>
+                  <div className="ea-funnel-pct-pill">
+                    {displayPct}
+                  </div>
                 </div>
               );
             })}

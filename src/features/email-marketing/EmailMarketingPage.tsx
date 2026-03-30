@@ -20,9 +20,11 @@ export function EmailMarketingPage() {
   const [searchParams] = useSearchParams();
   const urlTab = searchParams.get('tab');
 
-  const [subTab, setSubTab] = useState<'templates' | 'campaigns' | 'analytics'>(
-    (urlTab as any) || 'templates'
-  );
+  const [subTab, setSubTab] = useState<'templates' | 'campaigns' | 'analytics'>(() => {
+    if (urlTab) return urlTab as any;
+    if (typeof window !== 'undefined' && window.innerWidth <= 768) return 'campaigns';
+    return 'templates';
+  });
   const [templates, setTemplates] = useState<EmailTemplate[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -78,7 +80,7 @@ export function EmailMarketingPage() {
           <h1 className="em-header-title">Email Marketing</h1>
           <div className="em-subtabs">
             <button
-              className={`em-subtab${subTab === 'templates' ? ' active' : ''}`}
+              className={`em-subtab${subTab === 'templates' ? ' active' : ''} desktop-only`}
               onClick={() => setSubTab('templates')}
             >
               <FileText size={13} /> Templates
@@ -98,7 +100,7 @@ export function EmailMarketingPage() {
           </div>
         </div>
 
-        <div className="em-header-right">
+        <div className="em-header-right desktop-only">
           {subTab === 'templates' && (
             <button
               className="btn-secondary"

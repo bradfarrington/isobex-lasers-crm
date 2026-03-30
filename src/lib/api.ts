@@ -73,6 +73,8 @@ import type {
   GooglePlaceOverview,
   ReviewRequest,
   ReviewRequestInsert,
+  ReviewAutomationSettings,
+  ReviewAutomationSettingsUpdate,
   ContactCommunication,
   AppUser,
   AppUserUpdate,
@@ -2193,6 +2195,19 @@ const SYSTEM_TEMPLATES = [
     ],
     settings: { width: 600, bodyBg: '#f4f4f5', contentBg: '#ffffff', fontFamily: "'Inter', sans-serif", textColor: '#1f2937', linkColor: '#dc2626', logoUrl: '', footerText: '© {{business_name}} • Powered by Isobex CRM', subject: "You've been invited to {{business_name}}", previewText: 'Your account has been created' },
   },
+  {
+    system_key: 'review_request',
+    name: 'Review Request',
+    subject: 'How did we do? — {{business_name}}',
+    blocks: [
+      { id: 'sys-rr-1', type: 'heading', data: { content: '<p style="text-align: center">How did we do?</p>', level: 'h2', color: '#1a1a1a', bgColor: '', fontFamily: '', padding: { top: 8, right: 0, bottom: 0, left: 0 } } },
+      { id: 'sys-rr-2', type: 'text', data: { content: '<p>Hi {{customer_name}},</p><p>Thank you for choosing {{business_name}}. We hope you had a great experience with us. If you have a moment, we would really appreciate it if you could leave us a review on Google.</p>', color: '', bgColor: '', fontFamily: '', padding: { top: 8, right: 20, bottom: 16, left: 20 } } },
+      { id: 'sys-rr-3', type: 'button', data: { text: 'Leave a Review on Google', url: '{{review_link}}', color: '#ffffff', bgColor: '#3b82f6', borderRadius: 6, padding: { top: 14, right: 28, bottom: 14, left: 28 } } },
+      { id: 'sys-rr-4', type: 'divider', data: { style: 'solid', color: '#e5e7eb', thickness: '1', width: '100', marginTop: '16', marginBottom: '8', padding: { top: 0, right: 0, bottom: 0, left: 0 } } },
+      { id: 'sys-rr-5', type: 'text', data: { content: '<p style="font-size: 12px; color: #aaa; text-align: center;">{{business_name}}</p>', color: '', bgColor: '', fontFamily: '', padding: { top: 0, right: 20, bottom: 8, left: 20 } } },
+    ],
+    settings: { width: 600, bodyBg: '#f4f4f4', contentBg: '#ffffff', fontFamily: "'Inter', sans-serif", textColor: '#1f2937', linkColor: '#3b82f6', logoUrl: '', footerText: '© {{business_name}}', subject: 'How did we do? — {{business_name}}', previewText: 'We would love to hear your feedback' },
+  },
 ];
 
 async function seedSystemEmailTemplates(): Promise<void> {
@@ -2527,6 +2542,36 @@ export async function createReviewRequest(
 
   if (error) throw error;
   return data as ReviewRequest;
+}
+
+// ─── Review Automation Settings ─────────────────────────────
+
+export async function fetchReviewAutomationSettings(): Promise<ReviewAutomationSettings> {
+  const { data, error } = await supabase
+    .from('review_automation_settings')
+    .select('*')
+    .limit(1)
+    .single();
+
+  if (error) throw error;
+  return data as ReviewAutomationSettings;
+}
+
+export async function updateReviewAutomationSettings(
+  updates: ReviewAutomationSettingsUpdate
+): Promise<ReviewAutomationSettings> {
+  // Get the singleton row
+  const existing = await fetchReviewAutomationSettings();
+
+  const { data, error } = await supabase
+    .from('review_automation_settings')
+    .update({ ...updates, updated_at: new Date().toISOString() })
+    .eq('id', existing.id)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as ReviewAutomationSettings;
 }
 
 // ─── Stripe Settings ────────────────────────────────────────

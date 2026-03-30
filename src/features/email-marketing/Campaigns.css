@@ -739,14 +739,29 @@
 /* Campaign Detail / Analytics */
 .campaign-detail-header {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
+  flex-wrap: wrap;
   gap: var(--space-4);
-  margin-bottom: var(--space-2);
+  margin-bottom: var(--space-3);
+  padding-bottom: var(--space-4);
+  border-bottom: 1px solid var(--color-border);
 }
 
-.campaign-detail-header h2 { margin: 0; font-size: var(--font-size-xl); }
-.campaign-detail-subject { margin: 4px 0 0; font-size: 14px; color: var(--color-text-tertiary); }
-.campaign-detail-actions { display: flex; gap: var(--space-2); flex-shrink: 0; }
+.campaign-detail-header-top {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.campaign-detail-title-wrap {
+  flex: 1;
+  min-width: 0;
+}
+
+.campaign-detail-header h2 { margin: 0; font-size: var(--font-size-xl); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.campaign-detail-subject { margin: 4px 0 0; font-size: 14px; color: var(--color-text-tertiary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.campaign-detail-actions { display: flex; align-items: center; gap: var(--space-2); flex-shrink: 0; }
+
 
 .campaign-sent-date {
   display: flex;
@@ -881,15 +896,98 @@
   .campaign-send-mode-options { grid-template-columns: 1fr; }
   .campaign-schedule-fields { grid-template-columns: 1fr; }
   .campaign-create { max-width: none; }
+  
+  /* Make campaign cards stack beautifully */
+  .campaign-card { flex-direction: column; align-items: stretch; gap: var(--space-3); }
+  .campaign-card-actions { justify-content: flex-end; width: 100%; border-top: 1px dashed var(--color-border); padding-top: var(--space-3); margin-top: var(--space-1); }
+  
+  /* Make header flex wrap */
+  .campaign-detail-header { flex-direction: column; align-items: stretch; gap: var(--space-3); padding-bottom: var(--space-3); }
+  .campaign-detail-header-top { justify-content: space-between; width: 100%; order: 1; margin-bottom: 0; }
+  .campaign-detail-title-wrap { order: 2; width: 100%; margin-bottom: var(--space-2); }
+  .campaign-detail-actions { width: 100%; justify-content: flex-start; order: 3; }
+  .campaign-detail-actions button { flex: 1; justify-content: center; }
+  .hide-on-mobile { display: none; }
+
+  /* Responsive Tables */
+  .campaign-recipients-table-wrap {
+    border: none;
+    background: transparent;
+  }
+
+  .campaign-recipients-table,
+  .campaign-recipients-table tbody,
+  .campaign-recipients-table tr,
+  .campaign-recipients-table td {
+    display: block;
+    width: 100%;
+  }
+
+  .campaign-recipients-table thead {
+    display: none;
+  }
+
+  .campaign-recipients-table tr {
+    margin-bottom: var(--space-4);
+    background: var(--color-bg-raised);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    padding: 0;
+  }
+
+  .campaign-recipients-table td {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--space-2) var(--space-3) !important;
+    border-bottom: 1px dashed var(--color-border) !important;
+    text-align: right;
+  }
+
+  .campaign-recipients-table td:last-child {
+    border-bottom: none !important;
+    padding-bottom: var(--space-3) !important;
+  }
+
+  .campaign-recipients-table td:first-child {
+    padding-top: var(--space-3) !important;
+  }
+
+  .campaign-recipients-table td::before {
+    content: attr(data-label);
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-text-secondary);
+    text-transform: uppercase;
+    flex-shrink: 0;
+    margin-right: var(--space-4);
+  }
+
+  .primary-cell {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    background: var(--color-bg-surface);
+    border-bottom: 1px solid var(--color-border) !important;
+  }
+  
+  .primary-cell::before {
+    display: none !important;
+  }
+
+  .primary-cell > :not(::before) {
+    margin-left: 0 !important;
+    text-align: left !important;
+    font-weight: 600;
+  }
 }
+
 
 @media (max-width: 480px) {
   .campaign-stats-grid,
   .analytics-stats-grid { grid-template-columns: 1fr 1fr; gap: var(--space-3); }
   .campaign-stat-card { padding: var(--space-3); }
   .campaign-stat-value { font-size: 18px; }
-  .campaign-card { flex-direction: column; align-items: stretch; }
-  .campaign-card-actions { justify-content: flex-end; }
 }
 
 /* ═══════════════════════════════════════════════════════════
@@ -1102,10 +1200,8 @@
 /* Engagement Funnel */
 .ea-funnel-wrap {
   display: flex;
-  gap: 2rem;
-  align-items: stretch;
+  flex-direction: column;
   position: relative;
-  padding-top: 1.5rem;
 }
 
 .ea-funnel-bars {
@@ -1163,20 +1259,19 @@
   color: var(--color-text-tertiary);
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  position: absolute;
-  top: 0;
-  right: 0;
   white-space: nowrap;
 }
 
 .ea-funnel-pct-pill {
+  width: 48px;
   height: 28px;
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-end;
   font-size: 0.875rem;
   font-weight: 600;
   color: var(--color-text-primary);
+  flex-shrink: 0;
 }
 
 /* Chart Container */
@@ -1386,21 +1481,25 @@
   }
   .ea-chart-container {
     flex-direction: column;
-  }
-  .ea-funnel-wrap {
-    flex-direction: column;
+    gap: 1rem;
   }
 }
 
 @media (max-width: 640px) {
+  .ea-section {
+    padding: 1rem;
+  }
   .ea-controls {
     flex-direction: column;
     align-items: stretch;
+    gap: 0.75rem;
   }
   .ea-stat-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, 1fr);
   }
   .ea-row-between {
     flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
   }
 }

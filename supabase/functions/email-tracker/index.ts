@@ -71,8 +71,36 @@ Deno.serve(async (req: Request) => {
         return new Response('Missing url param', { status: 400, headers: corsHeaders });
       }
 
-      // Record the click and redirect immediately
       const now = new Date().toISOString();
+
+      // Check if this is a review request click (rrid param)
+      const rrid = url.searchParams.get('rrid');
+      if (rrid) {
+        // Update review request status to clicked and complete the sequence
+        const { data: reviewReq } = await supabase
+          .from('review_requests')
+          .select('id, status')
+          .eq('id', rrid)
+          .single();
+
+        if (reviewReq && reviewReq.status !== 'clicked') {
+          await supabase
+            .from('review_requests')
+            .update({
+              status: 'clicked',
+              sequence_completed: true,
+            })
+            .eq('id', rrid);
+        }
+
+        // 302 redirect to the actual destination
+        return new Response(null, {
+          status: 302,
+          headers: { ...corsHeaders, 'Location': targetUrl, 'Cache-Control': 'no-store' },
+        });
+      }
+
+      // Campaign recipient click tracking (existing logic)
       const { data: recipient } = await supabase
         .from('campaign_recipients')
         .select('id, status, opened_at')

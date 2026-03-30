@@ -5,7 +5,7 @@ import { DatePicker } from '@/components/ui/DatePicker';
 import { useAlert } from '@/components/ui/AlertDialog';
 import * as api from '@/lib/api';
 import type { DiscountCode, DiscountCodeInsert, DiscountAppliesTo, Product } from '@/types/database';
-import { Plus, Trash2, X, Percent, Search, Check } from 'lucide-react';
+import { Plus, Trash2, X, Percent, Search, Check, ChevronDown } from 'lucide-react';
 import './Discounts.css';
 
 export function DiscountsPage() {
@@ -29,6 +29,18 @@ export function DiscountsPage() {
   const [formAppliesTo, setFormAppliesTo] = useState<DiscountAppliesTo>('all');
   const [formProductIds, setFormProductIds] = useState<string[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
+
+  const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
+
+  const toggleExpand = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setExpandedCards((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
 
   // Product picker dropdown
   const [productSearch, setProductSearch] = useState('');
@@ -343,8 +355,8 @@ export function DiscountsPage() {
           <p>Create your first discount code to offer promotions.</p>
         </div>
       ) : (
-        <div className="discounts-table-wrap">
-          <table className="orders-table">
+        <div className="products-table-wrap">
+          <table className="products-table discounts-table">
             <thead>
               <tr>
                 <th>Code</th>
@@ -360,26 +372,86 @@ export function DiscountsPage() {
             </thead>
             <tbody>
               {codes.map((dc) => (
-                <tr key={dc.id}>
-                  <td><strong>{dc.code}</strong></td>
-                  <td style={{ textTransform: 'capitalize' }}>{dc.discount_type}</td>
-                  <td>{dc.discount_type === 'percentage' ? `${dc.value}%` : `£${Number(dc.value).toFixed(2)}`}</td>
-                  <td>{getScopeLabel(dc)}</td>
-                  <td>{dc.min_order_amount > 0 ? `£${Number(dc.min_order_amount).toFixed(2)}` : '—'}</td>
-                  <td>{dc.current_uses}{dc.max_uses !== null ? `/${dc.max_uses}` : ''}</td>
-                  <td>
+                <tr 
+                  key={dc.id}
+                  className={`products-table-row ${expandedCards.has(dc.id) ? 'expanded' : 'collapsed'}`}
+                  onClick={() => {
+                    if (window.innerWidth <= 768) {
+                      setExpandedCards((prev) => {
+                        const next = new Set(prev);
+                        if (next.has(dc.id)) next.delete(dc.id);
+                        else next.add(dc.id);
+                        return next;
+                      });
+                    }
+                  }}
+                >
+                  <td className="product-name-cell" data-label="Discount">
+                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', width: '100%' }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <span className="product-name">{dc.code}</span>
+                      </div>
+                      <button
+                        className="mobile-expand-toggle"
+                        onClick={(e) => toggleExpand(dc.id, e)}
+                      >
+                        <ChevronDown size={16} />
+                      </button>
+                    </div>
+
+                    <div className="mobile-preview-pills">
+                      <span className="preview-pill">
+                        {dc.discount_type === 'percentage' ? `${dc.value}% OFF` : `£${Number(dc.value).toFixed(2)} OFF`}
+                      </span>
+                      <span className={`stock-badge ${dc.is_active ? 'good' : 'out'}`}>
+                        {dc.is_active ? 'Active' : 'Inactive'}
+                      </span>
+                    </div>
+
+                    <div className="mobile-only-detail">
+                      <button
+                        className="btn btn-secondary btn-sm"
+                        style={{ flex: 1, justifyContent: 'center' }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          populateForm(dc);
+                        }}
+                      >
+                        Edit Code
+                      </button>
+                      <button
+                        className="btn btn-danger btn-sm"
+                        style={{ flex: 1, justifyContent: 'center' }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDelete(dc.id);
+                        }}
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </td>
+                  <td data-label="Type" className="mobile-secondary-detail" style={{ textTransform: 'capitalize' }}>{dc.discount_type}</td>
+                  <td data-label="Value" className="mobile-secondary-detail">{dc.discount_type === 'percentage' ? `${dc.value}%` : `£${Number(dc.value).toFixed(2)}`}</td>
+                  <td data-label="Applies To" className="mobile-secondary-detail">{getScopeLabel(dc)}</td>
+                  <td data-label="Min Order" className="mobile-secondary-detail">{dc.min_order_amount > 0 ? `£${Number(dc.min_order_amount).toFixed(2)}` : '—'}</td>
+                  <td data-label="Uses" className="mobile-secondary-detail">{dc.current_uses}{dc.max_uses !== null ? `/${dc.max_uses}` : ''}</td>
+                  <td data-label="Status" className="mobile-secondary-detail">
                     <button
                       className={`btn btn-ghost btn-sm ${dc.is_active ? 'text-success' : 'text-muted'}`}
-                      onClick={() => handleToggle(dc)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleToggle(dc);
+                      }}
                     >
                       {dc.is_active ? 'Active' : 'Inactive'}
                     </button>
                   </td>
-                  <td>{dc.expires_at ? new Date(dc.expires_at).toLocaleDateString('en-GB') : '—'}</td>
-                  <td>
-                    <div style={{ display: 'flex', gap: '0.25rem' }}>
-                      <button className="btn btn-ghost btn-icon-sm" onClick={() => populateForm(dc)} title="Edit">✎</button>
-                      <button className="btn btn-ghost btn-icon-sm danger" onClick={() => handleDelete(dc.id)} title="Delete">
+                  <td data-label="Expires" className="mobile-secondary-detail">{dc.expires_at ? new Date(dc.expires_at).toLocaleDateString('en-GB') : '—'}</td>
+                  <td data-label="Actions" className="mobile-secondary-detail desktop-only">
+                    <div style={{ display: 'flex', gap: '0.25rem', justifyContent: 'flex-end' }}>
+                      <button className="btn btn-ghost btn-icon-sm" onClick={(e) => { e.stopPropagation(); populateForm(dc); }} title="Edit">✎</button>
+                      <button className="btn btn-ghost btn-icon-sm text-danger" onClick={(e) => { e.stopPropagation(); handleDelete(dc.id); }} title="Delete">
                         <Trash2 size={14} />
                       </button>
                     </div>

@@ -516,6 +516,14 @@
   flex-shrink: 0;
 }
 
+.team-member-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  flex: 1;
+  min-width: 0;
+}
+
 .team-member-info {
   flex: 1;
   min-width: 0;
@@ -796,10 +804,171 @@
   background: var(--color-bg-surface);
 }
 
+/* ── SMS Redesign ── */
+.sms-credit-packages {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--space-4);
+  margin-bottom: var(--space-6);
+}
+
+.sms-package-card {
+  padding: var(--space-6) var(--space-5);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  background: var(--color-bg-surface);
+  text-align: center;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  transition: all var(--transition-fast);
+}
+
+.sms-package-card.popular {
+  border-color: var(--color-primary);
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05);
+}
+
+.sms-package-badge {
+  position: absolute;
+  top: -12px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--color-primary);
+  color: white;
+  font-size: 10px;
+  padding: 4px 12px;
+  border-radius: var(--radius-full);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+}
+
+.sms-package-credits {
+  font-size: var(--font-size-3xl);
+  font-weight: 800;
+  color: var(--color-text-primary);
+  margin-bottom: 2px;
+  line-height: 1;
+}
+
+.sms-package-label {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-tertiary);
+  margin-bottom: var(--space-5);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+}
+
+.sms-package-price {
+  font-size: var(--font-size-xl);
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  margin-bottom: var(--space-5);
+  margin-top: auto;
+}
+
+.sms-package-button {
+  width: auto;
+  align-self: center;
+  padding: var(--space-2) var(--space-6);
+  border-radius: var(--radius-full);
+}
+
+.sms-template-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-8);
+  align-items: flex-start;
+}
+
+.sms-template-row {
+  display: flex;
+  gap: var(--space-5);
+  align-items: flex-start;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  flex: 0 0 auto;
+}
+
+.sms-template-editor {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-5);
+  background: var(--color-bg-surface);
+  width: 380px; /* Locked width so it never looks too long or squished */
+  flex-shrink: 0;
+}
+
+.sms-phone-mockup {
+  width: 260px;
+  flex-shrink: 0;
+  margin: 0;
+  height: 440px;
+  background: #ffffff;
+  border-radius: 36px;
+  box-shadow: 0 0 0 10px #f8fafc, 0 0 0 12px #e2e8f0, 0 20px 40px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+.sms-phone-header {
+  height: 40px;
+  background: #f8fafc;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding-top: 8px;
+  position: relative;
+  z-index: 10;
+}
+
+.sms-phone-notch {
+  width: 90px;
+  height: 24px;
+  background: #0f172a;
+  border-radius: 12px;
+}
+
+.sms-phone-body {
+  flex: 1;
+  background: #f1f5f9;
+  padding: var(--space-5) var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+.sms-phone-body::-webkit-scrollbar {
+  display: none;
+}
+
+.sms-bubble {
+  background: #e2e8f0;
+  color: #0f172a;
+  padding: 12px 14px;
+  border-radius: 18px;
+  border-bottom-left-radius: 4px;
+  font-size: 14px;
+  line-height: 1.4;
+  align-self: flex-start;
+  max-width: 90%;
+  word-break: break-word;
+  white-space: pre-wrap;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
 /* ── Responsive ── */
 @media (max-width: 768px) {
   .settings-shell {
     flex-direction: column;
+    min-height: auto;
   }
 
   .settings-sidebar {
@@ -808,36 +977,127 @@
     border-bottom: 1px solid var(--color-border);
     flex-direction: row;
     overflow-x: auto;
-    padding: var(--space-2) var(--space-3);
-    gap: var(--space-1);
+    padding: 0 var(--space-4);
+    gap: var(--space-6);
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+
+  .settings-sidebar::-webkit-scrollbar {
+    display: none;
   }
 
   .settings-sidebar-item {
     white-space: nowrap;
-    padding: var(--space-2) var(--space-3);
-    border-radius: var(--radius-md);
+    padding: var(--space-4) 0;
+    border-radius: 0;
+    width: auto;
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
   }
 
   .settings-sidebar-item.active {
     border-right: none;
     border-bottom: 2px solid var(--color-primary);
+    background: transparent;
   }
 
   .settings-panel {
-    padding: var(--space-5);
+    padding: var(--space-4);
+  }
+
+  .settings-integration-card {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .settings-integration-action {
+    width: 100%;
+    display: flex;
+    justify-content: flex-start;
   }
 
   .smtp-field-row {
     grid-template-columns: 1fr;
   }
 
+  .settings-form-actions {
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .settings-form-actions button {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .settings-list-item-actions {
+    opacity: 1;
+  }
+
   .team-member-row {
-    flex-wrap: wrap;
-    gap: var(--space-2);
+    flex-direction: column;
+    align-items: flex-start;
+    padding: var(--space-4);
+    gap: var(--space-3);
+  }
+
+  .team-member-header {
+    width: 100%;
+    margin-bottom: var(--space-1);
+  }
+
+  .team-member-pills {
+    margin-left: 0;
+    width: 100%;
+    justify-content: flex-start;
   }
 
   .team-member-actions {
+    position: relative;
+    right: auto;
+    top: auto;
+    transform: none;
+    width: 100%;
+    justify-content: flex-start;
+    padding: var(--space-2) 0 0 0;
+    margin-top: var(--space-2);
+    background: transparent;
+    border: none;
+    box-shadow: none;
     opacity: 1;
+    pointer-events: auto;
+    border-top: 1px solid var(--color-border);
+    border-radius: 0;
+  }
+
+  .team-modal-overlay {
+    padding: var(--space-3);
+  }
+
+  .team-modal {
+    max-height: 100%;
+  }
+
+  .sms-template-container {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .sms-template-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--space-6);
+  }
+
+  .sms-template-editor {
+    width: 100%;
+  }
+
+  .sms-phone-mockup {
+    margin: 0 auto;
   }
 }
 
@@ -846,4 +1106,3 @@
     grid-template-columns: 1fr;
   }
 }
-

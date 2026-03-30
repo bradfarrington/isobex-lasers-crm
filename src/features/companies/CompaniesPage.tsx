@@ -17,6 +17,8 @@ import {
   ChevronUp,
   ChevronDown,
 } from 'lucide-react';
+import '../crm/CrmPage.css';
+import { useIsMobile } from '@/hooks/useIsMobile';
 
 type SortColumn = 'name' | 'industry' | 'phone' | 'website' | 'status';
 type SortDir = 'asc' | 'desc';
@@ -33,7 +35,7 @@ const emptyForm: CompanyInsert = {
   postcode: null,
   country: null,
   notes: null,
-  status: 'prospect',
+  status: '',
 };
 
 export function CompaniesPage() {
@@ -46,6 +48,10 @@ export function CompaniesPage() {
   const [saving, setSaving] = useState(false);
   const [sortColumn, setSortColumn] = useState<SortColumn | null>('name');
   const [sortDir, setSortDir] = useState<SortDir>('asc');
+  const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
+
+  const isMobile = useIsMobile();
+  const [modalStep, setModalStep] = useState(1);
 
   const filtered = useMemo(() => {
     let list = state.companies;
@@ -106,6 +112,16 @@ export function CompaniesPage() {
     }
   }, [sortColumn, sortDir]);
 
+  const handleRowClick = (id: string) => {
+    if (window.innerWidth <= 768) {
+      setExpandedCards(prev => {
+        const next = new Set(prev);
+        if (next.has(id)) next.delete(id); else next.add(id);
+        return next;
+      });
+    }
+  };
+
   const SortHeader = ({ col, label }: { col: SortColumn; label: string }) => (
     <th className="sortable-th">
       {label}
@@ -131,6 +147,7 @@ export function CompaniesPage() {
   const openNewModal = () => {
     setEditingCompany(null);
     setForm(emptyForm);
+    setModalStep(1);
     setModalOpen(true);
   };
 
@@ -148,8 +165,9 @@ export function CompaniesPage() {
       postcode: company.postcode,
       country: company.country,
       notes: company.notes,
-      status: company.status,
+      status: company.status || '',
     });
+    setModalStep(1);
     setModalOpen(true);
   };
 
@@ -157,6 +175,7 @@ export function CompaniesPage() {
     setModalOpen(false);
     setEditingCompany(null);
     setForm(emptyForm);
+    setModalStep(1);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -223,7 +242,7 @@ export function CompaniesPage() {
           </div>
           <button className="btn-primary" onClick={openNewModal}>
             <Plus size={16} />
-            Add Company
+            <span className="btn-text-mobile-hide">Add Company</span>
           </button>
         </div>
       }
@@ -239,8 +258,8 @@ export function CompaniesPage() {
           </p>
         </div>
       ) : (
-        <div className="data-table-wrapper">
-          <table className="data-table">
+        <div className="data-table-wrapper responsive-wrapper">
+          <table className="data-table crm-table-responsive">
             <thead>
               <tr>
                 <SortHeader col="name" label="Company" />
@@ -253,16 +272,24 @@ export function CompaniesPage() {
             </thead>
             <tbody>
               {filtered.map((company) => (
-                <tr key={company.id}>
-                  <td>
-                    <div className="name-primary">{company.name}</div>
+                <tr 
+                  key={company.id}
+                  style={{ cursor: 'pointer', WebkitTapHighlightColor: 'transparent' }}
+                  onClick={() => handleRowClick(company.id)}
+                  className={expandedCards.has(company.id) ? 'expanded' : 'collapsed'}
+                >
+                  <td className="col-name no-indent">
+                    <div className="name-primary" style={{ display: 'flex', alignItems: 'center' }}>
+                      <Building2 size={12} style={{ marginRight: 4, flexShrink: 0 }} />
+                      <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{company.name}</span>
+                    </div>
                     {getFullAddress(company) && (
                       <div className="name-secondary">{getFullAddress(company)}</div>
                     )}
                   </td>
-                  <td>{company.industry || '—'}</td>
-                  <td>{company.phone || '—'}</td>
-                  <td>
+                  <td data-label="Industry" className="mobile-secondary-detail">{company.industry || '—'}</td>
+                  <td data-label="Phone" className="mobile-secondary-detail">{company.phone || '—'}</td>
+                  <td data-label="Website" className="mobile-secondary-detail">
                     {company.website ? (
                       <a
                         href={
@@ -279,6 +306,7 @@ export function CompaniesPage() {
                           alignItems: 'center',
                           gap: 4,
                         }}
+                        onClick={(e) => e.stopPropagation()}
                       >
                         <Globe size={12} />
                         {company.website.replace(/^https?:\/\//, '')}
@@ -287,28 +315,57 @@ export function CompaniesPage() {
                       '—'
                     )}
                   </td>
-                  <td>
+                  <td data-label="Status" className="mobile-secondary-detail">
                     <span className={`status-badge ${company.status}`}>
                       {company.status}
                     </span>
                   </td>
-                  <td>
+                  <td className="col-actions">
                     <div className="row-actions">
+                      <button
+                        className="row-action-btn mobile-expand-toggle"
+                        title={expandedCards.has(company.id) ? "Collapse" : "Expand"}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setExpandedCards(prev => {
+                            const next = new Set(prev);
+                            if (next.has(company.id)) next.delete(company.id); else next.add(company.id);
+                            return next;
+                          });
+                        }}
+                      >
+                        {expandedCards.has(company.id) ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                      </button>
                       <button
                         className="row-action-btn"
                         title="Edit"
-                        onClick={() => openEditModal(company)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openEditModal(company);
+                        }}
                       >
                         <Pencil size={14} />
                       </button>
                       <button
                         className="row-action-btn danger"
                         title="Delete"
-                        onClick={() => handleDelete(company.id)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDelete(company.id);
+                        }}
                       >
                         <Trash2 size={14} />
                       </button>
                     </div>
+                  </td>
+                  <td className="mobile-only-detail" style={{ padding: 'var(--space-4) 0 0', marginTop: 'var(--space-2)', borderTop: '1px solid var(--color-border)', justifyContent: 'center' }}>
+                    <button 
+                      className="btn-secondary" 
+                      style={{ width: '100%', justifyContent: 'center' }}
+                      onClick={(e) => { e.stopPropagation(); openEditModal(company); }}
+                    >
+                      Edit Company Details
+                    </button>
                   </td>
                 </tr>
               ))}
@@ -323,208 +380,255 @@ export function CompaniesPage() {
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h2>{editingCompany ? 'Edit Company' : 'New Company'}</h2>
+              {isMobile && <span style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)', marginLeft: '12px', fontWeight: 500 }}>Step {modalStep} of 2</span>}
               <button className="modal-close" onClick={closeModal}>
                 <X size={18} />
               </button>
             </div>
             <form onSubmit={handleSubmit}>
               <div className="modal-body">
-                <div className="form-group">
-                  <label>Company Name *</label>
-                  <input
-                    className="form-input"
-                    value={form.name}
-                    onChange={(e) =>
-                      setForm({ ...form, name: e.target.value })
-                    }
-                    required
-                  />
-                </div>
-                <div className="form-row">
-                  <div className="form-group">
-                    <label>Industry</label>
-                    <input
-                      className="form-input"
-                      value={form.industry ?? ''}
-                      onChange={(e) =>
-                        setForm({
-                          ...form,
-                          industry: e.target.value || null,
-                        })
-                      }
-                      placeholder="e.g. Manufacturing"
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label>Status</label>
-                    <SearchableSelect
-                      className="form-select"
-                      value={form.status}
-                      onChange={(val) =>
-                        setForm({
-                          ...form,
-                          status: val,
-                        })
-                      }
-                      searchable={false}
-                      sort={false}
-                      options={[
-                        { label: 'Select status', value: '' },
-                        ...state.companyStatuses.map((s) => ({ label: s.name, value: s.name }))
-                      ]}
-                    />
-                  </div>
-                </div>
-                <div className="form-row">
-                  <div className="form-group">
-                    <label>Phone</label>
-                    <input
-                      className="form-input"
-                      value={form.phone ?? ''}
-                      onChange={(e) =>
-                        setForm({
-                          ...form,
-                          phone: e.target.value || null,
-                        })
-                      }
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label>Website</label>
-                    <input
-                      className="form-input"
-                      value={form.website ?? ''}
-                      onChange={(e) =>
-                        setForm({
-                          ...form,
-                          website: e.target.value || null,
-                        })
-                      }
-                      placeholder="www.example.com"
-                    />
-                  </div>
-                </div>
-                <fieldset className="form-fieldset">
-                  <legend>Address</legend>
-                  <div className="form-group">
-                    <label>Address Line 1</label>
-                    <input
-                      className="form-input"
-                      value={form.address_line_1 ?? ''}
-                      onChange={(e) =>
-                        setForm({
-                          ...form,
-                          address_line_1: e.target.value || null,
-                        })
-                      }
-                      placeholder="Street address"
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label>Address Line 2</label>
-                    <input
-                      className="form-input"
-                      value={form.address_line_2 ?? ''}
-                      onChange={(e) =>
-                        setForm({
-                          ...form,
-                          address_line_2: e.target.value || null,
-                        })
-                      }
-                      placeholder="Suite, unit, building (optional)"
-                    />
-                  </div>
-                  <div className="form-row">
+                {(!isMobile || modalStep === 1) && (
+                  <div className="modal-step-content">
                     <div className="form-group">
-                      <label>Town / City</label>
+                      <label>Company Name *</label>
                       <input
                         className="form-input"
-                        value={form.city ?? ''}
+                        value={form.name}
+                        onChange={(e) =>
+                          setForm({ ...form, name: e.target.value })
+                        }
+                        required
+                      />
+                    </div>
+                    <div className="form-row">
+                      <div className="form-group">
+                        <label>Industry</label>
+                        <input
+                          className="form-input"
+                          value={form.industry ?? ''}
+                          onChange={(e) =>
+                            setForm({
+                              ...form,
+                              industry: e.target.value || null,
+                            })
+                          }
+                          placeholder="e.g. Manufacturing"
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label>Status</label>
+                        <SearchableSelect
+                          className="form-select"
+                          value={form.status}
+                          onChange={(val) =>
+                            setForm({
+                              ...form,
+                              status: val,
+                            })
+                          }
+                          searchable={false}
+                          sort={false}
+                          options={[
+                            { label: 'Select status', value: '' },
+                            ...state.companyStatuses.map((s) => ({ label: s.name, value: s.name }))
+                          ]}
+                        />
+                      </div>
+                    </div>
+                    <div className="form-row">
+                      <div className="form-group">
+                        <label>Phone</label>
+                        <input
+                          className="form-input"
+                          value={form.phone ?? ''}
+                          onChange={(e) =>
+                            setForm({
+                              ...form,
+                              phone: e.target.value || null,
+                            })
+                          }
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label>Website</label>
+                        <input
+                          className="form-input"
+                          value={form.website ?? ''}
+                          onChange={(e) =>
+                            setForm({
+                              ...form,
+                              website: e.target.value || null,
+                            })
+                          }
+                          placeholder="www.example.com"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+                {(!isMobile || modalStep === 2) && (
+                  <div className="modal-step-content">
+                    <fieldset className="form-fieldset">
+                      <legend>Address</legend>
+                      <div className="form-group">
+                        <label>Address Line 1</label>
+                        <input
+                          className="form-input"
+                          value={form.address_line_1 ?? ''}
+                          onChange={(e) =>
+                            setForm({
+                              ...form,
+                              address_line_1: e.target.value || null,
+                            })
+                          }
+                          placeholder="Street address"
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label>Address Line 2</label>
+                        <input
+                          className="form-input"
+                          value={form.address_line_2 ?? ''}
+                          onChange={(e) =>
+                            setForm({
+                              ...form,
+                              address_line_2: e.target.value || null,
+                            })
+                          }
+                          placeholder="Suite, unit, building (optional)"
+                        />
+                      </div>
+                      <div className="form-row">
+                        <div className="form-group">
+                          <label>Town / City</label>
+                          <input
+                            className="form-input"
+                            value={form.city ?? ''}
+                            onChange={(e) =>
+                              setForm({
+                                ...form,
+                                city: e.target.value || null,
+                              })
+                            }
+                          />
+                        </div>
+                        <div className="form-group">
+                          <label>County</label>
+                          <input
+                            className="form-input"
+                            value={form.county ?? ''}
+                            onChange={(e) =>
+                              setForm({
+                                ...form,
+                                county: e.target.value || null,
+                              })
+                            }
+                          />
+                        </div>
+                      </div>
+                      <div className="form-row">
+                        <div className="form-group">
+                          <label>Postcode</label>
+                          <input
+                            className="form-input"
+                            value={form.postcode ?? ''}
+                            onChange={(e) =>
+                              setForm({
+                                ...form,
+                                postcode: e.target.value || null,
+                              })
+                            }
+                          />
+                        </div>
+                        <div className="form-group">
+                          <label>Country</label>
+                          <input
+                            className="form-input"
+                            value={form.country ?? ''}
+                            onChange={(e) =>
+                              setForm({
+                                ...form,
+                                country: e.target.value || null,
+                              })
+                            }
+                          />
+                        </div>
+                      </div>
+                    </fieldset>
+                    <div className="form-group">
+                      <label>Notes</label>
+                      <textarea
+                        className="form-textarea"
+                        value={form.notes ?? ''}
                         onChange={(e) =>
                           setForm({
                             ...form,
-                            city: e.target.value || null,
+                            notes: e.target.value || null,
                           })
                         }
-                      />
-                    </div>
-                    <div className="form-group">
-                      <label>County</label>
-                      <input
-                        className="form-input"
-                        value={form.county ?? ''}
-                        onChange={(e) =>
-                          setForm({
-                            ...form,
-                            county: e.target.value || null,
-                          })
-                        }
+                        placeholder="Any notes about this company..."
                       />
                     </div>
                   </div>
-                  <div className="form-row">
-                    <div className="form-group">
-                      <label>Postcode</label>
-                      <input
-                        className="form-input"
-                        value={form.postcode ?? ''}
-                        onChange={(e) =>
-                          setForm({
-                            ...form,
-                            postcode: e.target.value || null,
-                          })
-                        }
-                      />
-                    </div>
-                    <div className="form-group">
-                      <label>Country</label>
-                      <input
-                        className="form-input"
-                        value={form.country ?? ''}
-                        onChange={(e) =>
-                          setForm({
-                            ...form,
-                            country: e.target.value || null,
-                          })
-                        }
-                      />
-                    </div>
-                  </div>
-                </fieldset>
-                <div className="form-group">
-                  <label>Notes</label>
-                  <textarea
-                    className="form-textarea"
-                    value={form.notes ?? ''}
-                    onChange={(e) =>
-                      setForm({
-                        ...form,
-                        notes: e.target.value || null,
-                      })
-                    }
-                    placeholder="Any notes about this company..."
-                  />
-                </div>
+                )}
               </div>
               <div className="modal-footer">
-                <button
-                  type="button"
-                  className="btn-secondary"
-                  onClick={closeModal}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="btn-primary"
-                  disabled={saving}
-                >
-                  {saving
-                    ? 'Saving...'
-                    : editingCompany
-                    ? 'Update Company'
-                    : 'Create Company'}
-                </button>
+                {isMobile ? (
+                  <>
+                    <button
+                      type="button"
+                      className="btn-secondary"
+                      style={{ marginRight: 'auto' }}
+                      onClick={() => modalStep === 1 ? closeModal() : setModalStep(s => s - 1)}
+                    >
+                      {modalStep === 1 ? 'Cancel' : 'Back'}
+                    </button>
+                    {modalStep < 2 ? (
+                      <button
+                        type="button"
+                        className="btn-primary"
+                        onClick={() => setModalStep(s => s + 1)}
+                        disabled={modalStep === 1 && !form.name.trim()}
+                        title={modalStep === 1 && !form.name.trim() ? "Company Name is required" : ""}
+                      >
+                        Next
+                      </button>
+                    ) : (
+                      <button
+                        type="submit"
+                        className="btn-primary"
+                        disabled={saving}
+                      >
+                        {saving
+                          ? 'Saving...'
+                          : editingCompany
+                          ? 'Update Company'
+                          : 'Create Company'}
+                      </button>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      className="btn-secondary"
+                      onClick={closeModal}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      className="btn-primary"
+                      disabled={saving}
+                    >
+                      {saving
+                        ? 'Saving...'
+                        : editingCompany
+                        ? 'Update Company'
+                        : 'Create Company'}
+                    </button>
+                  </>
+                )}
               </div>
             </form>
           </div>

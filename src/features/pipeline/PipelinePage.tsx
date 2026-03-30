@@ -25,7 +25,6 @@ import {
   Settings2,
   Calendar,
   FileText,
-  GripVertical,
 } from 'lucide-react';
 import './PipelinePage.css';
 
@@ -855,9 +854,6 @@ export function PipelinePage() {
                           onClick={() => openEditDealModal(deal)}
                         >
                           <div className="deal-card-header">
-                            <div className="deal-card-drag-handle">
-                              <GripVertical size={14} />
-                            </div>
                             <div className="deal-card-info">
                               {fd.deal_name && (
                                 <span className="deal-card-deal-name">

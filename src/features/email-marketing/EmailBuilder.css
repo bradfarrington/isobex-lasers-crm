@@ -1022,3 +1022,31 @@
   flex-shrink: 0;
   box-shadow: inset 0 0 0 1.5px rgba(255,255,255,0.5);
 }
+
+.desktop-only-builder-msg {
+  display: none;
+}
+
+@media (max-width: 1024px) {
+  .eb-root.builder-desktop-wrapper {
+    display: none !important;
+  }
+  
+  .desktop-only-builder-msg {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 40px 20px;
+    height: calc(100vh - 64px); /* Rough estimation of space */
+    color: var(--color-text-secondary);
+    background: var(--color-bg-surface);
+  }
+  
+  .desktop-only-builder-msg svg {
+    color: var(--color-primary);
+    opacity: 0.8;
+    margin-bottom: 24px;
+  }
+}

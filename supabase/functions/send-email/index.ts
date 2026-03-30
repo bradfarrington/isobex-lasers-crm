@@ -452,7 +452,7 @@ Deno.serve(async (req: Request) => {
 
         // ─── Action: send_review_request ─────────────
         if (action === 'send_review_request') {
-            const { requestId } = body;
+            const { requestId, templateId } = body;
             if (!requestId) return jsonRes({ error: 'requestId is required' }, 400);
 
             // Fetch the review request
@@ -477,19 +477,73 @@ Deno.serve(async (req: Request) => {
             const clientName = request.contact_name || 'Valued Customer';
             const clientEmail = request.contact_email;
 
-            // HTML template
-            const emailHtml = `<!DOCTYPE html><html><head><meta charset="utf-8"></head><body style="font-family:Helvetica,Arial,sans-serif;margin:0;padding:0;background:#f4f4f4;"><div style="max-width:600px;margin:0 auto;background:#ffffff;"><div style="background:#1a1a1a;padding:30px 20px;text-align:center;"><h1 style="color:#ffffff;margin:0;font-size:24px;">${settings.smtp_from_name || 'Isobex Lasers'}</h1></div><div style="padding:40px 30px;text-align:center;"><h2 style="margin-top:0;color:#1a1a1a;">How did we do?</h2><p style="color:#555;font-size:16px;line-height:1.6;margin-bottom:30px;">Hi ${clientName},<br><br>Thank you for choosing ${settings.smtp_from_name || 'Isobex Lasers'}. We hope you had a great experience with us. If you have a moment, we would really appreciate it if you could leave us a review on Google.</p><a href="${reviewLink}" style="display:inline-block;background:#3b82f6;color:#ffffff;text-decoration:none;font-weight:bold;padding:14px 28px;border-radius:6px;font-size:16px;">Leave a Review on Google</a></div><div style="text-align:center;padding:20px;background:#f4f4f4;"><p style="font-size:12px;color:#aaa;margin:0;">${settings.smtp_from_name || 'Isobex Lasers'}</p></div></div></body></html>`;
+            // Wrap the review link through the email-tracker for click tracking
+            const trackerBase = `${Deno.env.get('SUPABASE_URL')}/functions/v1/email-tracker`;
+            const trackedReviewLink = `${trackerBase}?type=click&rrid=${requestId}&rid=${requestId}&url=${encodeURIComponent(reviewLink)}`;
+
+            // Fetch template: prefer user-chosen template, fall back to system template
+            let template: any = null;
+            if (templateId) {
+                const { data: chosenTpl } = await supabase
+                    .from('email_templates')
+                    .select('mjml_source, subject')
+                    .eq('id', templateId)
+                    .single();
+                template = chosenTpl;
+            }
+            if (!template) {
+                const { data: sysTpl } = await supabase
+                    .from('email_templates')
+                    .select('mjml_source, subject')
+                    .eq('is_system', true)
+                    .eq('system_key', 'review_request')
+                    .single();
+                template = sysTpl;
+            }
+
+            // Fetch business profile
+            const { data: bpData } = await supabase.from('business_profile').select('business_name').limit(1).single();
+            const businessName = bpData?.business_name || settings.smtp_from_name || 'Isobex Lasers';
+
+            const reviewTags: Record<string, string> = {
+                '{{customer_name}}': clientName,
+                '{{review_link}}': trackedReviewLink,
+                '{{business_name}}': businessName,
+            };
+
+            function replaceReviewTags(html: string): string {
+                let result = html;
+                for (const [tag, val] of Object.entries(reviewTags)) {
+                    result = result.replace(new RegExp(tag.replace(/[{}]/g, '\\$&'), 'g'), val);
+                }
+                return result;
+            }
+
+            let emailHtml: string;
+            let emailSubject: string;
+
+            if (template?.mjml_source) {
+                emailHtml = replaceReviewTags(template.mjml_source);
+                emailSubject = replaceReviewTags(template.subject || `How did we do? — ${businessName}`);
+            } else {
+                // Fallback inline HTML
+                emailSubject = `How did we do? — ${businessName}`;
+                emailHtml = `<!DOCTYPE html><html><head><meta charset="utf-8"></head><body style="font-family:Helvetica,Arial,sans-serif;margin:0;padding:0;background:#f4f4f4;"><div style="max-width:600px;margin:0 auto;background:#ffffff;"><div style="background:#1a1a1a;padding:30px 20px;text-align:center;"><h1 style="color:#ffffff;margin:0;font-size:24px;">${businessName}</h1></div><div style="padding:40px 30px;text-align:center;"><h2 style="margin-top:0;color:#1a1a1a;">How did we do?</h2><p style="color:#555;font-size:16px;line-height:1.6;margin-bottom:30px;">Hi ${clientName},<br><br>Thank you for choosing ${businessName}. We hope you had a great experience with us. If you have a moment, we would really appreciate it if you could leave us a review on Google.</p><a href="${trackedReviewLink}" style="display:inline-block;background:#3b82f6;color:#ffffff;text-decoration:none;font-weight:bold;padding:14px 28px;border-radius:6px;font-size:16px;">Leave a Review on Google</a></div><div style="text-align:center;padding:20px;background:#f4f4f4;"><p style="font-size:12px;color:#aaa;margin:0;">${businessName}</p></div></div></body></html>`;
+            }
 
             await client.send({
                 from: fromAddress,
                 to: clientEmail,
-                subject: `How did we do? — ${settings.smtp_from_name || 'Isobex Lasers'}`,
+                subject: emailSubject,
                 mimeContent: htmlMime(emailHtml),
                 replyTo,
             });
 
-            // Mark as sent
-            await supabase.from('review_requests').update({ status: 'sent' }).eq('id', requestId);
+            // Mark as sent and update last_sent_at
+            await supabase.from('review_requests').update({
+                status: 'sent',
+                last_sent_at: new Date().toISOString(),
+            }).eq('id', requestId);
 
             // Log communication
             try {
@@ -499,10 +553,10 @@ Deno.serve(async (req: Request) => {
                     contact_id: contactByEmail?.id || null,
                     channel: 'email',
                     comm_type: 'review_request',
-                    subject: `How did we do? — ${settings.smtp_from_name || 'Isobex Lasers'}`,
+                    subject: emailSubject,
                     body_preview: `Review request sent to ${clientName}`,
                     recipient: clientEmail,
-                    order_id: null,
+                    order_id: request.order_id || null,
                     status: 'sent',
                 });
             } catch (logErr) { console.error('Failed to log communication:', logErr); }

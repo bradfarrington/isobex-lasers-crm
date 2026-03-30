@@ -366,18 +366,21 @@ function TeamMemberRow({
 
   return (
     <div className={`team-member-row ${user.status === 'deactivated' ? 'deactivated' : ''}`}>
-      {/* Avatar */}
-      <div className="team-member-avatar" style={{ background: roleInfo.bg, color: roleInfo.color }}>
-        {user.full_name.charAt(0).toUpperCase()}
-      </div>
-
-      {/* Info */}
-      <div className="team-member-info">
-        <div className="team-member-name">
-          {user.full_name}
-          {isCurrentUser && <span className="team-member-you">(You)</span>}
+      {/* Header wrapper for responsive card */}
+      <div className="team-member-header">
+        {/* Avatar */}
+        <div className="team-member-avatar" style={{ background: roleInfo.bg, color: roleInfo.color }}>
+          {user.full_name.charAt(0).toUpperCase()}
         </div>
-        <div className="team-member-email">{user.email}</div>
+
+        {/* Info */}
+        <div className="team-member-info">
+          <div className="team-member-name">
+            {user.full_name}
+            {isCurrentUser && <span className="team-member-you">(You)</span>}
+          </div>
+          <div className="team-member-email">{user.email}</div>
+        </div>
       </div>
 
       {/* Pills — always pinned right */}

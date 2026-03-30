@@ -6,7 +6,7 @@ import * as api from '@/lib/api';
 import { supabase } from '@/lib/supabase';
 import type { Order } from '@/types/database';
 import './Orders.css';
-import { PackageCheck, Search, Trash2, Eye } from 'lucide-react';
+import { PackageCheck, Search, Trash2, Eye, ChevronDown } from 'lucide-react';
 
 const STATUS_COLORS: Record<string, string> = {
   pending: '#f59e0b',
@@ -34,6 +34,17 @@ export function OrdersPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
+
+  const toggleExpand = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setExpandedCards((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
 
   useEffect(() => {
     api.fetchOrders()
@@ -140,30 +151,86 @@ export function OrdersPage() {
             </thead>
             <tbody>
               {filteredOrders.map((order) => (
-                <tr key={order.id} className="orders-table-row group" onClick={() => navigate(`/orders/${order.id}`)}>
-                  <td className="orders-col-number">
-                    <strong>#{order.order_number}</strong>
-                    {order.notes?.includes('[TEST ORDER]') && (
-                      <span style={{
-                        display: 'inline-block',
-                        marginLeft: 6,
-                        padding: '1px 6px',
-                        fontSize: '0.625rem',
-                        fontWeight: 700,
-                        background: 'rgba(245,158,11,0.12)',
-                        color: '#d97706',
-                        borderRadius: 4,
-                        verticalAlign: 'middle',
-                        letterSpacing: '0.04em',
-                      }}>TEST</span>
-                    )}
+                <tr 
+                  key={order.id} 
+                  className={`orders-table-row group ${expandedCards.has(order.id) ? 'expanded' : 'collapsed'}`} 
+                  onClick={() => {
+                    if (window.innerWidth <= 768) {
+                      setExpandedCards((prev) => {
+                        const next = new Set(prev);
+                        if (next.has(order.id)) next.delete(order.id);
+                        else next.add(order.id);
+                        return next;
+                      });
+                    } else {
+                      navigate(`/orders/${order.id}`);
+                    }
+                  }}
+                >
+                  <td className="orders-col-number order-name-cell" data-label="Order">
+                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', width: '100%' }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                          <strong>#{order.order_number}</strong>
+                          <span style={{ color: '#000', fontWeight: 600 }}>{order.customer_name}</span>
+                        </div>
+                        {order.notes?.includes('[TEST ORDER]') && (
+                          <span style={{
+                            display: 'inline-block',
+                            marginTop: 4,
+                            padding: '1px 6px',
+                            fontSize: '0.625rem',
+                            fontWeight: 700,
+                            background: 'rgba(245,158,11,0.12)',
+                            color: '#d97706',
+                            borderRadius: 4,
+                            verticalAlign: 'middle',
+                            letterSpacing: '0.04em',
+                          }}>TEST</span>
+                        )}
+                      </div>
+                      <button
+                        className="mobile-expand-toggle"
+                        onClick={(e) => toggleExpand(order.id, e)}
+                      >
+                        <ChevronDown size={16} />
+                      </button>
+                    </div>
+
+                    <div className="mobile-preview-pills">
+                      <span className="preview-pill">
+                        £{Number(order.total).toFixed(2)}
+                      </span>
+                      <span
+                        className="preview-pill"
+                        style={{ backgroundColor: STATUS_COLORS[order.status] + '18', color: STATUS_COLORS[order.status], fontWeight: 600 }}
+                      >
+                        {order.status}
+                      </span>
+                      <span className="preview-pill date">
+                        {formatDate(order.created_at)}
+                      </span>
+                    </div>
+                    
+                    <div className="mobile-only-detail">
+                      <button
+                        className="btn btn-danger btn-sm"
+                        style={{ width: '100%', justifyContent: 'center' }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigate(`/orders/${order.id}`);
+                        }}
+                      >
+                        View Order
+                      </button>
+                    </div>
                   </td>
-                  <td className="orders-col-date">{formatDate(order.created_at)}</td>
-                  <td className="orders-col-customer">
+                  <td className="orders-col-date mobile-secondary-detail" data-label="Date">{formatDate(order.created_at)}</td>
+                  <td className="orders-col-customer mobile-secondary-detail" data-label="Customer">
                     <div className="orders-customer-name">{order.customer_name}</div>
                     <div className="orders-customer-email">{order.customer_email}</div>
                   </td>
-                  <td>
+                  <td data-label="Status" className="mobile-secondary-detail">
                     <span
                       className="orders-status-badge"
                       style={{ backgroundColor: STATUS_COLORS[order.status] + '18', color: STATUS_COLORS[order.status] }}
@@ -171,7 +238,7 @@ export function OrdersPage() {
                       {order.status}
                     </span>
                   </td>
-                  <td>
+                  <td data-label="Payment" className="mobile-secondary-detail">
                     <span
                       className="orders-status-badge"
                       style={{ backgroundColor: PAYMENT_COLORS[order.payment_status] + '18', color: PAYMENT_COLORS[order.payment_status] }}
@@ -179,16 +246,17 @@ export function OrdersPage() {
                       {order.payment_status}
                     </span>
                   </td>
-                  <td className="orders-col-total">
+                  <td className="orders-col-total mobile-secondary-detail" data-label="Total">
                     <strong>£{Number(order.total).toFixed(2)}</strong>
                   </td>
-                  <td className="orders-col-actions">
-                    <button 
-                       className="orders-view-btn"
-                       onClick={(e) => { e.stopPropagation(); navigate(`/orders/${order.id}`); }}
-                       title="View Order"
-                    >
-                      <Eye size={16} />
+                  <td className="orders-col-actions desktop-only" data-label="">
+                     <button 
+                        className="orders-view-btn"
+                        onClick={(e) => { e.stopPropagation(); navigate(`/orders/${order.id}`); }}
+                        title="View Order"
+                        style={{ color: 'var(--color-danger)' }}
+                     >
+                       <Eye size={16} />
                     </button>
                     <button 
                        className="orders-delete-btn"

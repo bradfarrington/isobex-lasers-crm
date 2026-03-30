@@ -20,6 +20,7 @@ import {
   Tags,
 } from 'lucide-react';
 import './CrmPage.css';
+import { useIsMobile } from '@/hooks/useIsMobile';
 
 type SortColumn = 'name' | 'email' | 'phone' | 'type' | 'company' | 'source' | 'status';
 type SortDir = 'asc' | 'desc';
@@ -60,6 +61,10 @@ export function CrmPage() {
   // Multi-select
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [tagModalOpen, setTagModalOpen] = useState(false);
+  const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
+  
+  const isMobile = useIsMobile();
+  const [modalStep, setModalStep] = useState(1);
 
   // Filter and sort contacts
   const filtered = useMemo(() => {
@@ -163,14 +168,15 @@ export function CrmPage() {
   const openNewModal = (type: ContactType = 'Customer') => {
     setEditingContact(null);
     setForm({ ...emptyForm, contact_type: type });
+    setModalStep(1);
     setModalOpen(true);
   };
-
 
   const closeModal = () => {
     setModalOpen(false);
     setEditingContact(null);
     setForm(emptyForm);
+    setModalStep(1);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -226,6 +232,27 @@ export function CrmPage() {
     }
   };
 
+  const toggleExpand = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setExpandedCards(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const handleRowClick = (id: string) => {
+    if (window.innerWidth <= 768) {
+      setExpandedCards(prev => {
+        const next = new Set(prev);
+        if (next.has(id)) next.delete(id); else next.add(id);
+        return next;
+      });
+    } else {
+      navigate(`/crm/${id}`);
+    }
+  };
+
   // ── Tag handlers for bulk modal ──
   const handleBulkAddTag = async (tagId: string) => {
     const ids = Array.from(selectedIds);
@@ -273,7 +300,9 @@ export function CrmPage() {
           </div>
           <button className="btn-primary" onClick={() => openNewModal(activeTab === 'Lead' ? 'Lead' : 'Customer')}>
             <UserPlus size={16} />
-            {activeTab === 'Lead' ? 'Add Lead' : 'Add Contact'}
+            <span className="btn-text-mobile-hide">
+              {activeTab === 'Lead' ? 'Add Lead' : 'Add Contact'}
+            </span>
           </button>
         </div>
       }
@@ -309,8 +338,8 @@ export function CrmPage() {
           </p>
         </div>
       ) : (
-        <div className="data-table-wrapper">
-          <table className="data-table">
+        <div className="data-table-wrapper responsive-wrapper">
+          <table className="data-table crm-table-responsive">
             <thead>
               <tr>
                 <th style={{ width: 36 }}>
@@ -335,11 +364,11 @@ export function CrmPage() {
               {filtered.map((contact) => (
                 <tr
                   key={contact.id}
-                  style={{ cursor: 'pointer' }}
-                  onClick={() => navigate(`/crm/${contact.id}`)}
-                  className={selectedIds.has(contact.id) ? 'selected-row' : ''}
+                  style={{ cursor: 'pointer', WebkitTapHighlightColor: 'transparent' }}
+                  onClick={() => handleRowClick(contact.id)}
+                  className={`${selectedIds.has(contact.id) ? 'selected-row' : ''} ${expandedCards.has(contact.id) ? 'expanded' : 'collapsed'}`}
                 >
-                  <td onClick={(e) => e.stopPropagation()}>
+                  <td className="col-checkbox" onClick={(e) => e.stopPropagation()}>
                     <input
                       type="checkbox"
                       checked={selectedIds.has(contact.id)}
@@ -347,7 +376,7 @@ export function CrmPage() {
                       style={{ accentColor: 'var(--color-primary)' }}
                     />
                   </td>
-                  <td>
+                  <td className="col-name">
                     <div className="name-primary">
                       {contact.first_name} {contact.last_name}
                     </div>
@@ -375,22 +404,22 @@ export function CrmPage() {
                       </div>
                     )}
                   </td>
-                  <td>{contact.email || '—'}</td>
-                  <td>{contact.phone || '—'}</td>
+                  <td data-label="Email" className="mobile-secondary-detail">{contact.email || '—'}</td>
+                  <td data-label="Phone" className="mobile-secondary-detail">{contact.phone || '—'}</td>
                   {activeTab === 'All' && (
-                    <td>
+                    <td data-label="Type" className="mobile-secondary-detail">
                       <span className={`status-badge ${contact.contact_type?.toLowerCase()}`}>
                         {contact.contact_type}
                       </span>
                     </td>
                   )}
                   {activeTab !== 'Lead' && (
-                    <td>
+                    <td data-label="Company" className="mobile-secondary-detail">
                       {contact.company ? (
-                        <span className="name-primary">
+                        <span className="name-primary" style={{ display: 'inline-flex', alignItems: 'center' }}>
                           <Building2
                             size={12}
-                            style={{ marginRight: 4, verticalAlign: -1 }}
+                            style={{ marginRight: 4 }}
                           />
                           {contact.company.name}
                         </span>
@@ -400,10 +429,10 @@ export function CrmPage() {
                     </td>
                   )}
                   {activeTab === 'Lead' && (
-                    <td>{contact.source || '—'}</td>
+                    <td data-label="Source" className="mobile-secondary-detail">{contact.source || '—'}</td>
                   )}
                   {activeTab === 'Lead' && (
-                    <td>
+                    <td data-label="Status" className="mobile-secondary-detail">
                       {contact.status ? (
                         <span className={`status-badge`}>
                           {contact.status}
@@ -413,8 +442,15 @@ export function CrmPage() {
                       )}
                     </td>
                   )}
-                  <td>
+                  <td className="col-actions">
                     <div className="row-actions">
+                      <button
+                        className="row-action-btn mobile-expand-toggle"
+                        title={expandedCards.has(contact.id) ? "Collapse" : "Expand"}
+                        onClick={(e) => toggleExpand(contact.id, e)}
+                      >
+                        {expandedCards.has(contact.id) ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                      </button>
                       <button
                         className="row-action-btn"
                         title="View"
@@ -436,6 +472,15 @@ export function CrmPage() {
                         <Trash2 size={14} />
                       </button>
                     </div>
+                  </td>
+                  <td className="mobile-only-detail" style={{ padding: 'var(--space-4) 0 0', marginTop: 'var(--space-2)', borderTop: '1px solid var(--color-border)', justifyContent: 'center' }}>
+                    <button 
+                      className="btn-secondary" 
+                      style={{ width: '100%', justifyContent: 'center' }}
+                      onClick={(e) => { e.stopPropagation(); navigate(`/crm/${contact.id}`); }}
+                    >
+                      View Full Profile
+                    </button>
                   </td>
                 </tr>
               ))}
@@ -500,199 +545,248 @@ export function CrmPage() {
                   ? 'New Lead'
                   : 'New Contact'}
               </h2>
+              {isMobile && <span style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)', marginLeft: '12px', fontWeight: 500 }}>Step {modalStep} of 2</span>}
               <button className="modal-close" onClick={closeModal}>
                 <X size={18} />
               </button>
             </div>
             <form onSubmit={handleSubmit}>
               <div className="modal-body">
-                {/* Type selector */}
-                <div className="form-group">
-                  <label>Type</label>
-                  <div className="crm-type-toggle">
-                    <button
-                      type="button"
-                      className={`crm-type-btn ${form.contact_type === 'Customer' ? 'active' : ''}`}
-                      onClick={() => setForm({ ...form, contact_type: 'Customer' })}
-                    >
-                      Customer
-                    </button>
-                    <button
-                      type="button"
-                      className={`crm-type-btn ${form.contact_type === 'Lead' ? 'active' : ''}`}
-                      onClick={() => setForm({ ...form, contact_type: 'Lead' })}
-                    >
-                      Lead
-                    </button>
-                  </div>
-                </div>
+                {(!isMobile || modalStep === 1) && (
+                  <div className="modal-step-content">
+                    {/* Type selector */}
+                    <div className="form-group">
+                      <label>Type</label>
+                      <div className="crm-type-toggle">
+                        <button
+                          type="button"
+                          className={`crm-type-btn ${form.contact_type === 'Customer' ? 'active' : ''}`}
+                          onClick={() => setForm({ ...form, contact_type: 'Customer' })}
+                        >
+                          Customer
+                        </button>
+                        <button
+                          type="button"
+                          className={`crm-type-btn ${form.contact_type === 'Lead' ? 'active' : ''}`}
+                          onClick={() => setForm({ ...form, contact_type: 'Lead' })}
+                        >
+                          Lead
+                        </button>
+                      </div>
+                    </div>
 
-                <div className="form-row">
-                  <div className="form-group">
-                    <label>First Name *</label>
-                    <input
-                      className="form-input"
-                      value={form.first_name}
-                      onChange={(e) =>
-                        setForm({ ...form, first_name: e.target.value })
-                      }
-                      required
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label>Last Name *</label>
-                    <input
-                      className="form-input"
-                      value={form.last_name}
-                      onChange={(e) =>
-                        setForm({ ...form, last_name: e.target.value })
-                      }
-                      required
-                    />
-                  </div>
-                </div>
-                <div className="form-row">
-                  <div className="form-group">
-                    <label>Email</label>
-                    <input
-                      className="form-input"
-                      type="email"
-                      value={form.email ?? ''}
-                      onChange={(e) =>
-                        setForm({
-                          ...form,
-                          email: e.target.value || null,
-                        })
-                      }
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label>Phone</label>
-                    <input
-                      className="form-input"
-                      value={form.phone ?? ''}
-                      onChange={(e) =>
-                        setForm({
-                          ...form,
-                          phone: e.target.value || null,
-                        })
-                      }
-                    />
-                  </div>
-                </div>
-
-                {/* Customer-specific fields */}
-                {form.contact_type === 'Customer' && (
-                  <div className="form-group">
-                    <label>Company</label>
-                    <SearchableSelect
-                      className="form-select"
-                      value={form.company_id ?? ''}
-                      onChange={(val) =>
-                        setForm({
-                          ...form,
-                          company_id: val || null,
-                        })
-                      }
-                      options={state.companies.map((company) => ({ label: company.name, value: company.id }))}
-                      placeholder="No company"
-                    />
+                    <div className="form-row">
+                      <div className="form-group">
+                        <label>First Name *</label>
+                        <input
+                          className="form-input"
+                          value={form.first_name}
+                          onChange={(e) =>
+                            setForm({ ...form, first_name: e.target.value })
+                          }
+                          required
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label>Last Name *</label>
+                        <input
+                          className="form-input"
+                          value={form.last_name}
+                          onChange={(e) =>
+                            setForm({ ...form, last_name: e.target.value })
+                          }
+                          required
+                        />
+                      </div>
+                    </div>
+                    <div className="form-row">
+                      <div className="form-group">
+                        <label>Email</label>
+                        <input
+                          className="form-input"
+                          type="email"
+                          value={form.email ?? ''}
+                          onChange={(e) =>
+                            setForm({
+                              ...form,
+                              email: e.target.value || null,
+                            })
+                          }
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label>Phone</label>
+                        <input
+                          className="form-input"
+                          value={form.phone ?? ''}
+                          onChange={(e) =>
+                            setForm({
+                              ...form,
+                              phone: e.target.value || null,
+                            })
+                          }
+                        />
+                      </div>
+                    </div>
                   </div>
                 )}
 
-                {/* Lead-specific fields */}
-                {form.contact_type === 'Lead' && (
-                  <>
-                    <div className="form-row">
+                {(!isMobile || modalStep === 2) && (
+                  <div className="modal-step-content">
+                    {/* Customer-specific fields */}
+                    {form.contact_type === 'Customer' && (
                       <div className="form-group">
-                        <label>Source</label>
-                        <select
+                        <label>Company</label>
+                        <SearchableSelect
                           className="form-select"
-                          value={form.source ?? ''}
-                          onChange={(e) =>
-                            setForm({ ...form, source: e.target.value || null })
+                          value={form.company_id ?? ''}
+                          onChange={(val) =>
+                            setForm({
+                              ...form,
+                              company_id: val || null,
+                            })
                           }
-                        >
-                          <option value="">Select source</option>
-                          {state.leadSources.map((s) => (
-                            <option key={s.id} value={s.name}>
-                              {s.name}
-                            </option>
-                          ))}
-                        </select>
+                          options={state.companies.map((company) => ({ label: company.name, value: company.id }))}
+                          placeholder="No company"
+                        />
                       </div>
-                      <div className="form-group">
-                        <label>Status</label>
-                        <select
-                          className="form-select"
-                          value={form.status ?? ''}
-                          onChange={(e) =>
-                            setForm({ ...form, status: e.target.value || null })
-                          }
-                        >
-                          <option value="">Select status</option>
-                          {state.leadStatuses.map((s) => (
-                            <option key={s.id} value={s.name}>
-                              {s.name}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    </div>
+                    )}
+
+                    {/* Lead-specific fields */}
+                    {form.contact_type === 'Lead' && (
+                      <>
+                        <div className="form-row">
+                          <div className="form-group">
+                            <label>Source</label>
+                            <select
+                              className="form-select"
+                              value={form.source ?? ''}
+                              onChange={(e) =>
+                                setForm({ ...form, source: e.target.value || null })
+                              }
+                            >
+                              <option value="">Select source</option>
+                              {state.leadSources.map((s) => (
+                                <option key={s.id} value={s.name}>
+                                  {s.name}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                          <div className="form-group">
+                            <label>Status</label>
+                            <select
+                              className="form-select"
+                              value={form.status ?? ''}
+                              onChange={(e) =>
+                                setForm({ ...form, status: e.target.value || null })
+                              }
+                            >
+                              <option value="">Select status</option>
+                              {state.leadStatuses.map((s) => (
+                                <option key={s.id} value={s.name}>
+                                  {s.name}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
+                        <div className="form-group">
+                          <label>Message</label>
+                          <textarea
+                            className="form-textarea"
+                            value={form.message ?? ''}
+                            onChange={(e) =>
+                              setForm({
+                                ...form,
+                                message: e.target.value || null,
+                              })
+                            }
+                            placeholder="Enquiry message or notes..."
+                            rows={3}
+                          />
+                        </div>
+                      </>
+                    )}
+
                     <div className="form-group">
-                      <label>Message</label>
+                      <label>Notes</label>
                       <textarea
                         className="form-textarea"
-                        value={form.message ?? ''}
+                        value={form.notes ?? ''}
                         onChange={(e) =>
                           setForm({
                             ...form,
-                            message: e.target.value || null,
+                            notes: e.target.value || null,
                           })
                         }
-                        placeholder="Enquiry message or notes..."
-                        rows={3}
+                        placeholder="Any notes about this contact..."
                       />
                     </div>
-                  </>
+                  </div>
                 )}
-
-                <div className="form-group">
-                  <label>Notes</label>
-                  <textarea
-                    className="form-textarea"
-                    value={form.notes ?? ''}
-                    onChange={(e) =>
-                      setForm({
-                        ...form,
-                        notes: e.target.value || null,
-                      })
-                    }
-                    placeholder="Any notes about this contact..."
-                  />
-                </div>
               </div>
               <div className="modal-footer">
-                <button
-                  type="button"
-                  className="btn-secondary"
-                  onClick={closeModal}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="btn-primary"
-                  disabled={saving}
-                >
-                  {saving
-                    ? 'Saving...'
-                    : editingContact
-                    ? 'Update Contact'
-                    : form.contact_type === 'Lead'
-                    ? 'Create Lead'
-                    : 'Create Contact'}
-                </button>
+                {isMobile ? (
+                  <>
+                    <button
+                      type="button"
+                      className="btn-secondary"
+                      style={{ marginRight: 'auto' }}
+                      onClick={() => modalStep === 1 ? closeModal() : setModalStep(s => s - 1)}
+                    >
+                      {modalStep === 1 ? 'Cancel' : 'Back'}
+                    </button>
+                    {modalStep < 2 ? (
+                      <button
+                        type="button"
+                        className="btn-primary"
+                        onClick={() => setModalStep(s => s + 1)}
+                        disabled={modalStep === 1 && (!form.first_name.trim() || !form.last_name.trim())}
+                        title={modalStep === 1 && (!form.first_name.trim() || !form.last_name.trim()) ? "First and Last Name are required" : ""}
+                      >
+                        Next
+                      </button>
+                    ) : (
+                      <button
+                        type="submit"
+                        className="btn-primary"
+                        disabled={saving}
+                      >
+                        {saving
+                          ? 'Saving...'
+                          : editingContact
+                          ? 'Update Contact'
+                          : form.contact_type === 'Lead'
+                          ? 'Create Lead'
+                          : 'Create Contact'}
+                      </button>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      className="btn-secondary"
+                      onClick={closeModal}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      className="btn-primary"
+                      disabled={saving}
+                    >
+                      {saving
+                        ? 'Saving...'
+                        : editingContact
+                        ? 'Update Contact'
+                        : form.contact_type === 'Lead'
+                        ? 'Create Lead'
+                        : 'Create Contact'}
+                    </button>
+                  </>
+                )}
               </div>
             </form>
           </div>

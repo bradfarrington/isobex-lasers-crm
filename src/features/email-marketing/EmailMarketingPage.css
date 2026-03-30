@@ -255,4 +255,8 @@
     padding: 4px 10px;
     font-size: var(--font-size-xs);
   }
+
+  .desktop-only {
+    display: none !important;
+  }
 }

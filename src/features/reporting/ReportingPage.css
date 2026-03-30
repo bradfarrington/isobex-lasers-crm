@@ -15,12 +15,18 @@
 
 .analytics-header-actions {
   display: flex;
-  justify-content: flex-end;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
   margin-bottom: 2rem;
 }
 
 .time-filters {
   display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px;
   background: white;
   border: 1px solid #e2e8f0;
   border-radius: 8px;

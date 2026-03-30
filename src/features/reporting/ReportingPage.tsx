@@ -50,7 +50,7 @@ export function ReportingPage() {
       title="Analytics Overview"
       subtitle={days === 9999 ? 'All-time performance metrics' : `Performance metrics for the last ${days} days`}
     >
-      <div className="analytics-header-actions" style={{ display: 'flex', justifyContent: 'space-between' }}>
+      <div className="analytics-header-actions">
         <div className="time-filters source-filters">
           <button className={`time-filter-btn ${source === 'all' ? 'active' : ''}`} onClick={() => setSource('all')}>🌎 All Traffic</button>
           <button className={`time-filter-btn ${source === 'website' ? 'active' : ''}`} onClick={() => setSource('website')}>🖥️ Website</button>

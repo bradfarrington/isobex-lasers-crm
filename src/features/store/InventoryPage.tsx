@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { PageShell } from '@/components/layout/PageShell';
 import { StoreTabBar } from './StoreTabBar';
 import * as api from '@/lib/api';
@@ -11,12 +12,14 @@ type InventorySortColumn = 'product' | 'variant' | 'sku' | 'stock' | 'threshold'
 type SortDir = 'asc' | 'desc';
 
 export function InventoryPage() {
+  const navigate = useNavigate();
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<FilterTab>('all');
   const [sortColumn, setSortColumn] = useState<InventorySortColumn | null>('product');
   const [sortDir, setSortDir] = useState<SortDir>('asc');
+  const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     loadInventory();
@@ -38,6 +41,16 @@ export function InventoryPage() {
     if (item.stock_quantity <= 0) return 'out';
     if (item.min_stock_threshold > 0 && item.stock_quantity <= item.min_stock_threshold) return 'low';
     return 'good';
+  };
+
+  const toggleExpand = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setExpandedCards((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
   };
 
   const statusOrder = { out: 0, low: 1, good: 2 };
@@ -277,7 +290,7 @@ export function InventoryPage() {
         </div>
         <button className="btn btn-secondary" onClick={handleExportPDF}>
           <Download size={16} />
-          Export PDF
+          <span>Export PDF</span>
         </button>
       </div>
 
@@ -307,26 +320,77 @@ export function InventoryPage() {
             <tbody>
               {filtered.map((item, idx) => {
                 const status = getStatus(item);
+                const rowKey = `${item.product_id}-${item.variant_id || idx}`;
                 return (
-                  <tr key={`${item.product_id}-${item.variant_id || idx}`} className={`inventory-row ${status}`}>
-                    <td className="product-name-cell">
-                      <span className="product-name">{item.product_name}</span>
+                  <tr 
+                    key={rowKey} 
+                    className={`inventory-row ${status} ${expandedCards.has(rowKey) ? 'expanded' : 'collapsed'}`}
+                    onClick={() => {
+                      if (window.innerWidth <= 768) {
+                        setExpandedCards((prev) => {
+                          const next = new Set(prev);
+                          if (next.has(rowKey)) next.delete(rowKey);
+                          else next.add(rowKey);
+                          return next;
+                        });
+                      }
+                    }}
+                  >
+                    <td className="product-name-cell" data-label="Product">
+                      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', width: '100%' }}>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <span className="product-name">{item.product_name}</span>
+                        </div>
+                        <button
+                          className="mobile-expand-toggle"
+                          onClick={(e) => toggleExpand(rowKey, e)}
+                        >
+                          <ChevronDown size={16} />
+                        </button>
+                      </div>
+
+                      <div className="mobile-preview-pills">
+                        <span className="preview-pill">
+                          {formatPrice(item.price)}
+                        </span>
+                        <span className={`stock-badge ${status}`}>
+                          {item.stock_quantity} in stock
+                        </span>
+                        {item.variant_label && (
+                          <span className="preview-pill">
+                            {item.variant_label}
+                          </span>
+                        )}
+                      </div>
+                      
+                      <div className="mobile-only-detail">
+                        <button
+                          className="btn btn-secondary btn-sm"
+                          style={{ width: '100%', justifyContent: 'center' }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigate(`/store/${item.product_id}`);
+                          }}
+                        >
+                          Edit Product
+                        </button>
+                      </div>
                     </td>
-                    <td>{item.variant_label || '—'}</td>
-                    <td>{item.variant_sku || item.product_sku || '—'}</td>
-                    <td>
+                    <td data-label="Variant" className="mobile-secondary-detail">{item.variant_label || '—'}</td>
+                    <td data-label="SKU" className="mobile-secondary-detail">{item.variant_sku || item.product_sku || '—'}</td>
+                    <td data-label="Stock" className="mobile-secondary-detail">
                       <span className={`stock-badge ${status}`}>
                         {item.stock_quantity}
                       </span>
                     </td>
-                    <td>{item.min_stock_threshold}</td>
-                    <td>{formatPrice(item.price)}</td>
-                    <td>
+                    <td data-label="Min. Threshold" className="mobile-secondary-detail">{item.min_stock_threshold}</td>
+                    <td data-label="Price" className="mobile-secondary-detail">{formatPrice(item.price)}</td>
+                    <td data-label="Continue Selling" className="mobile-secondary-detail">
                       <span className={`continue-selling-badge ${item.continue_selling_when_out_of_stock ? 'on' : 'off'}`}>
                         {item.continue_selling_when_out_of_stock ? 'On' : 'Off'}
                       </span>
                     </td>
-                    <td>
+                    <td data-label="Status" className="mobile-secondary-detail">
                       <span className={`status-indicator ${status}`}>
                         {status === 'out' && <><XCircle size={14} /> Out of Stock</>}
                         {status === 'low' && <><AlertTriangle size={14} /> Low Stock</>}

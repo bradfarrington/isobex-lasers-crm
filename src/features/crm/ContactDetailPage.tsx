@@ -49,6 +49,10 @@ export function ContactDetailPage() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<DetailTab>('overview');
 
+  // ── Communications state ──
+  const [comms, setComms] = useState<ContactCommunication[]>([]);
+  const [commsLoading, setCommsLoading] = useState(false);
+
   // Try to find in context first, then fetch from API
   useEffect(() => {
     if (!id) return;
@@ -92,6 +96,15 @@ export function ContactDetailPage() {
       console.error('Failed to update field:', err);
     }
   };
+
+  useEffect(() => {
+    if (activeTab !== 'comms' || !contact) return;
+    setCommsLoading(true);
+    api.fetchContactCommunications(contact.id)
+      .then(setComms)
+      .catch((err) => console.error('Failed to load comms:', err))
+      .finally(() => setCommsLoading(false));
+  }, [activeTab, contact?.id]);
 
   // ── Tag handlers ──
   const handleAddTag = async (tagId: string) => {
@@ -142,7 +155,9 @@ export function ContactDetailPage() {
 
   const initials = useMemo(() => {
     if (!contact) return '';
-    return (contact.first_name[0] + contact.last_name[0]).toUpperCase();
+    const f = contact.first_name?.[0] || '';
+    const l = contact.last_name?.[0] || '';
+    return (f + l).toUpperCase() || '?';
   }, [contact]);
 
   const createdDate = useMemo(() => {
@@ -506,19 +521,6 @@ export function ContactDetailPage() {
     </div>
   );
 
-  // ── Communications state ──
-  const [comms, setComms] = useState<ContactCommunication[]>([]);
-  const [commsLoading, setCommsLoading] = useState(false);
-
-  useEffect(() => {
-    if (activeTab !== 'comms' || !contact) return;
-    setCommsLoading(true);
-    api.fetchContactCommunications(contact.id)
-      .then(setComms)
-      .catch((err) => console.error('Failed to load comms:', err))
-      .finally(() => setCommsLoading(false));
-  }, [activeTab, contact?.id]);
-
   const commTypeLabels: Record<string, string> = {
     order_confirmation: 'Order Confirmation',
     refund_confirmation: 'Refund Confirmation',
@@ -654,9 +656,11 @@ export function ContactDetailPage() {
         <div className="contact-detail-header-info">
           <div className="contact-detail-name">
             {contact.first_name} {contact.last_name}
-            <span className={`status-badge ${contact.contact_type.toLowerCase()}`}>
-              {contact.contact_type}
-            </span>
+            {contact.contact_type && (
+              <span className={`status-badge ${contact.contact_type.toLowerCase()}`}>
+                {contact.contact_type}
+              </span>
+            )}
           </div>
           <div className="contact-detail-meta">
             {contact.email || contact.phone || 'No contact info'}

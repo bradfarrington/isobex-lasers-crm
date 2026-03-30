@@ -8,9 +8,11 @@ import type { GooglePlaceOverview, GoogleReview, ReviewRequest } from '@/types/d
 import {
   Star, StarHalf, Search, Filter, Mail, Plus, X,
   ExternalLink, CheckCircle2, Navigation, Send, Loader2,
-  Clock, ArrowRight
+  Clock, ArrowRight, Bot, User
 } from 'lucide-react';
+import { AutomationTab } from './AutomationTab';
 import './ReviewsPage.css';
+import './AutomationTab.css';
 
 /* ═══════════════════════════════════════════
    Tabs
@@ -20,6 +22,7 @@ const TABS = [
   { id: 'overview', label: 'Overview' },
   { id: 'all_reviews', label: 'All Reviews' },
   { id: 'requests', label: 'Review Requests' },
+  { id: 'automation', label: 'Automation' },
 ];
 
 export function ReviewsPage() {
@@ -54,6 +57,7 @@ export function ReviewsPage() {
           {activeTab === 'overview' && <OverviewTab onSeeAll={() => setActiveTab('all_reviews')} />}
           {activeTab === 'all_reviews' && <AllReviewsTab />}
           {activeTab === 'requests' && <ReviewRequestsTab />}
+          {activeTab === 'automation' && <AutomationTab />}
         </div>
       </div>
     </PageShell>
@@ -311,7 +315,9 @@ function ReviewRequestsTab() {
               <tr>
                 <th>Customer Name</th>
                 <th>Email Address</th>
+                <th>Source</th>
                 <th>Status</th>
+                <th>Sends</th>
                 <th>Sent Date</th>
               </tr>
             </thead>
@@ -321,14 +327,21 @@ function ReviewRequestsTab() {
                   <td className="font-medium text-primary">{req.contact_name}</td>
                   <td>{req.contact_email}</td>
                   <td>
+                    <span className={`source-badge ${req.source || 'manual'}`}>
+                      {req.source === 'automated' ? <><Bot size={11} /> Auto</> : <><User size={11} /> Manual</>}
+                    </span>
+                  </td>
+                  <td>
                     <span className={`status-badge ${req.status}`}>
                       {req.status === 'sent' && <Navigation size={12} />}
                       {req.status === 'opened' && <Clock size={12} />}
                       {req.status === 'clicked' && <CheckCircle2 size={12} />}
                       {req.status.charAt(0).toUpperCase() + req.status.slice(1)}
+                      {req.sequence_completed && ' ✓'}
                     </span>
                   </td>
-                  <td>{new Date(req.created_at).toLocaleDateString()}</td>
+                  <td>{req.send_count || 1}</td>
+                  <td>{new Date(req.last_sent_at || req.created_at).toLocaleDateString()}</td>
                 </tr>
               ))}
             </tbody>
@@ -390,6 +403,12 @@ function SendRequestModal({ onClose, onSent }: { onClose: () => void; onSent: ()
         contact_email: selectedContact.email,
         contact_name: selectedContact.name,
         status: 'sent',
+        order_id: null,
+        source: 'manual',
+        send_count: 1,
+        next_send_at: null,
+        sequence_completed: true,
+        last_sent_at: new Date().toISOString(),
       });
 
       // Build the email HTML right here on the frontend to avoid deploying new Edge Functions

@@ -6,6 +6,7 @@ import {
   ShoppingBag,
   PackageCheck,
   Mail,
+  Star,
   FileText,
   BarChart3,
 } from 'lucide-react';
@@ -32,7 +33,7 @@ export const navigationSections: NavSection[] = [
     title: 'Marketing',
     items: [
       { label: 'Email Marketing', path: '/email-marketing', icon: Mail, permissionKey: 'email_marketing' },
-      // { label: 'Reviews', path: '/reviews', icon: Star, permissionKey: 'reviews' }, // Hidden until business is accepted on Google Places
+      { label: 'Reviews', path: '/reviews', icon: Star, permissionKey: 'reviews' },
     ],
   },
   {
@@ -43,3 +44,4 @@ export const navigationSections: NavSection[] = [
     ],
   },
 ];
+

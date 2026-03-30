@@ -303,10 +303,191 @@
   flex: 1;
 }
 
+/* ══════════════════════════════════════════
+   Collapsible Mobile Utilities (Hidden on Desktop)
+   ══════════════════════════════════════════ */
+.mobile-only-detail,
+.mobile-preview-pills,
+.mobile-expand-toggle {
+  display: none !important;
+}
+
 /* ─── Responsive ────────────────────────── */
 
 @media (max-width: 1024px) {
   .order-detail-layout {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .desktop-only {
+    display: none !important;
+  }
+
+  .orders-toolbar {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: var(--space-2);
+  }
+
+  .orders-search-wrap, .orders-filter-wrap {
+    width: 100%;
+  }
+
+  /* Universal Responsive Tables */
+  .orders-table-wrap {
+    background: transparent;
+    border: none;
+  }
+
+  .orders-table,
+  .orders-table tbody,
+  .orders-table tr,
+  .orders-table td {
+    display: block;
+    width: 100%;
+  }
+
+  .orders-table thead {
+    display: none;
+  }
+
+  .orders-table td:nth-child(n) {
+    width: 100% !important;
+  }
+
+  /* Card rows */
+  .orders-table-row {
+    margin-bottom: var(--space-4);
+    background: var(--color-bg-raised);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    position: relative;
+    box-sizing: border-box;
+    overflow: hidden;
+    padding: 0;
+  }
+
+  /* Label-value pair cells */
+  .orders-table td {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--space-2) var(--space-3);
+    border-bottom: 1px dashed var(--color-border);
+    text-align: left;
+  }
+
+  .orders-table td:last-child {
+    border-bottom: none;
+    padding-bottom: var(--space-3);
+  }
+
+  .orders-table td:first-child {
+    padding-top: var(--space-3);
+  }
+
+  /* Injected data labels */
+  .orders-table td::before {
+    content: attr(data-label);
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding-right: var(--space-4);
+    flex-shrink: 0;
+  }
+
+  .orders-table td > :not(::before) {
+    margin-left: auto;
+    text-align: right;
+  }
+
+  /* Special header cell for cards (Order Name) */
+  .order-name-cell {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    background: var(--color-bg-surface);
+    padding: var(--space-3) !important;
+    border-radius: 0;
+    border-bottom: 1px solid var(--color-border) !important;
+  }
+
+  .orders-table-row.collapsed .order-name-cell {
+    border-bottom: none !important;
+  }
+
+  .order-name-cell > :not(::before) {
+    margin-left: 0;
+    text-align: left;
+  }
+
+  .order-name-cell::before {
+    display: none;
+  }
+
+  /* Collapsible Cards Logic */
+  .mobile-preview-pills {
+    display: flex !important;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 8px;
+    width: 100%;
+  }
+
+  .orders-table-row.expanded .mobile-preview-pills {
+    display: none;
+  }
+
+  .preview-pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 6px;
+    border-radius: var(--radius-sm);
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-medium);
+    background: var(--color-bg-surface);
+    color: var(--color-text-secondary);
+    border: 1px solid var(--color-border);
+  }
+
+  .orders-table-row.collapsed .mobile-secondary-detail {
+    display: none !important;
+  }
+
+  .mobile-only-detail {
+    display: flex !important;
+    justify-content: center;
+    gap: var(--space-2);
+    margin-top: var(--space-3);
+    padding-top: var(--space-3);
+    border-top: 1px solid var(--color-border);
+  }
+
+  .orders-table-row.collapsed .mobile-only-detail {
+    display: none !important;
+  }
+
+  .mobile-expand-toggle {
+    display: flex !important;
+    background: transparent;
+    border: none;
+    color: var(--color-text-tertiary);
+    align-items: center;
+    justify-content: center;
+    padding: var(--space-1);
+    margin-left: auto;
+    cursor: pointer;
+  }
+
+  .mobile-expand-toggle svg {
+    transition: transform 0.2s ease;
+  }
+
+  .orders-table-row.expanded .mobile-expand-toggle svg {
+    transform: rotate(180deg);
   }
 }

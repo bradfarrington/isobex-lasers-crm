@@ -111,7 +111,7 @@ export function ShippingPage() {
                         No rates configured for this zone yet.
                       </p>
                     ) : (
-                      <table className="orders-table" style={{ marginBottom: '1rem' }}>
+                      <table className="products-table shipping-table" style={{ marginBottom: '1rem' }}>
                         <thead>
                           <tr>
                             <th>Rate Name</th>
@@ -122,18 +122,27 @@ export function ShippingPage() {
                         </thead>
                         <tbody>
                           {zoneRates.map((rate) => (
-                            <tr key={rate.id}>
-                              <td>
+                            <tr key={rate.id} className="products-table-row">
+                              <td className="product-name-cell" data-label="Rate Name">
                                 <input
                                   type="text"
                                   className="form-input"
                                   value={rate.name}
                                   onChange={(e) => updateRate(rate.id, 'name', e.target.value)}
                                   onBlur={() => saveRate(rate)}
-                                  style={{ minWidth: 120 }}
+                                  style={{ width: '100%', maxWidth: '100%' }}
                                 />
+                                <div className="mobile-only-detail" style={{ width: '100%' }}>
+                                  <button
+                                    className="btn btn-danger btn-sm"
+                                    onClick={() => deleteRate(rate.id)}
+                                    style={{ flex: 1, justifyContent: 'center' }}
+                                  >
+                                    Delete Rate
+                                  </button>
+                                </div>
                               </td>
-                              <td>
+                              <td data-label="Price (£)">
                                 <input
                                   type="number"
                                   className="form-input"
@@ -142,11 +151,11 @@ export function ShippingPage() {
                                   onBlur={() => saveRate(rate)}
                                   step="0.01"
                                   min="0"
-                                  style={{ width: 90 }}
+                                  style={{ width: '100%', maxWidth: '90px' }}
                                 />
                               </td>
-                              <td>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                              <td data-label="Est. Days">
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', justifyContent: 'flex-end', width: '100%', maxWidth: '140px' }}>
                                   <input
                                     type="number"
                                     className="form-input"
@@ -154,7 +163,7 @@ export function ShippingPage() {
                                     onChange={(e) => updateRate(rate.id, 'estimated_days_min', Number(e.target.value))}
                                     onBlur={() => saveRate(rate)}
                                     min="0"
-                                    style={{ width: 55 }}
+                                    style={{ width: '55px', minWidth: '55px' }}
                                   />
                                   <span>–</span>
                                   <input
@@ -164,23 +173,20 @@ export function ShippingPage() {
                                     onChange={(e) => updateRate(rate.id, 'estimated_days_max', Number(e.target.value))}
                                     onBlur={() => saveRate(rate)}
                                     min="0"
-                                    style={{ width: 55 }}
+                                    style={{ width: '55px', minWidth: '55px' }}
                                   />
                                 </div>
                               </td>
-                              <td>
-                                <button
-                                  onClick={() => deleteRate(rate.id)}
-                                  title="Delete rate"
-                                  style={{
-                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                    width: 28, height: 28, padding: 0,
-                                    background: 'none', border: 'none', borderRadius: 6,
-                                    color: '#dc2626', cursor: 'pointer',
-                                  }}
-                                >
-                                  <Trash2 size={14} />
-                                </button>
+                              <td className="desktop-only" data-label="Actions">
+                                <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                                  <button
+                                    className="btn btn-ghost btn-icon-sm text-danger"
+                                    onClick={() => deleteRate(rate.id)}
+                                    title="Delete rate"
+                                  >
+                                    <Trash2 size={14} />
+                                  </button>
+                                </div>
                               </td>
                             </tr>
                           ))}

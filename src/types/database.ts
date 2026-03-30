@@ -893,10 +893,32 @@ export interface ReviewRequest {
   contact_email: string;
   contact_name: string;
   status: 'sent' | 'opened' | 'clicked';
+  order_id: string | null;
+  source: 'manual' | 'automated';
+  send_count: number;
+  next_send_at: string | null;
+  sequence_completed: boolean;
+  last_sent_at: string | null;
   created_at: string;
 }
 
 export type ReviewRequestInsert = Omit<ReviewRequest, 'id' | 'created_at'>;
+
+// ─── Review Automation Settings (singleton) ─────────────────
+
+export interface ReviewAutomationSettings {
+  id: string;
+  enabled: boolean;
+  initial_delay_days: number;
+  follow_up_interval_days: number;
+  max_follow_ups: number;
+  stop_on_click: boolean;
+  template_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export type ReviewAutomationSettingsUpdate = Partial<Omit<ReviewAutomationSettings, 'id' | 'created_at' | 'updated_at'>>;
 
 // ─── SMS Integration ────────────────────────────────────────
 

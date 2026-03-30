@@ -23,6 +23,7 @@ export function StorePage() {
   const [tooltipPos, setTooltipPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
   const [sortColumn, setSortColumn] = useState<ProductSortColumn | null>('name');
   const [sortDir, setSortDir] = useState<SortDir>('asc');
+  const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
   const tooltipTimeout = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   useEffect(() => {
@@ -165,6 +166,16 @@ export function StorePage() {
     tooltipTimeout.current = setTimeout(() => setTooltipProduct(null), 100);
   };
 
+  const toggleExpand = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setExpandedCards((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
   const effectiveStockFor = (product: Product) => {
     const hasVariants = product.variant_count && product.variant_count > 0;
     return hasVariants ? (product.total_variant_stock ?? 0) : product.stock_quantity;
@@ -189,7 +200,7 @@ export function StorePage() {
         </div>
         <button className="btn btn-primary" onClick={() => navigate('/store/new')}>
           <Plus size={16} />
-          Add Product
+          <span>Add Product</span>
         </button>
       </div>
 
@@ -233,28 +244,80 @@ export function StorePage() {
                 return (
                   <tr
                     key={product.id}
-                    className="products-table-row"
-                    onClick={() => navigate(`/store/${product.id}`)}
+                    className={`products-table-row ${expandedCards.has(product.id) ? 'expanded' : 'collapsed'}`}
+                    onClick={() => {
+                      if (window.innerWidth <= 768) {
+                        setExpandedCards((prev) => {
+                          const next = new Set(prev);
+                          if (next.has(product.id)) next.delete(product.id);
+                          else next.add(product.id);
+                          return next;
+                        });
+                      } else {
+                        navigate(`/store/${product.id}`);
+                      }
+                    }}
                   >
-                    <td className="product-name-cell">
-                      <span className="product-name">{product.name}</span>
-                      {product.sku && (
-                        <span className="product-sku">SKU: {product.sku}</span>
-                      )}
+                    <td className="product-name-cell" data-label="Product">
+                      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', width: '100%' }}>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <span className="product-name">{product.name}</span>
+                          {product.sku && (
+                            <span className="product-sku">SKU: {product.sku}</span>
+                          )}
+                        </div>
+                        <button
+                          className="mobile-expand-toggle"
+                          onClick={(e) => toggleExpand(product.id, e)}
+                        >
+                          <ChevronDown size={16} />
+                        </button>
+                      </div>
+
+                      <div className="mobile-preview-pills">
+                        <span className="preview-pill">
+                          {hasVariants && product.variant_price_min != null ? (
+                            product.variant_price_min === product.variant_price_max
+                              ? `£${product.variant_price_min.toFixed(2)}`
+                              : `from £${product.variant_price_min.toFixed(2)}`
+                          ) : product.price != null ? (
+                            `£${product.price.toFixed(2)}`
+                          ) : '—'}
+                        </span>
+                        <span className={`stock-badge ${status}`}>
+                          {effectiveStock} in stock
+                        </span>
+                        <span className="preview-pill">
+                          {product.product_type === 'physical' ? 'Physical' : 'Digital'}
+                        </span>
+                      </div>
+                      
+                      <div className="mobile-only-detail">
+                        <button
+                          className="btn btn-secondary btn-sm"
+                          style={{ width: '100%', justifyContent: 'center' }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigate(`/store/${product.id}`);
+                          }}
+                        >
+                          Edit Product
+                        </button>
+                      </div>
                     </td>
-                    <td>
+                    <td data-label="Type" className="mobile-secondary-detail">
                       <span className={`product-type-badge ${product.product_type}`}>
                         {product.product_type === 'physical' ? 'Physical' : 'Digital'}
                       </span>
                     </td>
-                    <td>
+                    <td data-label="Pack Qty" className="mobile-secondary-detail">
                       {product.pack_quantity > 1 ? (
                         <span className="pack-qty-badge multi">Pack of {product.pack_quantity}</span>
                       ) : (
                         <span className="pack-qty-badge single">Single</span>
                       )}
                     </td>
-                    <td className="product-price-cell">
+                    <td className="product-price-cell mobile-secondary-detail" data-label="Price">
                       {hasVariants && product.variant_price_min != null ? (
                         <span className="product-price">
                           {product.variant_price_min === product.variant_price_max
@@ -272,7 +335,7 @@ export function StorePage() {
                         </>
                       )}
                     </td>
-                    <td>
+                    <td data-label="Stock" className="mobile-secondary-detail">
                       <div
                         className="stock-cell-wrap"
                         onMouseEnter={(e) => hasVariants && showTooltip(e, product)}
@@ -288,7 +351,7 @@ export function StorePage() {
                         )}
                       </div>
                     </td>
-                    <td className="product-labels-cell">
+                    <td className="product-labels-cell mobile-secondary-detail" data-label="Labels">
                       {labels.map((l) => (
                         <span
                           key={l.id}
@@ -299,7 +362,7 @@ export function StorePage() {
                         </span>
                       ))}
                     </td>
-                    <td>
+                    <td data-label="Visible" className="mobile-secondary-detail">
                       <button
                         className={`visibility-btn ${product.is_visible ? 'visible' : ''}`}
                         onClick={(e) => {
