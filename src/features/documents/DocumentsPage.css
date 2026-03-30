@@ -417,7 +417,7 @@
 }
 
 /* ── Responsive ── */
-@media (max-width: 768px) {
+@media (max-width: 1279px) {
   .docs-layout {
     grid-template-columns: 1fr;
   }

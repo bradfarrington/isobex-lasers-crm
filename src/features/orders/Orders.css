@@ -314,13 +314,13 @@
 
 /* ─── Responsive ────────────────────────── */
 
-@media (max-width: 1024px) {
+@media (max-width: 1279px) {
   .order-detail-layout {
     grid-template-columns: 1fr;
   }
 }
 
-@media (max-width: 768px) {
+@media (max-width: 1279px) {
   .desktop-only {
     display: none !important;
   }

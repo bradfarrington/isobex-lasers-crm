@@ -860,7 +860,7 @@
 }
 
 /* ── Responsive ── */
-@media (max-width: 768px) {
+@media (max-width: 1279px) {
   .pipeline-toolbar {
     flex-direction: column;
     align-items: stretch;

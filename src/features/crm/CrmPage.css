@@ -264,7 +264,7 @@
   }
 }
 
-@media (max-width: 768px) {
+@media (max-width: 1279px) {
   /* ── Responsive Table (Card View) ── */
   .mobile-expand-toggle {
     display: inline-flex;

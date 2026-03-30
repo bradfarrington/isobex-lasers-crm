@@ -434,7 +434,7 @@
 }
 
 /* ── Responsive ── */
-@media (max-width: 768px) {
+@media (max-width: 1279px) {
   .docs-file-table th:nth-child(3),
   .docs-file-table td:nth-child(3),
   .docs-file-table th:nth-child(4),

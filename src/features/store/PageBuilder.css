@@ -722,7 +722,7 @@
 
 .sf-product-card-image { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 8px 8px 0 0; }
 
-@media (max-width: 768px) {
+@media (max-width: 1279px) {
   .sf-block-hero-content h1 { font-size: 1.75rem; }
   .sf-block-featured-product { grid-template-columns: 1fr; }
 }

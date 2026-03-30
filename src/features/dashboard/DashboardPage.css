@@ -135,7 +135,7 @@
   }
 }
 
-@media (max-width: 768px) {
+@media (max-width: 1279px) {
   .dashboard-stats {
     grid-template-columns: 1fr;
   }

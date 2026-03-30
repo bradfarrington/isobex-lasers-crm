@@ -102,7 +102,7 @@
   margin-top: var(--space-1);
 }
 
-@media (max-width: 768px) {
+@media (max-width: 1279px) {
   .contact-orders-summary {
     grid-template-columns: 1fr;
   }

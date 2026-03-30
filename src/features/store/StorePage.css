@@ -1065,7 +1065,7 @@
   gap: var(--space-4);
 }
 
-@media (max-width: 768px) {
+@media (max-width: 1279px) {
   .media-cards-grid {
     grid-template-columns: 1fr;
   }
@@ -1376,7 +1376,7 @@
 
 /* ─── Responsive ─────────────────────────────────────────── */
 
-@media (max-width: 768px) {
+@media (max-width: 1279px) {
   .desktop-only {
     display: none !important;
   }

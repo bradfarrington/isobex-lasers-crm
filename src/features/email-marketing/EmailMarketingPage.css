@@ -238,7 +238,7 @@
 }
 
 /* Responsive */
-@media (max-width: 768px) {
+@media (max-width: 1279px) {
   .em-header {
     flex-direction: column;
     align-items: flex-start;

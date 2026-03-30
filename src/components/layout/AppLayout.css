@@ -31,7 +31,7 @@
 }
 
 /* ── Mobile ── */
-@media (max-width: 768px) {
+@media (max-width: 1279px) {
   .sidebar-open .app-main {
     margin-left: 0;
   }

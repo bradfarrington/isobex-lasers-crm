@@ -965,7 +965,7 @@
 }
 
 /* ── Responsive ── */
-@media (max-width: 768px) {
+@media (max-width: 1279px) {
   .settings-shell {
     flex-direction: column;
     min-height: auto;
