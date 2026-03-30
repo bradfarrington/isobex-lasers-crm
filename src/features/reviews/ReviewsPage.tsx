@@ -19,14 +19,14 @@ import './AutomationTab.css';
    ═══════════════════════════════════════════ */
 
 const TABS = [
-  { id: 'overview', label: 'Overview' },
-  { id: 'all_reviews', label: 'All Reviews' },
+  // { id: 'overview', label: 'Overview' },
+  // { id: 'all_reviews', label: 'All Reviews' },
   { id: 'requests', label: 'Review Requests' },
   { id: 'automation', label: 'Automation' },
 ];
 
 export function ReviewsPage() {
-  const [activeTab, setActiveTab] = useState('overview');
+  const [activeTab, setActiveTab] = useState('requests');
 
   return (
     <PageShell

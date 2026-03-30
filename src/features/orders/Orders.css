@@ -401,12 +401,22 @@
     flex-shrink: 0;
   }
 
-  .orders-table td > :not(::before) {
+  /* Push real cell content to the right edge */
+  .orders-table td > * {
     margin-left: auto;
     text-align: right;
   }
+  
+  /* Action cells */
+  .order-actions-cell {
+    justify-content: flex-end;
+  }
 
-  /* Special header cell for cards (Order Name) */
+  .order-actions-cell::before {
+    display: none;
+  }
+
+  /* Special header cell for cards */
   .order-name-cell {
     flex-direction: column !important;
     align-items: flex-start !important;
@@ -416,11 +426,8 @@
     border-bottom: 1px solid var(--color-border) !important;
   }
 
-  .orders-table-row.collapsed .order-name-cell {
-    border-bottom: none !important;
-  }
-
-  .order-name-cell > :not(::before) {
+  /* Don't right-align the title content */
+  .order-name-cell > * {
     margin-left: 0;
     text-align: left;
   }

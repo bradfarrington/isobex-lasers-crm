@@ -1502,7 +1502,7 @@
   }
 
   /* Push real cell content to the right edge */
-  .products-table td > :not(::before) {
+  .products-table td > * {
     margin-left: auto;
     text-align: right;
   }
@@ -1535,8 +1535,8 @@
   }
 
   /* Don't right-align the title content */
-  .product-name-cell > :not(::before),
-  .inventory-product-cell > :not(::before) {
+  .product-name-cell > *,
+  .inventory-product-cell > * {
     margin-left: 0;
     text-align: left;
   }

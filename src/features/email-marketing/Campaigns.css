@@ -975,7 +975,7 @@
     display: none !important;
   }
 
-  .primary-cell > :not(::before) {
+  .primary-cell > * {
     margin-left: 0 !important;
     text-align: left !important;
     font-weight: 600;
