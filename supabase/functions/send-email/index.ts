@@ -661,7 +661,18 @@ Deno.serve(async (req: Request) => {
             function replaceFpTags(html: string): string {
                 let result = html;
                 for (const [tag, val] of Object.entries(fpTags)) {
+                    // Replace literal {{tag}}
                     result = result.replace(new RegExp(tag.replace(/[{}]/g, '\\$&'), 'g'), val);
+                    // Replace URL-encoded form %7B%7Btag%7D%7D (MJML compilers encode braces in hrefs)
+                    const urlEncoded = tag.replace(/\{\{/g, '%7B%7B').replace(/\}\}/g, '%7D%7D');
+                    result = result.replace(new RegExp(urlEncoded, 'gi'), val);
+                    // Replace HTML-entity-encoded form &#123;&#123;tag&#125;&#125;
+                    const entityEncoded = tag.replace(/\{/g, '&#123;').replace(/\}/g, '&#125;');
+                    result = result.replace(new RegExp(entityEncoded, 'gi'), val);
+                }
+                // Safety net: if the action link still isn't in the HTML, replace the first href="#" on an anchor
+                if (!result.includes(actionLink)) {
+                    result = result.replace(/href=["']#["']/, `href="${actionLink}"`);
                 }
                 return result;
             }
@@ -742,8 +753,42 @@ Deno.serve(async (req: Request) => {
             const siteUrl = Deno.env.get('SITE_URL') || 'https://app.isobexlasers.co.uk';
             const loginUrl = `${siteUrl}/login`;
 
-            // Build the welcome email HTML
-            const welcomeHtml = `<!DOCTYPE html>
+            // Merge tags for the invite template
+            const inviteTags: Record<string, string> = {
+                '{{member_name}}': full_name,
+                '{{member_email}}': email,
+                '{{member_password}}': tempPassword,
+                '{{member_role}}': userRole,
+                '{{login_url}}': loginUrl,
+                '{{business_name}}': businessName,
+            };
+
+            function replaceInviteTags(html: string): string {
+                let result = html;
+                for (const [tag, val] of Object.entries(inviteTags)) {
+                    result = result.replace(new RegExp(tag.replace(/[{}]/g, '\\$&'), 'g'), val);
+                }
+                return result;
+            }
+
+            // Fetch system template from DB
+            const { data: template } = await supabase
+                .from('email_templates')
+                .select('mjml_source, subject')
+                .eq('is_system', true)
+                .eq('system_key', 'team_invite')
+                .single();
+
+            let emailHtml: string;
+            let emailSubject: string;
+
+            if (template?.mjml_source) {
+                emailHtml = replaceInviteTags(template.mjml_source);
+                emailSubject = replaceInviteTags(template.subject || `You've been invited to ${businessName}`);
+            } else {
+                // Fallback: hardcoded welcome email HTML
+                emailSubject = `You've been invited to ${businessName}`;
+                emailHtml = `<!DOCTYPE html>
 <html>
 <head><meta charset="utf-8"></head>
 <body style="font-family:'Inter',Helvetica,Arial,sans-serif;margin:0;padding:0;background:#f4f4f5;">
@@ -764,20 +809,18 @@ Deno.serve(async (req: Request) => {
 
       <!-- Credentials Card -->
       <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:10px;padding:20px 24px;margin-bottom:28px;">
-        <table cellpadding="0" cellspacing="0" border="0" width="100%">
-          <tr>
-            <td style="padding:6px 0;color:#6b7280;font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;">Email</td>
-            <td style="padding:6px 0;color:#111827;font-size:15px;font-weight:500;text-align:right;">${email}</td>
-          </tr>
-          <tr>
-            <td style="padding:6px 0;color:#6b7280;font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;">Password</td>
-            <td style="padding:6px 0;color:#111827;font-size:15px;font-weight:500;text-align:right;font-family:'Courier New',monospace;">${tempPassword}</td>
-          </tr>
-          <tr>
-            <td style="padding:6px 0;color:#6b7280;font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;">Role</td>
-            <td style="padding:6px 0;color:#111827;font-size:15px;font-weight:500;text-align:right;text-transform:capitalize;">${userRole}</td>
-          </tr>
-        </table>
+        <div style="margin-bottom:14px;">
+          <div style="color:#6b7280;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:4px;">Email</div>
+          <div style="color:#111827;font-size:15px;font-weight:500;word-break:break-all;">${email}</div>
+        </div>
+        <div style="border-top:1px solid #e5e7eb;padding-top:14px;margin-bottom:14px;">
+          <div style="color:#6b7280;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:4px;">Password</div>
+          <div style="color:#111827;font-size:15px;font-weight:500;font-family:'Courier New',monospace;letter-spacing:0.03em;">${tempPassword}</div>
+        </div>
+        <div style="border-top:1px solid #e5e7eb;padding-top:14px;">
+          <div style="color:#6b7280;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:4px;">Role</div>
+          <div style="color:#111827;font-size:15px;font-weight:500;text-transform:capitalize;">${userRole}</div>
+        </div>
       </div>
 
       <!-- CTA -->
@@ -798,14 +841,13 @@ Deno.serve(async (req: Request) => {
   </div>
 </body>
 </html>`;
-
-            const emailSubject = `You've been invited to ${businessName}`;
+            }
 
             await client.send({
                 from: fromAddress,
                 to: email,
                 subject: emailSubject,
-                mimeContent: htmlMime(welcomeHtml),
+                mimeContent: htmlMime(emailHtml),
                 replyTo,
             });
 

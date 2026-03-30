@@ -2179,6 +2179,20 @@ const SYSTEM_TEMPLATES = [
     ],
     settings: { width: 600, bodyBg: '#f4f4f4', contentBg: '#ffffff', fontFamily: "'Inter', sans-serif", textColor: '#1f2937', linkColor: '#dc2626', logoUrl: '', footerText: '© {{business_name}}', subject: 'Reset Your Password', previewText: 'Link to reset your password' },
   },
+  {
+    system_key: 'team_invite',
+    name: 'Team Invite',
+    subject: "You've been invited to {{business_name}}",
+    blocks: [
+      { id: 'sys-ti-1', type: 'heading', data: { content: '<p style="text-align: center">Welcome to the Team! 🎉</p>', level: 'h2', color: '#111827', bgColor: '', fontFamily: '', padding: { top: 8, right: 0, bottom: 0, left: 0 } } },
+      { id: 'sys-ti-2', type: 'text', data: { content: '<p>Hi {{member_name}},</p><p>You\'ve been invited to join <strong>{{business_name}}</strong> on their CRM platform. Your account has been created and you can log in using the credentials below.</p>', color: '', bgColor: '', fontFamily: '', padding: { top: 8, right: 20, bottom: 0, left: 20 } } },
+      { id: 'sys-ti-3', type: 'text', data: { content: '<div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:10px;padding:20px 24px;"><div style="margin-bottom:14px;"><div style="color:#6b7280;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:4px;">Email</div><div style="color:#111827;font-size:15px;font-weight:500;word-break:break-all;">{{member_email}}</div></div><div style="border-top:1px solid #e5e7eb;padding-top:14px;margin-bottom:14px;"><div style="color:#6b7280;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:4px;">Password</div><div style="color:#111827;font-size:15px;font-weight:500;font-family:\'Courier New\',monospace;letter-spacing:0.03em;">{{member_password}}</div></div><div style="border-top:1px solid #e5e7eb;padding-top:14px;"><div style="color:#6b7280;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:4px;">Role</div><div style="color:#111827;font-size:15px;font-weight:500;text-transform:capitalize;">{{member_role}}</div></div></div>', color: '', bgColor: '', fontFamily: '', padding: { top: 12, right: 20, bottom: 12, left: 20 } } },
+      { id: 'sys-ti-4', type: 'button', data: { text: 'Sign In to the CRM', url: '{{login_url}}', color: '#ffffff', bgColor: '#dc2626', borderRadius: 8, padding: { top: 14, right: 36, bottom: 14, left: 36 } } },
+      { id: 'sys-ti-5', type: 'divider', data: { style: 'solid', color: '#e5e7eb', thickness: '1', width: '100', marginTop: '16', marginBottom: '8', padding: { top: 0, right: 0, bottom: 0, left: 0 } } },
+      { id: 'sys-ti-6', type: 'text', data: { content: '<p style="font-size: 13px; color: #9ca3af; text-align: center;">For security, please change your password after your first login.<br/>Go to <strong>Settings</strong> in the CRM to update your password.</p>', color: '', bgColor: '', fontFamily: '', padding: { top: 0, right: 20, bottom: 8, left: 20 } } },
+    ],
+    settings: { width: 600, bodyBg: '#f4f4f5', contentBg: '#ffffff', fontFamily: "'Inter', sans-serif", textColor: '#1f2937', linkColor: '#dc2626', logoUrl: '', footerText: '© {{business_name}} • Powered by Isobex CRM', subject: "You've been invited to {{business_name}}", previewText: 'Your account has been created' },
+  },
 ];
 
 async function seedSystemEmailTemplates(): Promise<void> {
