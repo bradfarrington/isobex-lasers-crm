@@ -1,4 +1,20 @@
 
+[functions.send-email]
+enabled = true
+verify_jwt = false
+
+[functions.email-tracker]
+enabled = true
+verify_jwt = false
+
+[functions.stripe-webhook]
+enabled = true
+verify_jwt = false
+
+[functions.process-review-queue]
+enabled = true
+verify_jwt = false
+
 [functions.track]
 enabled = true
 verify_jwt = true

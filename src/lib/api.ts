@@ -2340,6 +2340,9 @@ export async function deleteEmailCampaign(id: string): Promise<void> {
 }
 
 export async function sendCampaign(campaignId: string): Promise<{ sent: number; failed: number; total: number }> {
+  // Refresh auth session to ensure JWT is fresh (prevents 401 if session expired)
+  await supabase.auth.refreshSession();
+
   const { data, error } = await supabase.functions.invoke('send-email', {
     body: { action: 'send_campaign', campaignId },
   });
@@ -2689,6 +2692,7 @@ export async function inviteUser(payload: {
   role: 'admin' | 'staff';
   permissions: AppUserPermissions;
 }): Promise<{ ok: boolean; error?: string }> {
+  await supabase.auth.refreshSession();
   const { data, error } = await supabase.functions.invoke('send-email', {
     body: { action: 'invite_user', ...payload },
   });
@@ -2698,6 +2702,7 @@ export async function inviteUser(payload: {
 }
 
 export async function resetUserPassword(authUserId: string, newPassword: string): Promise<{ ok: boolean; error?: string }> {
+  await supabase.auth.refreshSession();
   const { data, error } = await supabase.functions.invoke('send-email', {
     body: { action: 'reset_password', auth_user_id: authUserId, new_password: newPassword },
   });
