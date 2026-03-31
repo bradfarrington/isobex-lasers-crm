@@ -63,6 +63,7 @@
 .campaign-status-badge.sending { background: rgba(217,119,6,0.1); color: var(--color-warning); }
 .campaign-status-badge.sent { background: rgba(22,163,74,0.1); color: var(--color-success); }
 .campaign-status-badge.failed { background: rgba(220,38,38,0.1); color: var(--color-danger); }
+.campaign-status-badge.unsubscribed { background: rgba(249,115,22,0.1); color: #f97316; }
 
 .campaign-card-subject {
   margin: 0;
@@ -772,10 +773,9 @@
   margin-bottom: var(--space-5);
 }
 
-/* Stats Grid */
 .campaign-stats-grid {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(6, 1fr);
   gap: var(--space-4);
 }
 
@@ -823,6 +823,7 @@
 .campaign-progress-seg.opened  { background: #8b5cf6; }
 .campaign-progress-seg.sent    { background: #3b82f6; }
 .campaign-progress-seg.failed  { background: #ef4444; }
+.campaign-progress-seg.unsubscribed { background: #f97316; }
 
 .campaign-progress-legend { display: flex; gap: var(--space-5); margin-top: var(--space-3); font-size: 12px; color: var(--color-text-tertiary); }
 .campaign-progress-legend span { display: inline-flex; align-items: center; gap: 6px; }

@@ -125,6 +125,61 @@ Deno.serve(async (req: Request) => {
       });
     }
 
+    // ─── Unsubscribe tracking ────────────────
+    if (type === 'unsubscribe') {
+      const cid = url.searchParams.get('cid');    // contact ID
+      const lid = url.searchParams.get('lid');    // legacy base64 token (fallback)
+
+      const contactId = cid || (lid ? (() => { try { return atob(lid); } catch { return null; } })() : null);
+
+      if (!contactId) {
+        // Redirect to error page
+        const siteUrl = Deno.env.get('SITE_URL') || 'http://localhost:5173';
+        return new Response(null, {
+          status: 302,
+          headers: { ...corsHeaders, 'Location': `${siteUrl}/unsubscribe/error`, 'Cache-Control': 'no-store' },
+        });
+      }
+
+      const now = new Date().toISOString();
+
+      // Mark the contact as unsubscribed
+      await supabase
+        .from('contacts')
+        .update({
+          unsubscribed: true,
+          unsubscribed_at: now,
+        })
+        .eq('id', contactId);
+
+      // If we have a campaign recipient ID, mark that too
+      if (rid && rid !== 'legacy') {
+        const { data: recipient } = await supabase
+          .from('campaign_recipients')
+          .select('status, opened_at, clicked_at')
+          .eq('id', rid)
+          .single();
+
+        const updates: any = { status: 'unsubscribed' };
+        if (recipient) {
+          if (!recipient.opened_at) updates.opened_at = now;
+          if (!recipient.clicked_at) updates.clicked_at = now;
+        }
+
+        await supabase
+          .from('campaign_recipients')
+          .update(updates)
+          .eq('id', rid);
+      }
+
+      // Redirect to success page
+      const siteUrl = Deno.env.get('SITE_URL') || 'http://localhost:5173';
+      return new Response(null, {
+        status: 302,
+        headers: { ...corsHeaders, 'Location': `${siteUrl}/unsubscribe/success`, 'Cache-Control': 'no-store' },
+      });
+    }
+
     return new Response('Unknown type', { status: 400, headers: corsHeaders });
 
   } catch (err) {

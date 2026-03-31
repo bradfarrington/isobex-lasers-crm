@@ -843,7 +843,7 @@ export type EmailCampaignUpdate = Partial<EmailCampaignInsert>;
 
 // ─── Email Marketing: Campaign Recipients ───────────────────
 
-export type RecipientStatus = 'pending' | 'sent' | 'delivered' | 'opened' | 'clicked' | 'bounced' | 'failed';
+export type RecipientStatus = 'pending' | 'sent' | 'delivered' | 'opened' | 'clicked' | 'bounced' | 'failed' | 'unsubscribed';
 
 export interface CampaignRecipient {
   id: string;

@@ -31,7 +31,7 @@ import {
   Calendar, Clock, Layers, BarChart3, Eye, Pencil,
   MousePointerClick, AlertTriangle, CheckCircle2, XCircle,
   Search, ChevronRight, Loader2, TrendingUp, ShoppingCart,
-  RefreshCw, EyeOff, Tags, X,
+  RefreshCw, EyeOff, Tags, X, UserMinus,
 } from 'lucide-react';
 import {
   AreaChart, Area, XAxis, YAxis, Tooltip,
@@ -57,6 +57,7 @@ function statusColor(status: string) {
     clicked: 'var(--color-primary)',
     bounced: 'var(--color-warning)',
     failed: 'var(--color-danger)',
+    unsubscribed: '#f97316',
   };
   return map[status] || 'var(--color-text-tertiary)';
 }
@@ -110,7 +111,7 @@ export function CampaignsTab({ activeSubTab = 'campaigns' }: CampaignsTabProps) 
   const [editingCampaignId, setEditingCampaignId] = useState<string | null>(null);
 
   // Stat drill-down modal
-  type DrillDownFilter = 'sent' | 'opened' | 'clicked' | 'failed' | 'unopened';
+  type DrillDownFilter = 'sent' | 'opened' | 'clicked' | 'failed' | 'unopened' | 'unsubscribed';
   const [drillFilter, setDrillFilter] = useState<DrillDownFilter | null>(null);
 
   // Load data
@@ -586,6 +587,7 @@ export function CampaignsTab({ activeSubTab = 'campaigns' }: CampaignsTabProps) 
     const opened = recipients.filter(r => r.status === 'opened' || r.status === 'clicked').length;
     const clicked = recipients.filter(r => r.status === 'clicked').length;
     const failed = recipients.filter(r => r.status === 'failed' || r.status === 'bounced').length;
+    const unsubscribed = recipients.filter(r => r.status === 'unsubscribed').length;
     const unopened = sent - opened;
     const total = recipients.length || 1;
 
@@ -597,6 +599,7 @@ export function CampaignsTab({ activeSubTab = 'campaigns' }: CampaignsTabProps) 
         case 'clicked': return r.status === 'clicked';
         case 'failed': return r.status === 'failed' || r.status === 'bounced';
         case 'unopened': return (r.status === 'sent' || r.status === 'delivered') && !r.opened_at;
+        case 'unsubscribed': return r.status === 'unsubscribed';
         default: return false;
       }
     }) : [];
@@ -606,7 +609,7 @@ export function CampaignsTab({ activeSubTab = 'campaigns' }: CampaignsTabProps) 
       .filter((id): id is string => !!id);
 
     const drillLabels: Record<DrillDownFilter, string> = {
-      sent: 'Sent', opened: 'Opened', clicked: 'Clicked', failed: 'Failed', unopened: 'Unopened',
+      sent: 'Sent', opened: 'Opened', clicked: 'Clicked', failed: 'Failed', unopened: 'Unopened', unsubscribed: 'Unsubscribed'
     };
 
     const handleDrillAddTag = async (tagId: string) => {
@@ -721,6 +724,16 @@ export function CampaignsTab({ activeSubTab = 'campaigns' }: CampaignsTabProps) 
               <div className="campaign-stat-label">Failed</div>
             </div>
           </div>
+          <div className="campaign-stat-card clickable" onClick={() => setDrillFilter('unsubscribed')}>
+            <div className="campaign-stat-icon" style={{ background: 'rgba(249,115,22,0.1)' }}>
+              <UserMinus size={18} style={{ color: '#f97316' }} />
+            </div>
+            <div className="campaign-stat-info">
+              <div className="campaign-stat-value">{unsubscribed}</div>
+              <div className="campaign-stat-label">Unsubscribed</div>
+            </div>
+            <div className="campaign-stat-pct">{((unsubscribed / total) * 100).toFixed(1)}%</div>
+          </div>
         </div>
 
         {/* Progress bar */}
@@ -730,12 +743,14 @@ export function CampaignsTab({ activeSubTab = 'campaigns' }: CampaignsTabProps) 
             {opened > 0 && <div className="campaign-progress-seg opened" style={{ width: `${((opened - clicked) / total) * 100}%` }} />}
             {sent > 0 && <div className="campaign-progress-seg sent" style={{ width: `${((sent - opened) / total) * 100}%` }} />}
             {failed > 0 && <div className="campaign-progress-seg failed" style={{ width: `${(failed / total) * 100}%` }} />}
+            {unsubscribed > 0 && <div className="campaign-progress-seg unsubscribed" style={{ width: `${(unsubscribed / total) * 100}%`, background: '#f97316' }} />}
           </div>
           <div className="campaign-progress-legend">
             <span><span className="legend-dot" style={{ background: '#10b981' }} /> Clicked</span>
             <span><span className="legend-dot" style={{ background: '#8b5cf6' }} /> Opened</span>
             <span><span className="legend-dot" style={{ background: '#3b82f6' }} /> Sent</span>
             <span><span className="legend-dot" style={{ background: '#ef4444' }} /> Failed</span>
+            <span><span className="legend-dot" style={{ background: '#f97316' }} /> Unsubscribed</span>
           </div>
         </div>
 
@@ -1424,6 +1439,7 @@ const CHART_COLORS = {
   delivered: '#3b82f6',
   failed: '#ef4444',
   bounced: '#f59e0b',
+  unsubscribed: '#f97316',
 };
 
 const RateTooltip = ({ active, payload, label }: any) => {
@@ -1507,6 +1523,7 @@ function EmailAnalyticsDashboard() {
     { label: 'Delivered', value: data.totalDelivered, pct: 100, color: CHART_COLORS.delivered },
     { label: 'Opened', value: data.totalOpened, pct: (data.totalOpened / funnelMax) * 100, color: CHART_COLORS.opened },
     { label: 'Clicked', value: data.totalClicked, pct: (data.totalClicked / funnelMax) * 100, color: CHART_COLORS.clicked },
+    { label: 'Unsubscribed', value: data.totalUnsubscribed, pct: (data.totalUnsubscribed / funnelMax) * 100, color: CHART_COLORS.unsubscribed },
     { label: 'Ordered', value: data.totalOrders, pct: (data.totalOrders / funnelMax) * 100, color: CHART_COLORS.primary },
   ];
 
@@ -1659,6 +1676,13 @@ function EmailAnalyticsDashboard() {
             </div>
             <div className="ea-stat-label">Failed</div>
             <div className="ea-stat-value">{data.totalFailed.toLocaleString()}</div>
+          </div>
+          <div className="ea-stat-card">
+            <div className="ea-stat-icon" style={{ background: 'rgba(249,115,22,0.08)', color: '#f97316' }}>
+              <UserMinus size={20} />
+            </div>
+            <div className="ea-stat-label">Avg. Unsubscribe Rate <span style={{ display: data.avgUnsubscribeRate > 2 ? 'inline-block' : 'none', color: '#ef4444', marginLeft: 4, fontWeight: 700, fontSize: '10px', verticalAlign: 'middle', background: 'rgba(239,68,68,0.1)', padding: '2px 4px', borderRadius: 4 }}>High</span></div>
+            <div className="ea-stat-value">{data.avgUnsubscribeRate.toFixed(1)}%</div>
           </div>
         </div>
       </div>

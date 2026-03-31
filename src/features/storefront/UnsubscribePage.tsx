@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { supabase } from '@/lib/supabase';
+
 
 export function UnsubscribePage() {
   const { token } = useParams<{ token: string }>();
@@ -14,27 +14,22 @@ export function UnsubscribePage() {
       return;
     }
 
-    (async () => {
-      try {
-        // Decode token (base64 of contact_id)
-        const contactId = atob(token);
+    if (token === 'success') {
+      setStatus('success');
+      setMessage('You have been successfully unsubscribed. You will no longer receive marketing emails from us.');
+      return;
+    }
 
-        // Update the contact
-        const { error } = await supabase
-          .from('contacts')
-          .update({ unsubscribed: true })
-          .eq('id', contactId);
+    if (token === 'error') {
+      setStatus('error');
+      setMessage('Something went wrong processing your unsubscribe request. Please try again or contact us directly.');
+      return;
+    }
 
-        if (error) throw error;
-
-        setStatus('success');
-        setMessage('You have been successfully unsubscribed. You will no longer receive marketing emails from us.');
-      } catch (err) {
-        console.error('Unsubscribe error:', err);
-        setStatus('error');
-        setMessage('Something went wrong. Please try again or contact us directly.');
-      }
-    })();
+    // Legacy token format — redirect to the email-tracker edge function
+    // We use window.location to ensure a hard redirect out of the React app
+    const trackerBase = `${import.meta.env.VITE_SUPABASE_URL || 'https://tjxccsyozszcnhljnngs.supabase.co'}/functions/v1/email-tracker`;
+    window.location.href = `${trackerBase}?type=unsubscribe&lid=${encodeURIComponent(token)}`;
   }, [token]);
 
   return (

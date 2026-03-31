@@ -364,6 +364,7 @@ Deno.serve(async (req: Request) => {
             const siteUrl = Deno.env.get('SITE_URL') || Deno.env.get('SUPABASE_URL')?.replace('.supabase.co', '.vercel.app') || 'http://localhost:5173';
 
             // send_campaign uses per-recipient SMTP clients (no shared client to close)
+            const trackerBase = `${Deno.env.get('SUPABASE_URL')}/functions/v1/email-tracker`;
 
             // 5. Send to each recipient (fresh SMTP connection per email)
             let sentCount = 0;
@@ -379,8 +380,8 @@ Deno.serve(async (req: Request) => {
                 try {
                     // Replace merge tags with real data
                     const contactName = `${contact.first_name || ''} ${contact.last_name || ''}`.trim();
-                    const unsubToken = btoa(contact.id || r.contact_id || r.email);
-                    const unsubLink = `${siteUrl}/unsubscribe/${unsubToken}`;
+                    const contactId = contact.id || r.contact_id || '';
+                    const unsubLink = `${trackerBase}?type=unsubscribe&rid=${r.id}&cid=${contactId}`;
 
                     const tagMap: Record<string, string> = {
                         '{{contact_name}}': contactName || r.email,
@@ -410,7 +411,6 @@ Deno.serve(async (req: Request) => {
                     }
 
                     // ── Inject email tracking ──────────────────
-                    const trackerBase = `${Deno.env.get('SUPABASE_URL')}/functions/v1/email-tracker`;
 
                     // 1. Tracking pixel for open detection (before </body>)
                     const pixelTag = `<img src="${trackerBase}?type=open&rid=${r.id}" width="1" height="1" style="display:block;width:1px;height:1px;border:0;" alt="" />`;

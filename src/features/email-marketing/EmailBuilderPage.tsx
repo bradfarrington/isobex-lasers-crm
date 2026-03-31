@@ -326,7 +326,7 @@ export function EmailBuilderPage() {
   const [settings, setSettings] = useState<Record<string, any>>({
     width: 600, bodyBg: '#f5f5f5', contentBg: '#ffffff',
     fontFamily: '', textColor: '#1f2937', linkColor: BRAND,
-    logoUrl: '', footerText: '© Isobex Lasers',
+    logoUrl: '', footerText: '&copy; Isobex Lasers<br><br><a href="{{unsubscribe_link}}" style="color: inherit; text-decoration: underline;">Unsubscribe</a>',
     subject: '', previewText: '',
   });
 

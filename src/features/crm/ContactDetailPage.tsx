@@ -297,6 +297,45 @@ export function ContactDetailPage() {
         </div>
 
         <div className="contact-detail-field">
+          <div className="contact-detail-field-label">Email Marketing</div>
+          <div className="contact-detail-field-value">
+            {contact.unsubscribed ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span className="status-badge failed" style={{ background: 'rgba(239,68,68,0.1)', color: '#ef4444' }}>Unsubscribed</span>
+                <button
+                  className="btn-secondary"
+                  style={{ fontSize: 11, padding: '2px 8px', minHeight: 0 }}
+                  onClick={async (e) => {
+                    e.stopPropagation();
+                    if (await showConfirm({ title: 'Resubscribe?', message: 'Are you sure you want to resubscribe this contact to marketing emails?' })) {
+                      handleSaveField('unsubscribed', false);
+                    }
+                  }}
+                >
+                  Resubscribe
+                </button>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span className="status-badge success" style={{ background: 'rgba(22,163,74,0.1)', color: '#16a34a' }}>Subscribed</span>
+                <button
+                  className="btn-secondary"
+                  style={{ fontSize: 11, padding: '2px 8px', minHeight: 0 }}
+                  onClick={async (e) => {
+                    e.stopPropagation();
+                    if (await showConfirm({ title: 'Unsubscribe?', message: 'Are you sure you want to unsubscribe this contact from marketing emails?' })) {
+                      handleSaveField('unsubscribed', true);
+                    }
+                  }}
+                >
+                  Unsubscribe
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="contact-detail-field">
           <div className="contact-detail-field-label">Phone</div>
           <InlineEdit
             value={contact.phone || ''}

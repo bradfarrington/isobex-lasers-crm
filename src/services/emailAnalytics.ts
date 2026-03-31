@@ -17,8 +17,10 @@ export interface CampaignStat {
   clicked: number;
   bounced: number;
   failed: number;
+  unsubscribed: number;
   openRate: number;   // 0–100
   clickRate: number;  // 0–100
+  unsubscribeRate: number; // 0-100
   revenue: number;    // attributed revenue (orders within window)
   orders: number;     // attributed order count
 }
@@ -31,8 +33,10 @@ export interface EmailAnalyticsSummary {
   totalClicked: number;
   totalBounced: number;
   totalFailed: number;
+  totalUnsubscribed: number;
   avgOpenRate: number;
   avgClickRate: number;
+  avgUnsubscribeRate: number;
 
   // Revenue (from orders table, filtered by time range)
   totalRevenue: number;
@@ -133,6 +137,7 @@ export async function fetchEmailAnalytics(
     let clicked = 0;
     let bounced = 0;
     let failed = 0;
+    let unsubscribed = 0;
 
     if (recips.length > 0) {
       // ── Native CRM campaigns: count engagement from recipient records ──
@@ -142,6 +147,7 @@ export async function fetchEmailAnalytics(
         if (r.status === 'clicked') clicked++;
         if (r.status === 'bounced') bounced++;
         if (r.status === 'failed') failed++;
+        if (r.status === 'unsubscribed') unsubscribed++;
       }
     } else {
       // ── Imported campaigns (e.g. HighLevel): read engagement from stats JSONB ──
@@ -150,6 +156,7 @@ export async function fetchEmailAnalytics(
       clicked = stats.clicked ?? 0;
       bounced = stats.bounced ?? 0;
       failed = stats.failed ?? 0;
+      unsubscribed = stats.unsubscribed ?? 0;
     }
 
     // ── Revenue attribution: orders placed within attribution window after campaign sent ──
@@ -180,8 +187,10 @@ export async function fetchEmailAnalytics(
       clicked,
       bounced,
       failed,
+      unsubscribed,
       openRate: (opened / denominator) * 100,
       clickRate: (clicked / denominator) * 100,
+      unsubscribeRate: (unsubscribed / denominator) * 100,
       revenue,
       orders: orderCount,
     };
@@ -194,6 +203,7 @@ export async function fetchEmailAnalytics(
   const totalClicked = campaignStats.reduce((s, c) => s + c.clicked, 0);
   const totalBounced = campaignStats.reduce((s, c) => s + c.bounced, 0);
   const totalFailed = campaignStats.reduce((s, c) => s + c.failed, 0);
+  const totalUnsubscribed = campaignStats.reduce((s, c) => s + c.unsubscribed, 0);
 
   // Average rates (mean of per-campaign rates, not overall ratio)
   const ratedCampaigns = campaignStats.filter(c => c.delivered > 0);
@@ -201,6 +211,8 @@ export async function fetchEmailAnalytics(
     ? ratedCampaigns.reduce((s, c) => s + c.openRate, 0) / ratedCampaigns.length : 0;
   const avgClickRate = ratedCampaigns.length > 0
     ? ratedCampaigns.reduce((s, c) => s + c.clickRate, 0) / ratedCampaigns.length : 0;
+  const avgUnsubscribeRate = ratedCampaigns.length > 0
+    ? ratedCampaigns.reduce((s, c) => s + c.unsubscribeRate, 0) / ratedCampaigns.length : 0;
   const avgOrderValue = summaryTotalOrders > 0 ? summaryTotalRevenue / summaryTotalOrders : 0;
   const orderRate = totalDelivered > 0 ? (summaryTotalOrders / totalDelivered) * 100 : 0;
 
@@ -232,8 +244,10 @@ export async function fetchEmailAnalytics(
     totalClicked,
     totalBounced,
     totalFailed,
+    totalUnsubscribed,
     avgOpenRate,
     avgClickRate,
+    avgUnsubscribeRate,
     totalRevenue: summaryTotalRevenue,
     totalOrders: summaryTotalOrders,
     avgOrderValue,

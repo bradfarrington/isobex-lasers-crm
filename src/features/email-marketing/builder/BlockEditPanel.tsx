@@ -25,6 +25,26 @@ export function BlockEditPanel({ block, onUpdate, onDelete, onBack }: Props) {
   };
   const quillRef = useRef<any>(null);
   const savedSel = useRef<any>(null);
+  const quillWrapRef1 = useRef<HTMLDivElement>(null);
+  const quillWrapRef2 = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleQuillMouseDown = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (target.closest('.ql-action') || target.closest('.ql-remove') || target.closest('.ql-preview')) {
+        e.preventDefault();
+      }
+    };
+    const wrap1 = quillWrapRef1.current;
+    const wrap2 = quillWrapRef2.current;
+    if (wrap1) wrap1.addEventListener('mousedown', handleQuillMouseDown, { capture: true });
+    if (wrap2) wrap2.addEventListener('mousedown', handleQuillMouseDown, { capture: true });
+    
+    return () => {
+      if (wrap1) wrap1.removeEventListener('mousedown', handleQuillMouseDown, { capture: true });
+      if (wrap2) wrap2.removeEventListener('mousedown', handleQuillMouseDown, { capture: true });
+    };
+  }, [block.type]);
 
   useEffect(() => {
     const ed = quillRef.current?.getEditor?.();
@@ -55,7 +75,7 @@ export function BlockEditPanel({ block, onUpdate, onDelete, onBack }: Props) {
         {/* ── Heading ── */}
         {block.type === 'heading' && (<>
           <div className="form-group"><label>Content</label>
-            <div className="eb-quill-wrap"><ReactQuill theme="snow" value={block.data.content || ''} onChange={v => patch('content', v)} modules={QUILL_HEADING} formats={QUILL_FORMATS} placeholder="Heading…" /></div>
+            <div className="eb-quill-wrap" ref={quillWrapRef1}><ReactQuill theme="snow" value={block.data.content || ''} onChange={v => patch('content', v)} modules={QUILL_HEADING} formats={QUILL_FORMATS} placeholder="Heading…" /></div>
           </div>
           <div className="form-group"><label>Level</label>
             <SearchableSelect className="form-select" value={block.data.level || 'h2'} onChange={(val) => patch('level', val)}
@@ -76,7 +96,7 @@ export function BlockEditPanel({ block, onUpdate, onDelete, onBack }: Props) {
         {/* ── Text ── */}
         {block.type === 'text' && (<>
           <div className="form-group"><label>Content</label>
-            <div className="eb-quill-wrap"><ReactQuill ref={quillRef} theme="snow" value={block.data.content || ''} onChange={v => patch('content', v)} modules={QUILL_FULL} formats={QUILL_FORMATS} placeholder="Write content…" /></div>
+            <div className="eb-quill-wrap" ref={quillWrapRef2}><ReactQuill ref={quillRef} theme="snow" value={block.data.content || ''} onChange={v => patch('content', v)} modules={QUILL_FULL} formats={QUILL_FORMATS} placeholder="Write content…" /></div>
           </div>
           <MergeTagInsert onInsert={insertTag} />
           <FontPicker value={block.data.fontFamily || ''} onChange={v => patch('fontFamily', v)} />

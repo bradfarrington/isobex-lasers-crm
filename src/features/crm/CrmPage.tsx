@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PageShell } from '@/components/layout/PageShell';
 import { useData } from '@/context/DataContext';
@@ -49,14 +49,68 @@ export function CrmPage() {
   const { state, dispatch } = useData();
   const navigate = useNavigate();
   const { showConfirm } = useAlert();
-  const [search, setSearch] = useState('');
-  const [activeTab, setActiveTab] = useState<ContactType | 'All'>('All');
+
+  // State restoration
+  const getInitialState = <T,>(key: string, defaultVal: T): T => {
+    const saved = sessionStorage.getItem(key);
+    if (saved) {
+      try {
+        return JSON.parse(saved) as T;
+      } catch (e) {
+        return defaultVal;
+      }
+    }
+    return defaultVal;
+  };
+
+  const [search, setSearch] = useState(() => getInitialState('crmSearch', ''));
+  const [activeTab, setActiveTab] = useState<ContactType | 'All'>(() => getInitialState('crmActiveTab', 'All'));
+  const [sortColumn, setSortColumn] = useState<SortColumn | null>(() => getInitialState('crmSortCol', 'name'));
+  const [sortDir, setSortDir] = useState<SortDir>(() => getInitialState('crmSortDir', 'asc'));
+
+  // Save state on change
+  useEffect(() => {
+    sessionStorage.setItem('crmSearch', JSON.stringify(search));
+    sessionStorage.setItem('crmActiveTab', JSON.stringify(activeTab));
+    sessionStorage.setItem('crmSortCol', JSON.stringify(sortColumn));
+    sessionStorage.setItem('crmSortDir', JSON.stringify(sortDir));
+  }, [search, activeTab, sortColumn, sortDir]);
+
+  // Scroll Restoration
+  const hasRestoredRef = useRef(false);
+
+  useEffect(() => {
+    if (state.loading) return;
+
+    if (!hasRestoredRef.current) {
+      const savedScroll = sessionStorage.getItem('crmListScrollPos');
+      if (savedScroll) {
+        // Use timeout to ensure the DOM has fully painted the list's height
+        setTimeout(() => {
+          window.scrollTo({ top: parseInt(savedScroll, 10), behavior: 'instant' });
+        }, 50);
+      }
+      hasRestoredRef.current = true;
+    }
+
+    const handleScroll = () => {
+      sessionStorage.setItem('crmListScrollPos', window.scrollY.toString());
+    };
+
+    const timer = setTimeout(() => {
+      window.addEventListener('scroll', handleScroll, { passive: true });
+    }, 100);
+
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('scroll', handleScroll);
+    };
+  }, [state.loading]);
+
   const [modalOpen, setModalOpen] = useState(false);
   const [editingContact, setEditingContact] = useState<Contact | null>(null);
   const [form, setForm] = useState<ContactInsert>(emptyForm);
   const [saving, setSaving] = useState(false);
-  const [sortColumn, setSortColumn] = useState<SortColumn | null>('name');
-  const [sortDir, setSortDir] = useState<SortDir>('asc');
 
   // Multi-select
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -505,7 +559,7 @@ export function CrmPage() {
       {/* Bulk Tag Modal */}
       {tagModalOpen && (
         <div className="modal-overlay" onClick={() => setTagModalOpen(false)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 420 }}>
+          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 420, overflow: 'visible' }}>
             <div className="modal-header">
               <h2>Add Tags to {selectedIds.size} Contact{selectedIds.size !== 1 ? 's' : ''}</h2>
               <button className="modal-close" onClick={() => setTagModalOpen(false)}>

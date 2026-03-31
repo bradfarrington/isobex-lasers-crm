@@ -2,6 +2,20 @@ import {
   Type, AlignLeft, Image, MousePointerClick, Minus, Square,
   Columns2, Tag, Code, Share2, Play, Timer, ShoppingBag, Receipt, Gift,
 } from 'lucide-react';
+import { Quill } from 'react-quill-new';
+
+// Override Quill's default Link format to allow merge tags in URLs
+const Link = Quill.import('formats/link') as any;
+class CustomLink extends Link {
+  static sanitize(url: string) {
+    // Allow merge tags like {{unsubscribe_link}}
+    if (url && url.includes('{{') && url.includes('}}')) {
+      return url;
+    }
+    return super.sanitize(url);
+  }
+}
+Quill.register(CustomLink, true);
 
 export const BRAND = '#dc2626';
 
@@ -99,7 +113,7 @@ export const SAMPLE_DATA: Record<string, string> = {
   '{{business_vat_number}}': 'GB 123 4567 89',
   '{{current_date}}': new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }),
   '{{current_year}}': String(new Date().getFullYear()),
-  '{{unsubscribe_link}}': '#',
+  '{{unsubscribe_link}}': 'https://isobexlasers.com/unsubscribe/test-preview',
   '{{customer_name}}': 'John Smith',
   '{{order.customer.name}}': 'John Smith',
   '{{order_number}}': '1042',

@@ -758,16 +758,11 @@
   margin: 2px;
 }
 
-/* Hide the Quill tooltip by default – only show when editing a link */
+/* Quill Tooltip Styles (View & Edit Modes) */
 .eb-quill-wrap .ql-tooltip {
-  display: none !important;
-}
-
-.eb-quill-wrap .ql-tooltip.ql-editing {
-  display: flex !important;
   position: relative !important;
   left: 0 !important;
-  right: 0;
+  right: 0 !important;
   top: 0 !important;
   width: auto !important;
   max-width: 100%;
@@ -780,21 +775,43 @@
   font-size: var(--font-size-sm);
   color: var(--color-text-secondary);
   z-index: 60;
+  display: flex !important;
   flex-wrap: wrap;
   align-items: center;
   gap: 8px;
   margin: 0;
 }
 
-/* Hide the "Visit URL:" label text when editing */
-.eb-quill-wrap .ql-tooltip.ql-editing::before {
-  content: 'Link URL:';
+.eb-quill-wrap .ql-tooltip.ql-hidden {
+  display: none !important;
+}
+
+/* Tooltip Labels */
+.eb-quill-wrap .ql-tooltip::before {
+  content: 'Link:';
   color: var(--color-text-tertiary);
   font-size: 12px;
   font-weight: var(--font-weight-semibold);
   white-space: nowrap;
 }
 
+.eb-quill-wrap .ql-tooltip.ql-editing::before {
+  content: 'URL:';
+}
+
+/* View Mode URL Preview */
+.eb-quill-wrap .ql-tooltip a.ql-preview {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--color-text-primary);
+  font-weight: var(--font-weight-medium);
+  font-size: 13px;
+}
+
+/* Editing Mode Input */
 .eb-quill-wrap .ql-tooltip input[type="text"] {
   width: 100% !important;
   min-width: 0;
@@ -813,6 +830,7 @@
   box-shadow: 0 0 0 2px var(--color-primary-subtle);
 }
 
+/* Buttons (Save/Edit/Remove) */
 .eb-quill-wrap .ql-tooltip a.ql-action,
 .eb-quill-wrap .ql-tooltip a.ql-remove {
   color: var(--color-primary);

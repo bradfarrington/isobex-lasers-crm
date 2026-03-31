@@ -1,11 +1,17 @@
-import { useState } from 'react';
-import { Outlet } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { Outlet, useLocation } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
 import { TopHeader } from './TopHeader';
 import './AppLayout.css';
 
 export function AppLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(() => window.innerWidth > 768);
+  const { pathname } = useLocation();
+
+  // Reset scroll to top on route change
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'instant' });
+  }, [pathname]);
 
   const toggleSidebar = () => setSidebarOpen((prev) => !prev);
 

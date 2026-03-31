@@ -478,6 +478,24 @@ export function GlobalSettingsPanel({ settings, onUpdate }: {
     setTimeout(() => { input.focus(); input.setSelectionRange(start + tag.length, start + tag.length); }, 0);
   };
 
+  const quillWrapRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    // Fix for ReactQuill link tooltip bug
+    const handleQuillMouseDown = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (target.closest('.ql-action') || target.closest('.ql-remove') || target.closest('.ql-preview')) {
+        e.preventDefault();
+      }
+    };
+    const wrap = quillWrapRef.current;
+    if (wrap) wrap.addEventListener('mousedown', handleQuillMouseDown, { capture: true });
+    
+    return () => {
+      if (wrap) wrap.removeEventListener('mousedown', handleQuillMouseDown, { capture: true });
+    };
+  }, []);
+
   return (
     <>
       <div className="eb-right-header">
@@ -537,7 +555,7 @@ export function GlobalSettingsPanel({ settings, onUpdate }: {
         {/* Rich Footer */}
         <div className="form-group">
           <label>Footer Content</label>
-          <div className="eb-quill-wrap">
+          <div className="eb-quill-wrap" ref={quillWrapRef}>
             <ReactQuill theme="snow" value={settings.footerText || ''} onChange={v => patch('footerText', v)} modules={QUILL_FOOTER} formats={['bold', 'italic', 'underline', 'align', 'link']} placeholder="© Your Company" />
           </div>
           <div style={{ marginTop: 4 }}>
