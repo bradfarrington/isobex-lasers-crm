@@ -652,6 +652,17 @@ export interface EcommerceEvent {
 
 export type EcommerceEventInsert = Omit<EcommerceEvent, 'id' | 'created_at'>;
 
+// ─── Excluded IPs (analytics filtering) ─────────────────────
+
+export interface ExcludedIp {
+  id: string;
+  ip_address: string;
+  label: string | null;
+  created_at: string;
+}
+
+export type ExcludedIpInsert = Omit<ExcludedIp, 'id' | 'created_at'>;
+
 // ─── Gift Cards ─────────────────────────────────────────────
 
 export interface GiftCard {

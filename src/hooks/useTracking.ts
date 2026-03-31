@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
-import { supabase } from '@/lib/supabase';
+
+const TRACK_ENDPOINT = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/track`;
 
 // Generate or get existing session ID
 function getSessionId() {
@@ -13,44 +14,26 @@ function getSessionId() {
   return sid;
 }
 
-function getBrowser(ua: string) {
-  if (ua.includes('Edge')) return 'Edge';
-  if (ua.includes('Chrome')) return 'Chrome';
-  if (ua.includes('Safari') && !ua.includes('Chrome')) return 'Safari';
-  if (ua.includes('Firefox')) return 'Firefox';
-  return 'Unknown';
-}
-
-function getCountry() {
-  try {
-    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    if (tz.includes('Europe/London')) return 'United Kingdom';
-    if (tz.includes('America/')) return 'United States';
-    return tz.split('/')[1]?.replace('_', ' ') || 'Unknown';
-  } catch (e) {
-    return 'Unknown';
-  }
-}
-
 export function useTracking() {
   const location = useLocation();
 
   useEffect(() => {
-    // Track page view
     const sid = getSessionId();
     const track = async () => {
       try {
-        await supabase.from('page_views').insert({
-          session_id: sid,
-          url: window.location.href,
-          path: location.pathname,
-          title: document.title,
-          referrer: document.referrer,
-          user_agent: navigator.userAgent,
-          device_type: /Mobi|Android/i.test(navigator.userAgent) ? 'mobile' : 'desktop',
-          browser: getBrowser(navigator.userAgent),
-          country: getCountry(),
-          active_seconds: 0
+        await fetch(TRACK_ENDPOINT, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            type: 'page_view',
+            session_id: sid,
+            url: window.location.href,
+            path: location.pathname,
+            title: document.title,
+            referrer: document.referrer,
+            user_agent: navigator.userAgent,
+            device_type: /Mobi|Android/i.test(navigator.userAgent) ? 'mobile' : 'desktop'
+          })
         });
       } catch (err) {
         console.error('Tracking error:', err);
@@ -71,6 +54,9 @@ export const trackEcommerceEvent = async (
   }
 ) => {
   try {
+    // Ecommerce events still go direct — they don't need IP filtering
+    // (they're user-initiated actions, not passive page views)
+    const { supabase } = await import('@/lib/supabase');
     const sid = getSessionId();
     await supabase.from('ecommerce_events').insert({
       session_id: sid,

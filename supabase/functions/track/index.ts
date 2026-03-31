@@ -14,6 +14,13 @@ function getBrowser(ua: string) {
   return 'Unknown';
 }
 
+function getVisitorIp(req: Request): string | null {
+  return req.headers.get('cf-connecting-ip')
+    || req.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
+    || req.headers.get('x-real-ip')
+    || null;
+}
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -36,6 +43,26 @@ serve(async (req) => {
       });
     }
 
+    // ── IP Exclusion Check ──────────────────────────────────
+    const visitorIp = getVisitorIp(req);
+
+    if (visitorIp) {
+      const { data: excluded } = await supabase
+        .from('excluded_ips')
+        .select('id')
+        .eq('ip_address', visitorIp)
+        .limit(1)
+        .maybeSingle();
+
+      if (excluded) {
+        // Silently discard — don't record this visit
+        return new Response(JSON.stringify({ success: true, excluded: true }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+    }
+
+    // ── Record page view ────────────────────────────────────
     const userAgent = user_agent || req.headers.get('user-agent') || 'Unknown';
     const device_type = /Mobi|Android/i.test(userAgent) ? 'mobile' : 'desktop';
     const browser = getBrowser(userAgent);

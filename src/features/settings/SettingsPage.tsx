@@ -9,8 +9,10 @@ import { useAlert } from '@/components/ui/AlertDialog';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import {
   Plus, Pencil, Trash2, X, Check, Mail, Save, Send, Loader2,
-  CheckCircle2, Info, ListFilter, Building2, Star, CreditCard, Activity, Copy, MessageSquare, Users
+  CheckCircle2, Info, ListFilter, Building2, Star, CreditCard, Activity, Copy, MessageSquare, Users,
+  Shield, Crosshair
 } from 'lucide-react';
+import type { ExcludedIp } from '@/types/database';
 import type { BusinessProfile } from '@/types/database';
 import { SmsPanel } from './SmsPanel';
 import { TeamPanel } from './TeamPanel';
@@ -1556,9 +1558,97 @@ function TestEmailModal({ defaultEmail, onClose }: { defaultEmail: string; onClo
    ═══════════════════════════════════════════ */
 
 function TrackingPanel() {
-  const { showAlert } = useAlert();
+  const { showAlert, showConfirm } = useAlert();
   const projectId = import.meta.env.VITE_SUPABASE_URL?.match(/https:\/\/([^.]+)\.supabase\.co/)?.[1] || 'your-project-id';
-  
+
+  // ── Excluded IPs state ──────────────────────────────────
+  const [excludedIps, setExcludedIps] = useState<ExcludedIp[]>([]);
+  const [ipsLoading, setIpsLoading] = useState(true);
+  const [showAddIp, setShowAddIp] = useState(false);
+  const [newIp, setNewIp] = useState('');
+  const [newLabel, setNewLabel] = useState('');
+  const [addingIp, setAddingIp] = useState(false);
+  const [detectingIp, setDetectingIp] = useState(false);
+  const [showCode, setShowCode] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const { data } = await supabase
+          .from('excluded_ips')
+          .select('*')
+          .order('created_at', { ascending: true });
+        setExcludedIps(data || []);
+      } catch (err) {
+        console.error('Failed to load excluded IPs:', err);
+      } finally {
+        setIpsLoading(false);
+      }
+    })();
+  }, []);
+
+  const handleDetectIp = async () => {
+    setDetectingIp(true);
+    try {
+      const res = await fetch('https://api.ipify.org?format=json');
+      const { ip } = await res.json();
+      setNewIp(ip);
+      if (!newLabel) setNewLabel('My Current IP');
+    } catch {
+      showAlert({ title: 'Error', message: 'Failed to detect your IP address.', variant: 'danger' });
+    } finally {
+      setDetectingIp(false);
+    }
+  };
+
+  const handleAddIp = async () => {
+    const trimmed = newIp.trim();
+    if (!trimmed || addingIp) return;
+    // Basic IP validation (v4 or v6)
+    if (!/^[\d.:a-fA-F]+$/.test(trimmed)) {
+      showAlert({ title: 'Invalid IP', message: 'Please enter a valid IPv4 or IPv6 address.', variant: 'warning' });
+      return;
+    }
+    if (excludedIps.some(ip => ip.ip_address === trimmed)) {
+      showAlert({ title: 'Duplicate', message: 'This IP address is already excluded.', variant: 'warning' });
+      return;
+    }
+    setAddingIp(true);
+    try {
+      const { data, error } = await supabase
+        .from('excluded_ips')
+        .insert({ ip_address: trimmed, label: newLabel.trim() || null })
+        .select()
+        .single();
+      if (error) throw error;
+      setExcludedIps(prev => [...prev, data]);
+      setNewIp('');
+      setNewLabel('');
+      setShowAddIp(false);
+      showAlert({ title: 'Added', message: `IP ${trimmed} will now be excluded from analytics.`, variant: 'success' });
+    } catch (err: any) {
+      showAlert({ title: 'Error', message: err?.message || 'Failed to add IP.', variant: 'danger' });
+    } finally {
+      setAddingIp(false);
+    }
+  };
+
+  const handleDeleteIp = async (id: string, ip: string) => {
+    const ok = await showConfirm({
+      title: 'Remove Excluded IP',
+      message: `Remove ${ip} from the exclusion list? Traffic from this IP will be tracked again.`,
+      confirmLabel: 'Remove',
+    });
+    if (!ok) return;
+    try {
+      const { error } = await supabase.from('excluded_ips').delete().eq('id', id);
+      if (error) throw error;
+      setExcludedIps(prev => prev.filter(e => e.id !== id));
+    } catch (err: any) {
+      showAlert({ title: 'Error', message: err?.message || 'Failed to remove IP.', variant: 'danger' });
+    }
+  };
+
   const pixelCode = `<script>
   (function() {
     var sid = localStorage.getItem('isbx_session');
@@ -1599,7 +1689,7 @@ function TrackingPanel() {
       <div className="settings-panel-head">
         <h3>Tracking Pixel</h3>
         <p className="settings-panel-desc">
-          Embed this lightweight tracking script into your Framer website settings. It will securely send all page visits to your CRM Analytics dashboard.
+          Embed this lightweight tracking script into your website settings. It will securely send all page visits to your CRM Analytics dashboard.
         </p>
       </div>
 
@@ -1608,7 +1698,7 @@ function TrackingPanel() {
           <Activity size={24} />
         </div>
         <div className="settings-integration-info">
-          <h4>Framer Analytics Pixel</h4>
+          <h4>Website Analytics Pixel</h4>
           <p>Native website tracking without the complexity of Google Analytics.</p>
         </div>
         <div className="settings-integration-action">
@@ -1619,32 +1709,42 @@ function TrackingPanel() {
       <div className="settings-section">
         <div className="settings-section-title">Installation Instructions</div>
         <ol style={{ paddingLeft: '1.25rem', marginBottom: 'var(--space-6)', color: 'var(--color-text-secondary)', lineHeight: 1.6 }}>
-          <li>Go to your Framer project settings.</li>
-          <li>Navigate to the <strong>Site Settings &gt; General &gt; Custom Code</strong> section.</li>
+          <li>Go to your website builder or CMS settings.</li>
+          <li>Navigate to the <strong>Custom Code</strong> or <strong>Head Scripts</strong> section.</li>
           <li>Paste the code below into the <strong>Start of &lt;head&gt; tag</strong> field.</li>
           <li>Publish your site. Data will instantly start flowing into your CRM Reporting tab.</li>
         </ol>
 
-        <div style={{ position: 'relative', marginTop: 'var(--space-4)' }}>
-          <pre style={{
-            background: 'var(--color-surface)',
-            border: '1px solid var(--border)',
-            padding: '1rem',
-            borderRadius: 8,
-            overflowX: 'auto',
-            fontSize: '0.8125rem',
-            color: 'var(--color-text-primary)'
-          }}>
-            <code>{pixelCode}</code>
-          </pre>
-          <button 
-            className="btn-outline" 
-            style={{ position: 'absolute', top: 12, right: 12, padding: '6px 12px' }}
-            onClick={copyCode}
-          >
-            <Copy size={14} style={{ marginRight: 6 }} /> Copy Code
-          </button>
-        </div>
+        <button 
+          className="btn-outline" 
+          onClick={() => setShowCode(!showCode)}
+          style={{ marginBottom: showCode ? 'var(--space-4)' : 0 }}
+        >
+          {showCode ? 'Hide Tracking Code' : 'View Tracking Code'}
+        </button>
+
+        {showCode && (
+          <div style={{ position: 'relative' }}>
+            <pre style={{
+              background: 'var(--color-surface)',
+              border: '1px solid var(--border)',
+              padding: '1rem',
+              borderRadius: 8,
+              overflowX: 'auto',
+              fontSize: '0.8125rem',
+              color: 'var(--color-text-primary)'
+            }}>
+              <code>{pixelCode}</code>
+            </pre>
+            <button 
+              className="btn-outline" 
+              style={{ position: 'absolute', top: 12, right: 12, padding: '6px 12px' }}
+              onClick={copyCode}
+            >
+              <Copy size={14} style={{ marginRight: 6 }} /> Copy Code
+            </button>
+          </div>
+        )}
       </div>
       
       <div className="smtp-info-box" style={{ marginTop: 'var(--space-6)' }}>
@@ -1654,8 +1754,137 @@ function TrackingPanel() {
           Ecommerce tracking (e.g. Add to Cart, Purchases) is handled automatically by the CRM storefront.
         </span>
       </div>
+
+      {/* ── Excluded IP Addresses ────────────────────────── */}
+      <div className="settings-section" style={{ marginTop: 'var(--space-8)' }}>
+        <div className="settings-section-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Shield size={16} /> Excluded IP Addresses
+        </div>
+        <p style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--font-size-sm)', marginBottom: 'var(--space-4)' }}>
+          Traffic from these IP addresses will be silently excluded from your analytics and reporting data.
+          Use this to filter out your own office, home, or development traffic.
+        </p>
+
+        {ipsLoading ? (
+          <div style={{ display: 'flex', justifyContent: 'center', padding: 'var(--space-6)' }}>
+            <div className="loading-spinner" />
+          </div>
+        ) : (
+          <>
+            {excludedIps.length === 0 && !showAddIp && (
+              <div className="settings-list-empty" style={{ marginBottom: 'var(--space-4)' }}>
+                No IP addresses excluded yet. Click "Add IP" to get started.
+              </div>
+            )}
+
+            {excludedIps.length > 0 && (
+              <ul className="settings-list" style={{ marginBottom: 'var(--space-4)' }}>
+                {excludedIps.map((item) => (
+                  <li key={item.id} className="settings-list-item">
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1 }}>
+                      <code style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-brand)', fontFamily: 'monospace' }}>
+                        {item.ip_address}
+                      </code>
+                      {item.label && (
+                        <span style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--font-size-xs)' }}>
+                          — {item.label}
+                        </span>
+                      )}
+                    </div>
+                    <div className="settings-list-item-actions">
+                      <button
+                        className="row-action-btn danger"
+                        title="Remove"
+                        onClick={() => handleDeleteIp(item.id, item.ip_address)}
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+
+            {showAddIp && (
+              <div style={{ 
+                background: 'var(--color-surface)', 
+                border: '1px solid var(--border)', 
+                borderRadius: '8px', 
+                padding: '1.25rem', 
+                display: 'flex', 
+                flexDirection: 'column', 
+                gap: '1rem' 
+              }}>
+                <div className="smtp-field-row" style={{ marginBottom: 0 }}>
+                  <div className="smtp-field">
+                    <label className="smtp-field-label">IP Address</label>
+                    <input
+                      className="smtp-field-input"
+                      type="text"
+                      placeholder="e.g. 203.0.113.45"
+                      value={newIp}
+                      onChange={(e) => setNewIp(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') handleAddIp();
+                        if (e.key === 'Escape') setShowAddIp(false);
+                      }}
+                      autoFocus
+                    />
+                  </div>
+                  <div className="smtp-field">
+                    <label className="smtp-field-label">Label (Optional)</label>
+                    <input
+                      className="smtp-field-input"
+                      type="text"
+                      placeholder="e.g. Office"
+                      value={newLabel}
+                      onChange={(e) => setNewLabel(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') handleAddIp();
+                        if (e.key === 'Escape') setShowAddIp(false);
+                      }}
+                    />
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', paddingTop: '0.5rem' }}>
+                  <button
+                    className="btn-outline"
+                    onClick={handleDetectIp}
+                    disabled={detectingIp}
+                  >
+                    {detectingIp ? <Loader2 size={16} className="spin" /> : <Crosshair size={16} />}
+                    <span style={{ marginLeft: 6 }}>Detect My IP</span>
+                  </button>
+                  <button
+                    className="btn-outline"
+                    onClick={() => { setShowAddIp(false); setNewIp(''); setNewLabel(''); }}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    className="btn-brand"
+                    onClick={handleAddIp}
+                    disabled={!newIp.trim() || addingIp}
+                  >
+                    {addingIp ? <Loader2 size={16} className="spin" /> : <Check size={16} />}
+                    <span style={{ marginLeft: 6 }}>Add IP</span>
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {!showAddIp && (
+              <button
+                className="btn-outline"
+                onClick={() => setShowAddIp(true)}
+                style={{ padding: '6px 14px', fontSize: 'var(--font-size-sm)' }}
+              >
+                <Plus size={14} style={{ marginRight: 6 }} /> Add IP
+              </button>
+            )}
+          </>
+        )}
+      </div>
     </>
   );
 }
-
-
