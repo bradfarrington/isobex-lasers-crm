@@ -661,9 +661,14 @@ export function CampaignsTab({ activeSubTab = 'campaigns' }: CampaignsTabProps) 
           )}
         </div>
 
+        {selectedCampaign.scheduled_at && !selectedCampaign.sent_at && (
+          <div className="campaign-sent-date">
+            <Clock size={14} /> Scheduled for {new Date(selectedCampaign.scheduled_at).toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+          </div>
+        )}
         {selectedCampaign.sent_at && (
           <div className="campaign-sent-date">
-            <Calendar size={14} /> Sent {new Date(selectedCampaign.sent_at).toLocaleString()}
+            <Calendar size={14} /> Sent {new Date(selectedCampaign.sent_at).toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
           </div>
         )}
 
@@ -1373,7 +1378,13 @@ export function CampaignsTab({ activeSubTab = 'campaigns' }: CampaignsTabProps) 
                 <p className="campaign-card-subject">{c.subject}</p>
                 <div className="campaign-card-meta">
                   <span><Users size={12} /> {c.total_recipients} recipients</span>
-                  <span><Calendar size={12} /> {new Date(c.created_at).toLocaleDateString()}</span>
+                  {c.scheduled_at && !c.sent_at ? (
+                    <span><Clock size={12} /> Scheduled: {new Date(c.scheduled_at).toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                  ) : c.sent_at ? (
+                    <span><Calendar size={12} /> Sent: {new Date(c.sent_at).toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                  ) : (
+                    <span><Calendar size={12} /> {new Date(c.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                  )}
                 </div>
               </div>
               <div className="campaign-card-actions" onClick={e => e.stopPropagation()}>
