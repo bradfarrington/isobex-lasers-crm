@@ -15,6 +15,14 @@ verify_jwt = false
 enabled = true
 verify_jwt = false
 
+[functions.phone-numbers]
+enabled = true
+verify_jwt = false
+
+[functions.phone-voice]
+enabled = true
+verify_jwt = false
+
 [functions.track]
 enabled = true
 verify_jwt = true

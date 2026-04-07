@@ -1021,3 +1021,78 @@ export interface AppUser {
 
 export type AppUserInsert = Pick<AppUser, 'auth_user_id' | 'email' | 'full_name' | 'role' | 'permissions'>;
 export type AppUserUpdate = Partial<Pick<AppUser, 'full_name' | 'role' | 'permissions' | 'status'>>;
+
+// ─── Phone Numbers (Telephony) ──────────────────────────────
+
+export type PhoneNumberStatus = 'active' | 'suspended' | 'released' | 'porting';
+export type PhoneNumberType = 'local' | 'mobile' | 'toll_free';
+export type CallDirection = 'inbound' | 'outbound';
+export type CallStatus = 'initiated' | 'ringing' | 'in-progress' | 'completed' | 'busy' | 'no-answer' | 'canceled' | 'failed';
+
+export interface PhoneNumberCapabilities {
+  voice: boolean;
+  sms: boolean;
+  mms: boolean;
+}
+
+export interface PhoneNumber {
+  id: string;
+  phone_number: string;
+  friendly_name: string;
+  twilio_sid: string | null;
+  number_type: PhoneNumberType;
+  capabilities: PhoneNumberCapabilities;
+  status: PhoneNumberStatus;
+  forward_to: string | null;
+  forward_enabled: boolean;
+  voicemail_enabled: boolean;
+  voicemail_greeting_url: string | null;
+  recording_enabled: boolean;
+  monthly_cost_pence: number;
+  stripe_subscription_id: string | null;
+  stripe_price_id: string | null;
+  next_billing_date: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export type PhoneNumberInsert = Omit<PhoneNumber, 'id' | 'created_at' | 'updated_at'>;
+export type PhoneNumberUpdate = Partial<Omit<PhoneNumberInsert, 'phone_number'>>;
+
+export interface PhoneCallLog {
+  id: string;
+  phone_number_id: string;
+  direction: CallDirection;
+  from_number: string;
+  to_number: string;
+  status: CallStatus;
+  duration_seconds: number;
+  cost_pence: number;
+  twilio_call_sid: string | null;
+  recording_url: string | null;
+  recording_duration_seconds: number;
+  created_at: string;
+}
+
+export interface PhoneUsageSummary {
+  id: string;
+  phone_number_id: string;
+  month: string;
+  total_calls: number;
+  total_duration_seconds: number;
+  total_cost_pence: number;
+  inbound_calls: number;
+  outbound_calls: number;
+}
+
+// Twilio search result (transient, not in DB)
+export interface TwilioAvailableNumber {
+  friendlyName: string;
+  phoneNumber: string;
+  locality: string;
+  region: string;
+  postalCode: string;
+  isoCountry: string;
+  capabilities: PhoneNumberCapabilities;
+  addressRequirements: string;
+}

@@ -346,6 +346,56 @@ Deno.serve(async (req: Request) => {
             return jsonRes({ received: true });
         }
 
+        // Handle invoice.payment_failed — suspend phone number if subscription payment fails
+        if (eventType === 'invoice.payment_failed') {
+            const invoice = event.data.object;
+            const subscriptionId = invoice.subscription;
+
+            if (subscriptionId) {
+                // Check if this subscription belongs to a phone number
+                const { data: phoneRecord } = await supabase
+                    .from('phone_numbers')
+                    .select('id, phone_number')
+                    .eq('stripe_subscription_id', subscriptionId)
+                    .single();
+
+                if (phoneRecord) {
+                    await supabase
+                        .from('phone_numbers')
+                        .update({ status: 'suspended', updated_at: new Date().toISOString() })
+                        .eq('id', phoneRecord.id);
+
+                    console.log(`Phone number ${phoneRecord.phone_number} suspended due to payment failure`);
+                }
+            }
+            return jsonRes({ received: true });
+        }
+
+        // Handle invoice.payment_succeeded — reactivate suspended phone numbers
+        if (eventType === 'invoice.payment_succeeded') {
+            const invoice = event.data.object;
+            const subscriptionId = invoice.subscription;
+
+            if (subscriptionId) {
+                const { data: phoneRecord } = await supabase
+                    .from('phone_numbers')
+                    .select('id, status')
+                    .eq('stripe_subscription_id', subscriptionId)
+                    .eq('status', 'suspended')
+                    .single();
+
+                if (phoneRecord) {
+                    await supabase
+                        .from('phone_numbers')
+                        .update({ status: 'active', updated_at: new Date().toISOString() })
+                        .eq('id', phoneRecord.id);
+
+                    console.log(`Phone number reactivated after payment succeeded`);
+                }
+            }
+            return jsonRes({ received: true });
+        }
+
         // Other event types — acknowledge but ignore
         return jsonRes({ received: true });
     } catch (err) {

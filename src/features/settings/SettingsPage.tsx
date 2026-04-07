@@ -10,11 +10,12 @@ import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import {
   Plus, Pencil, Trash2, X, Check, Mail, Save, Send, Loader2,
   CheckCircle2, Info, ListFilter, Building2, Star, CreditCard, Activity, Copy, MessageSquare, Users,
-  Shield, Crosshair
+  Shield, Crosshair, Phone
 } from 'lucide-react';
 import type { ExcludedIp } from '@/types/database';
 import type { BusinessProfile } from '@/types/database';
 import { SmsPanel } from './SmsPanel';
+import { PhonePanel } from './PhonePanel';
 import { TeamPanel } from './TeamPanel';
 import './SettingsPage.css';
 
@@ -27,6 +28,7 @@ const TABS = [
   { id: 'lookups', label: 'Lookups', icon: ListFilter },
   { id: 'email', label: 'Email / SMTP', icon: Mail },
   { id: 'sms', label: 'SMS Provider', icon: MessageSquare },
+  { id: 'phone', label: 'Phone Numbers', icon: Phone },
   { id: 'payments', label: 'Payments', icon: CreditCard },
   // { id: 'google', label: 'Google', icon: Star }, // Hidden until business is accepted on Google Places
   { id: 'tracking', label: 'Tracking Pixel', icon: Activity },
@@ -65,6 +67,7 @@ export function SettingsPage() {
           {activeTab === 'lookups' && <LookupsPanel />}
           {activeTab === 'email' && <SmtpPanel />}
           {activeTab === 'sms' && <SmsPanel />}
+          {activeTab === 'phone' && <PhonePanel />}
           {activeTab === 'payments' && <PaymentsPanel />}
           {/* {activeTab === 'google' && <GooglePanel />} */}
           {activeTab === 'tracking' && <TrackingPanel />}
