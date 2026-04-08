@@ -4,7 +4,7 @@ import { PageShell } from '@/components/layout/PageShell';
 
 import * as api from '@/lib/api';
 import type { Order, OrderItem } from '@/types/database';
-import { ArrowLeft, Check, X, Box, Plus, Minus, Camera, ChevronDown, ScanLine } from 'lucide-react';
+import { ArrowLeft, Check, X, Plus, Minus, Camera, ChevronDown, ScanLine } from 'lucide-react';
 import { Html5Qrcode } from 'html5-qrcode';
 
 // A simple overlay to show big green check or red X
