@@ -122,9 +122,11 @@ export function PhonePanel() {
     const [bundleForm, setBundleForm] = useState({
         endUserType: 'individual' as 'business' | 'individual',
         numberType: 'local' as 'local' | 'mobile',
+        businessName: '',
         firstName: '',
         lastName: '',
         contactEmail: '',
+        phoneCountryCode: '+44',
         phoneNumber: '',
         // Address
         addressStreet: '',
@@ -167,13 +169,18 @@ export function PhonePanel() {
         }
     }, []);
 
+    const [refreshingStatus, setRefreshingStatus] = useState(false);
+
     const fetchBundleStatus = useCallback(async () => {
+        setRefreshingStatus(true);
         try {
             const data = await phoneApi('getBundleStatus');
             setBundleStatus(data.status || 'none');
             setComplianceData(data);
         } catch {
             setBundleStatus('unknown');
+        } finally {
+            setRefreshingStatus(false);
         }
     }, []);
 
@@ -193,10 +200,10 @@ export function PhonePanel() {
     const handleCreateBundle = async () => {
         setSettingUpCompliance(true);
         try {
-            // Auto-format phone to E.164
-            let phone = bundleForm.phoneNumber.trim();
-            if (phone.startsWith('0')) phone = '+44' + phone.slice(1);
-            else if (!phone.startsWith('+')) phone = '+44' + phone;
+            // Format phone to E.164 using selected country code
+            let phoneDigits = bundleForm.phoneNumber.trim().replace(/\D/g, '');
+            if (phoneDigits.startsWith('0')) phoneDigits = phoneDigits.slice(1); // strip leading 0
+            const phone = `${bundleForm.phoneCountryCode}${phoneDigits}`;
 
             // Convert files to base64
             const toBase64 = (file: File): Promise<string> => new Promise((resolve, reject) => {
@@ -209,6 +216,7 @@ export function PhonePanel() {
             const payload: Record<string, any> = {
                 endUserType: bundleForm.endUserType,
                 numberType: bundleForm.numberType,
+                businessName: bundleForm.businessName,
                 firstName: bundleForm.firstName,
                 lastName: bundleForm.lastName,
                 contactEmail: bundleForm.contactEmail,
@@ -664,6 +672,17 @@ export function PhonePanel() {
                                 </div>
                             </div>
                         )}
+                        {bundleStatus === 'draft' && (
+                            <div className="smtp-info-box" style={{ background: 'rgba(245, 158, 11, 0.08)', borderColor: 'rgba(245, 158, 11, 0.3)' }}>
+                                <AlertTriangle size={14} style={{ color: '#f59e0b', flexShrink: 0 }} />
+                                <div>
+                                    <strong>Draft — Not Submitted</strong>
+                                    <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--text-secondary)', marginTop: 4 }}>
+                                        A previous bundle was saved as a draft but was never fully submitted. Click "Create Bundle" to start a fresh submission — the stale draft will be cleaned up automatically.
+                                    </div>
+                                </div>
+                            </div>
+                        )}
 
                         {(bundleStatus === 'none' || bundleStatus === 'loading') && (
                             <div className="smtp-info-box">
@@ -675,8 +694,8 @@ export function PhonePanel() {
 
                     {/* Action Bar */}
                     <div style={{ display: 'flex', gap: 'var(--space-3)', alignItems: 'center' }}>
-                        <button className="btn-outline" onClick={fetchBundleStatus} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                            <RefreshCcw size={14} /> Refresh Status
+                        <button className="btn-outline" onClick={fetchBundleStatus} disabled={refreshingStatus} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                            {refreshingStatus ? <><Loader2 size={14} className="spin" /> Refreshing…</> : <><RefreshCcw size={14} /> Refresh Status</>}
                         </button>
                         {bundleStatus === 'approved' && (
                             <button className="btn-primary" onClick={() => setActiveSection('buy')} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -1004,6 +1023,16 @@ export function PhonePanel() {
                         {/* Step 2: Individual Info */}
                         {bundleStep === 2 && (
                             <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+                                {bundleForm.endUserType === 'business' && (
+                                    <div>
+                                        <label className="smtp-label">Business Name *</label>
+                                        <input className="smtp-input" placeholder="Business Name" value={bundleForm.businessName}
+                                            onChange={e => setBundleForm(f => ({ ...f, businessName: e.target.value }))} />
+                                        <p style={{ margin: '4px 0 0', fontSize: 'var(--font-size-xs)', color: 'var(--text-secondary)' }}>
+                                            The registered business name as it appears on official documents.
+                                        </p>
+                                    </div>
+                                )}
                                 <div>
                                     <label className="smtp-label">First Name</label>
                                     <input className="smtp-input" placeholder="First Name" value={bundleForm.firstName}
@@ -1021,10 +1050,28 @@ export function PhonePanel() {
                                 </div>
                                 <div>
                                     <label className="smtp-label">Phone Number</label>
-                                    <input className="smtp-input" placeholder="07973 786037" value={bundleForm.phoneNumber}
-                                        onChange={e => setBundleForm(f => ({ ...f, phoneNumber: e.target.value }))} />
+                                    <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+                                        <select
+                                            className="smtp-input"
+                                            value={bundleForm.phoneCountryCode}
+                                            onChange={e => setBundleForm(f => ({ ...f, phoneCountryCode: e.target.value }))}
+                                            style={{ width: 120, flexShrink: 0 }}
+                                        >
+                                            <option value="+44">+44 (UK)</option>
+                                            <option value="+1">+1 (US/CA)</option>
+                                            <option value="+353">+353 (IE)</option>
+                                            <option value="+33">+33 (FR)</option>
+                                            <option value="+49">+49 (DE)</option>
+                                            <option value="+34">+34 (ES)</option>
+                                            <option value="+39">+39 (IT)</option>
+                                            <option value="+61">+61 (AU)</option>
+                                        </select>
+                                        <input className="smtp-input" placeholder="7973 786037" value={bundleForm.phoneNumber}
+                                            onChange={e => setBundleForm(f => ({ ...f, phoneNumber: e.target.value }))}
+                                            style={{ flex: 1 }} />
+                                    </div>
                                     <p style={{ margin: '4px 0 0', fontSize: 'var(--font-size-xs)', color: 'var(--text-secondary)' }}>
-                                        This must be a valid mobile number where the contact can be reached. UK numbers starting with 0 will be auto-formatted to +44.
+                                        A valid phone number where the contact can be reached. The leading 0 will be removed automatically.
                                     </p>
                                 </div>
                             </div>

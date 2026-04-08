@@ -30,6 +30,8 @@ serve(async (req) => {
         const twilioSid = Deno.env.get('TWILIO_ACCOUNT_SID')!;
         const twilioAuth = Deno.env.get('TWILIO_AUTH_TOKEN')!;
         const STRIPE_KEY = Deno.env.get('PLATFORM_STRIPE_SECRET_KEY');
+        // Admin email for Twilio bundle notifications — keeps Twilio invisible to end users
+        const twilioNotificationEmail = Deno.env.get('TWILIO_NOTIFICATION_EMAIL') || '';
         const twilioBase = `https://api.twilio.com/2010-04-01/Accounts/${twilioSid}`;
         const twilioHeaders = {
             'Authorization': 'Basic ' + btoa(`${twilioSid}:${twilioAuth}`),
@@ -93,18 +95,37 @@ serve(async (req) => {
             const addrListData = await addrListRes.json();
             const address = (addrListData.addresses || [])[0];
 
-            // Check bundles
-            const bundleListRes = await fetch(
-                `${numbersApiBase}/Bundles?IsoCountry=GB&NumberType=local`,
-                { headers: numbersAuth }
-            );
-            const bundleListData = await bundleListRes.json();
-            const bundles = bundleListData.results || [];
+            // Get the stored bundle SID from the database
+            const { data: bizProfile } = await supabase
+                .from('business_profile')
+                .select('twilio_bundle_sid')
+                .limit(1)
+                .single();
 
-            const approved = bundles.find((b: any) => b.status === 'twilio-approved');
-            const pending = bundles.find((b: any) => b.status === 'pending-review');
-            const draft = bundles.find((b: any) => b.status === 'draft');
-            const bundle = approved || pending || draft;
+            let bundle: any = null;
+            let status = 'none';
+
+            if (bizProfile?.twilio_bundle_sid) {
+                // Fetch the SPECIFIC bundle by its stored SID
+                const bundleRes = await fetch(
+                    `${numbersApiBase}/Bundles/${bizProfile.twilio_bundle_sid}`,
+                    { headers: numbersAuth }
+                );
+                if (bundleRes.ok) {
+                    bundle = await bundleRes.json();
+                    console.log(`Bundle ${bundle.sid} status: ${bundle.status}`);
+                    // Map Twilio status to our status
+                    if (bundle.status === 'twilio-approved') status = 'approved';
+                    else if (bundle.status === 'pending-review' || bundle.status === 'in-review') status = 'pending-review';
+                    else if (bundle.status === 'twilio-rejected') status = 'rejected';
+                    else if (bundle.status === 'draft') status = 'draft';
+                    else status = bundle.status; // pass through any other status
+                } else {
+                    console.error('Failed to fetch stored bundle:', bizProfile.twilio_bundle_sid);
+                }
+            } else {
+                console.log('No twilio_bundle_sid stored in business_profile — showing none.');
+            }
 
             return jsonResponse({
                 address: address ? {
@@ -120,7 +141,7 @@ serve(async (req) => {
                     status: bundle.status,
                     friendlyName: bundle.friendly_name,
                 } : null,
-                status: approved ? 'approved' : pending ? 'pending-review' : draft ? 'draft' : 'none',
+                status,
             });
         }
 
@@ -186,6 +207,8 @@ serve(async (req) => {
            ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
         if (action === 'createBundle') {
             const numbersApiBase = 'https://numbers.twilio.com/v2/RegulatoryCompliance';
+            // File uploads MUST use the numbers-upload subdomain per Twilio docs
+            const numbersUploadBase = 'https://numbers-upload.twilio.com/v2/RegulatoryCompliance';
             const numbersAuth = { 'Authorization': 'Basic ' + btoa(`${twilioSid}:${twilioAuth}`) };
 
             // Need address first
@@ -214,40 +237,109 @@ serve(async (req) => {
                 return jsonResponse({ error: 'Please provide a contact email.' }, 400);
             }
 
-            // Check existing bundles
-            const bundleListRes = await fetch(
-                `${numbersApiBase}/Bundles?IsoCountry=GB&NumberType=local`,
+            // Use the admin notification email for ALL Twilio communications
+            // This prevents the CRM end user from receiving Twilio-branded emails
+            const bundleEmail = twilioNotificationEmail || email;
+            console.log('Bundle notification email:', bundleEmail === email ? '(using form email - set TWILIO_NOTIFICATION_EMAIL to override)' : '(using admin override)');
+
+            // Check if we already have a stored bundle
+            const { data: existingProfile } = await supabase
+                .from('business_profile')
+                .select('twilio_bundle_sid')
+                .limit(1)
+                .single();
+
+            if (existingProfile?.twilio_bundle_sid) {
+                const existingBundleRes = await fetch(
+                    `${numbersApiBase}/Bundles/${existingProfile.twilio_bundle_sid}`,
+                    { headers: numbersAuth }
+                );
+                if (existingBundleRes.ok) {
+                    const existingBundle = await existingBundleRes.json();
+                    if (existingBundle.status === 'twilio-approved') {
+                        return jsonResponse({ status: 'approved', message: 'Bundle already approved.' });
+                    }
+                    if (existingBundle.status === 'pending-review' || existingBundle.status === 'in-review') {
+                        return jsonResponse({ pending: true, message: 'Bundle already submitted and under review (1-3 business days).' }, 202);
+                    }
+                    // If the stored bundle is a draft, delete it so we can create a fresh one
+                    if (existingBundle.status === 'draft') {
+                        console.log('Deleting stale draft bundle:', existingProfile.twilio_bundle_sid);
+                        await fetch(`${numbersApiBase}/Bundles/${existingProfile.twilio_bundle_sid}`, {
+                            method: 'DELETE', headers: numbersAuth,
+                        }).catch(() => {});
+                    }
+                }
+            }
+
+            // Get regulation SID with constraints to learn the required document types
+            const resolvedNumberType = numberType || 'local';
+            const resolvedEndUserTypeForReg = endUserType || 'business';
+            const regRes = await fetch(
+                `${numbersApiBase}/Regulations?IsoCountry=GB&NumberType=${resolvedNumberType}&EndUserType=${resolvedEndUserTypeForReg}&IncludeConstraints=true`,
                 { headers: numbersAuth }
             );
-            const bundleListData = await bundleListRes.json();
-            const existingBundles = bundleListData.results || [];
-
-            const approved = existingBundles.find((b: any) => b.status === 'twilio-approved');
-            if (approved) {
-                return jsonResponse({ status: 'approved', message: 'Bundle already approved.' });
-            }
-
-            const pendingExisting = existingBundles.find((b: any) => b.status === 'pending-review');
-            if (pendingExisting) {
-                return jsonResponse({ pending: true, message: 'Bundle already submitted and under review (1-3 business days).' }, 202);
-            }
-
-            // Delete stale drafts
-            const drafts = existingBundles.filter((b: any) => b.status === 'draft');
-            for (const draft of drafts) {
-                await fetch(`${numbersApiBase}/Bundles/${draft.sid}`, {
-                    method: 'DELETE', headers: numbersAuth,
-                }).catch(() => {});
-            }
-
-            // Get regulation SID
-            const resolvedNumberType = numberType || 'local';
-            const regRes = await fetch(`${numbersApiBase}/Regulations?IsoCountry=GB&NumberType=${resolvedNumberType}`, { headers: numbersAuth });
             const regData = await regRes.json();
-            const regulationSid = regData.results?.[0]?.sid;
+            console.log('Regulation query result count:', regData.results?.length);
+            const regulation = regData.results?.[0];
+            const regulationSid = regulation?.sid;
             if (!regulationSid) {
                 return jsonResponse({ error: 'Could not find UK local number regulations. Please contact support.' }, 500);
             }
+
+            // Extract the required document types from the regulation constraints
+            // The regulation tells us exactly what types of supporting documents are needed
+            const supportingDocReqs = regulation.requirements?.supporting_document || [];
+            console.log('Regulation requirements:', JSON.stringify(regulation.requirements));
+
+            // Find ALL required document types from the regulation requirements
+            let requiresAddressSid = false; // whether to assign the AD SID directly
+            let identityDocTypeFromReg = ''; // type for identity proof file upload
+            let addressProofDocTypeFromReg = ''; // type for address proof file upload
+            for (const reqGroup of supportingDocReqs) {
+                const group = Array.isArray(reqGroup) ? reqGroup : [reqGroup];
+                for (const req of group) {
+                    const accepted = req.accepted_documents || [];
+                    const firstType = accepted.length > 0 ? accepted[0].type : '';
+                    const reqName = (req.requirement_name || '').toLowerCase();
+                    const name = (req.name || '').toLowerCase();
+
+                    // Log each requirement for debugging
+                    console.log(`Regulation doc requirement: name="${req.name}", requirement_name="${req.requirement_name}", accepted_types=[${accepted.map((a: any) => a.type).join(', ')}]`);
+
+                    // Address resource (AD SID assigned directly)
+                    if (firstType === 'address') {
+                        requiresAddressSid = true;
+                    }
+                    // Address proof FILE — match by name/requirement containing 'address'
+                    else if (name.includes('address') || reqName.includes('address')) {
+                        // Use the frontend-selected type if it's in the accepted list, otherwise use first accepted
+                        const acceptedTypes = accepted.map((a: any) => a.type);
+                        if (acceptedTypes.includes(addressDocType)) {
+                            addressProofDocTypeFromReg = addressDocType;
+                        } else {
+                            addressProofDocTypeFromReg = firstType || '';
+                        }
+                    }
+                    // Identity proof FILE — match by name/requirement containing 'identity' or 'id'
+                    else if (name.includes('identity') || name.includes('government')
+                        || reqName.includes('identity') || reqName.includes('proof_of_id')) {
+                        const acceptedTypes = accepted.map((a: any) => a.type);
+                        if (acceptedTypes.includes(identityDocType)) {
+                            identityDocTypeFromReg = identityDocType;
+                        } else {
+                            identityDocTypeFromReg = firstType || '';
+                        }
+                    }
+                    // Catch-all
+                    else if (firstType) {
+                        console.log(`Unmatched regulation requirement: ${req.requirement_name} / ${req.name} -> type: ${firstType}`);
+                    }
+                }
+            }
+            console.log('Requires Address SID:', requiresAddressSid);
+            console.log('Using identity document type:', identityDocTypeFromReg || '(using frontend value)');
+            console.log('Using address proof file type:', addressProofDocTypeFromReg || '(not required)');
 
             // Create bundle
             const bundleRes = await fetch(`${numbersApiBase}/Bundles`, {
@@ -255,7 +347,7 @@ serve(async (req) => {
                 headers: { ...numbersAuth, 'Content-Type': 'application/x-www-form-urlencoded' },
                 body: new URLSearchParams({
                     FriendlyName: `CRM UK ${resolvedNumberType.charAt(0).toUpperCase() + resolvedNumberType.slice(1)} Bundle`,
-                    Email: email,
+                    Email: bundleEmail,
                     RegulationSid: regulationSid,
                     IsoCountry: 'GB',
                     NumberType: resolvedNumberType,
@@ -269,10 +361,13 @@ serve(async (req) => {
             const bundleSid = bundleData.sid;
 
             // Create End-User
-            const endUserName = [firstName, lastName].filter(Boolean).join(' ') || 'Business';
+            const { businessName } = body;
             const resolvedEndUserType = endUserType || 'business';
+            const endUserName = resolvedEndUserType === 'business'
+                ? (businessName || [firstName, lastName].filter(Boolean).join(' ') || 'Business')
+                : ([firstName, lastName].filter(Boolean).join(' ') || 'Individual');
             const endUserAttrs: Record<string, string> = resolvedEndUserType === 'business'
-                ? { business_name: endUserName }
+                ? { business_name: businessName || endUserName }
                 : { first_name: firstName || '', last_name: lastName || '' };
             if (contactPhone) endUserAttrs.phone_number = contactPhone;
             if (email) endUserAttrs.email = email;
@@ -292,20 +387,11 @@ serve(async (req) => {
                 return jsonResponse({ error: endUserData.message || 'Failed to create end-user' }, 400);
             }
 
-            // ── Supporting Document 1: Address reference ──
-            const addrDocRes = await fetch(`${numbersApiBase}/SupportingDocuments`, {
-                method: 'POST',
-                headers: { ...numbersAuth, 'Content-Type': 'application/x-www-form-urlencoded' },
-                body: new URLSearchParams({
-                    FriendlyName: 'Address Proof',
-                    Type: 'customer_profile_address',
-                    'Attributes': JSON.stringify({ address_sids: [addressSid] }),
-                }).toString(),
-            });
-            const addrDocData = await addrDocRes.json();
-            if (!addrDocRes.ok) {
-                console.error('Address doc error:', addrDocData);
-                return jsonResponse({ error: addrDocData.message || 'Failed to create address document' }, 400);
+            // ── Address: Only assign AD SID if the regulation requires it ──
+            if (requiresAddressSid) {
+                console.log('Assigning Address SID directly:', addressSid);
+            } else {
+                console.log('Regulation does not require Address SID assignment — skipping.');
             }
 
             // Helper: decode base64 to Uint8Array
@@ -316,13 +402,18 @@ serve(async (req) => {
                 return bytes;
             };
 
-            const itemSids: string[] = [endUserData.sid, addrDocData.sid];
+            const itemSids: string[] = [endUserData.sid];
+            if (requiresAddressSid) itemSids.push(addressSid);
 
             // ── Supporting Document 2: Proof of Identity (file upload) ──
+            // CRITICAL: File uploads MUST use numbers-upload.twilio.com, not numbers.twilio.com
             if (identityFile) {
                 const idFormData = new FormData();
                 idFormData.append('FriendlyName', 'Proof of Identity');
-                idFormData.append('Type', identityDocType || 'government_issued_id');
+                // Use the regulation-derived type if available, otherwise fall back to frontend value
+                const resolvedIdDocType = identityDocTypeFromReg || identityDocType || 'government_issued_id';
+                console.log('Creating identity doc with type:', resolvedIdDocType);
+                idFormData.append('Type', resolvedIdDocType);
                 idFormData.append('Attributes', JSON.stringify({
                     first_name: firstName || '',
                     last_name: lastName || '',
@@ -331,25 +422,29 @@ serve(async (req) => {
                 const idBlob = new Blob([idFileBytes], { type: identityFileMime || 'application/octet-stream' });
                 idFormData.append('File', idBlob, identityFileName || 'identity_proof');
 
-                const idDocRes = await fetch(`${numbersApiBase}/SupportingDocuments`, {
+                console.log('Uploading identity doc to numbers-upload.twilio.com...');
+                const idDocRes = await fetch(`${numbersUploadBase}/SupportingDocuments`, {
                     method: 'POST',
                     headers: { 'Authorization': numbersAuth['Authorization'] },
                     body: idFormData,
                 });
                 const idDocData = await idDocRes.json();
                 console.log('Identity doc response:', JSON.stringify(idDocData));
-                if (idDocRes.ok && idDocData.sid) {
-                    itemSids.push(idDocData.sid);
-                } else {
+                if (!idDocRes.ok || !idDocData.sid) {
                     console.error('Identity doc upload error:', idDocData);
+                    return jsonResponse({ error: idDocData.message || 'Failed to upload proof of identity. Please try again.' }, 400);
                 }
+                itemSids.push(idDocData.sid);
             }
 
             // ── Supporting Document 3: Proof of Address (file upload) ──
-            if (addressProofFile) {
+            // Only upload if the regulation requires a file-based address proof
+            // (separate from the Address resource which is already assigned directly)
+            if (addressProofFile && addressProofDocTypeFromReg) {
                 const addrProofFormData = new FormData();
                 addrProofFormData.append('FriendlyName', 'Proof of Address');
-                addrProofFormData.append('Type', addressDocType || 'utility_bill');
+                console.log('Creating address proof doc with type:', addressProofDocTypeFromReg);
+                addrProofFormData.append('Type', addressProofDocTypeFromReg);
                 addrProofFormData.append('Attributes', JSON.stringify({
                     address_sids: [addressSid],
                 }));
@@ -357,18 +452,21 @@ serve(async (req) => {
                 const addrBlob = new Blob([addrFileBytes], { type: addressProofFileMime || 'application/octet-stream' });
                 addrProofFormData.append('File', addrBlob, addressProofFileName || 'address_proof');
 
-                const addrProofDocRes = await fetch(`${numbersApiBase}/SupportingDocuments`, {
+                console.log('Uploading address proof doc to numbers-upload.twilio.com...');
+                const addrProofDocRes = await fetch(`${numbersUploadBase}/SupportingDocuments`, {
                     method: 'POST',
                     headers: { 'Authorization': numbersAuth['Authorization'] },
                     body: addrProofFormData,
                 });
                 const addrProofDocData = await addrProofDocRes.json();
                 console.log('Address proof doc response:', JSON.stringify(addrProofDocData));
-                if (addrProofDocRes.ok && addrProofDocData.sid) {
-                    itemSids.push(addrProofDocData.sid);
-                } else {
+                if (!addrProofDocRes.ok || !addrProofDocData.sid) {
                     console.error('Address proof doc upload error:', addrProofDocData);
+                    return jsonResponse({ error: addrProofDocData.message || 'Failed to upload proof of address. Please try again.' }, 400);
                 }
+                itemSids.push(addrProofDocData.sid);
+            } else if (addressProofFile && !addressProofDocTypeFromReg) {
+                console.log('Skipping address proof file upload — regulation does not require a file-based address proof (Address SID is already assigned).');
             }
 
             // Assign all items to bundle
@@ -385,36 +483,41 @@ serve(async (req) => {
                 }
             }
 
-            // Submit for review
-            const submitRes = await fetch(`${numbersApiBase}/Bundles/${bundleSid}/Evaluations`, {
+            // Submit for review by updating bundle status to pending-review
+            // Per Twilio docs: POST to /Bundles/{Sid} with Status=pending-review
+            console.log(`Submitting bundle ${bundleSid} for review with ${itemSids.length} assigned items...`);
+            const submitRes = await fetch(`${numbersApiBase}/Bundles/${bundleSid}`, {
                 method: 'POST',
                 headers: { ...numbersAuth, 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: new URLSearchParams({ Status: 'pending-review' }).toString(),
             });
             const submitData = await submitRes.json();
-            console.log('Bundle evaluation response:', JSON.stringify(submitData));
+            console.log('Bundle submission response:', JSON.stringify(submitData));
 
             if (!submitRes.ok) {
-                console.error('Evaluation submission failed:', submitData);
-                // Try to update status manually
-                await fetch(`${numbersApiBase}/Bundles/${bundleSid}`, {
-                    method: 'POST',
-                    headers: { ...numbersAuth, 'Content-Type': 'application/x-www-form-urlencoded' },
-                    body: new URLSearchParams({ Status: 'pending-review' }).toString(),
-                });
+                console.error('Bundle submission failed:', submitData);
+                return jsonResponse({ error: submitData.message || 'Failed to submit bundle for review. Please check all documents are uploaded correctly.' }, 400);
             }
 
             // Check final status
-            const recheckRes = await fetch(`${numbersApiBase}/Bundles/${bundleSid}`, { headers: numbersAuth });
-            const recheckBundle = await recheckRes.json();
-            console.log('Bundle final status:', recheckBundle.status);
+            const finalStatus = submitData.status;
+            console.log('Bundle final status:', finalStatus);
 
-            if (recheckBundle.status === 'twilio-approved') {
+            // Save the bundle SID to the database so status lookups use the exact bundle
+            await supabase
+                .from('business_profile')
+                .update({ twilio_bundle_sid: bundleSid })
+                .not('id', 'is', null); // updates all rows (single-row table)
+            console.log('Saved bundle SID to business_profile:', bundleSid);
+
+            if (finalStatus === 'twilio-approved') {
                 return jsonResponse({ status: 'approved', message: 'Bundle approved! You can now purchase UK phone numbers.' });
             }
 
             return jsonResponse({
                 pending: true,
-                message: 'Your compliance bundle has been submitted for review. This typically takes 1-3 business days.'
+                message: 'Your compliance bundle has been submitted for review. This typically takes 1-3 business days.',
+                bundleSid: bundleSid,
             }, 202);
         }
 
