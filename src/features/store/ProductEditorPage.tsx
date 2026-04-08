@@ -811,8 +811,8 @@ export function ProductEditorPage() {
                     </thead>
                     <tbody>
                       {variants.map((v, vi) => (
-                        <tr key={vi} style={selectedVariants.has(vi) ? { background: 'var(--color-primary-subtle)' } : undefined}>
-                          <td>
+                        <tr key={vi} className="variants-table-row" style={selectedVariants.has(vi) ? { background: 'var(--color-primary-subtle)' } : undefined}>
+                          <td data-label="Select">
                             <input
                               type="checkbox"
                               className="variant-checkbox"
@@ -820,13 +820,13 @@ export function ProductEditorPage() {
                               onChange={() => toggleVariantSelected(vi)}
                             />
                           </td>
-                          <td>
+                          <td data-label="Combination">
                             <span className="variant-combo-cell">
                               <GripVertical size={14} className="grip-icon" />
                               {v.option_values.map((ov) => ov.value).join(' / ')}
                             </span>
                           </td>
-                          <td>
+                          <td data-label="Price (£)">
                             <input
                               type="number"
                               className="form-input form-input-sm"
@@ -837,7 +837,7 @@ export function ProductEditorPage() {
                               min="0"
                             />
                           </td>
-                          <td>
+                          <td data-label="Compare at (£)">
                             <input
                               type="number"
                               className="form-input form-input-sm"
@@ -848,7 +848,7 @@ export function ProductEditorPage() {
                               min="0"
                             />
                           </td>
-                          <td>
+                          <td data-label="SKU">
                             <input
                               type="text"
                               className="form-input form-input-sm"
@@ -857,7 +857,7 @@ export function ProductEditorPage() {
                               placeholder="SKU"
                             />
                           </td>
-                          <td>
+                          <td data-label="Stock">
                             <input
                               type="number"
                               className="form-input form-input-sm"

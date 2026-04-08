@@ -457,6 +457,12 @@
   white-space: nowrap;
 }
 
+.variant-stock-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 9998;
+}
+
 .variant-stock-tooltip {
   position: fixed;
   z-index: 9999;
@@ -472,9 +478,43 @@
   pointer-events: auto;
 }
 
+.variant-stock-scrollarea {
+  max-height: 250px;
+  overflow-y: auto;
+  margin-right: -var(--space-2);
+  padding-right: var(--space-2);
+}
+
+@media (max-width: 900px) {
+  .variant-stock-backdrop {
+    background: rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(2px);
+    animation: fadeIn 0.15s ease;
+  }
+  
+  .variant-stock-tooltip {
+    top: 50% !important;
+    left: 50% !important;
+    transform: translate(-50%, -50%);
+    width: 90vw;
+    max-width: 350px;
+    animation: modalFadeIn 0.2s ease;
+  }
+}
+
 @keyframes tooltipFadeIn {
-  from { opacity: 0; transform: translateY(4px); }
-  to   { opacity: 1; transform: translateY(0); }
+  from { opacity: 0; margin-top: 4px; }
+  to   { opacity: 1; margin-top: 0; }
+}
+
+@keyframes modalFadeIn {
+  from { opacity: 0; transform: translate(-50%, -46%); }
+  to   { opacity: 1; transform: translate(-50%, -50%); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }
 
 .variant-stock-tooltip-title {
@@ -1458,7 +1498,8 @@
 
   /* Card rows */
   .products-table-row,
-  .inventory-row {
+  .inventory-row,
+  .variants-table-row {
     margin-bottom: var(--space-4);
     background: var(--color-bg-raised);
     border: 1px solid var(--color-border);
@@ -1506,6 +1547,12 @@
     margin-left: auto;
     text-align: right;
   }
+
+  /* Ensure inputs inside mobile tables are uniformly sized relative to their labels */
+  .products-table td > .form-input {
+    flex: 0 0 50%;
+    max-width: 200px;
+  }
   
   /* Reset specific cells that contain multiple flex items so they stack right */
   .stock-cell-wrap {
@@ -1535,8 +1582,8 @@
   }
 
   /* Don't right-align the title content */
-  .product-name-cell > *,
-  .inventory-product-cell > * {
+  .products-table .product-name-cell > *,
+  .products-table .inventory-product-cell > * {
     margin-left: 0;
     text-align: left;
   }

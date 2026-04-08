@@ -1180,7 +1180,7 @@
   color: var(--color-text-tertiary);
 }
 
-.phone-empty-state svg {
+.phone-empty-state > svg {
   margin: 0 auto var(--space-4);
   opacity: 0.4;
 }

@@ -161,10 +161,7 @@ export function StorePage() {
     setTooltipProduct(product);
   };
 
-  const hideTooltip = () => {
-    if (tooltipTimeout.current) clearTimeout(tooltipTimeout.current);
-    tooltipTimeout.current = setTimeout(() => setTooltipProduct(null), 100);
-  };
+  // Tooltip now removed via click on backdrop/row
 
   const toggleExpand = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -338,8 +335,11 @@ export function StorePage() {
                     <td data-label="Stock" className="mobile-secondary-detail">
                       <div
                         className="stock-cell-wrap"
-                        onMouseEnter={(e) => hasVariants && showTooltip(e, product)}
-                        onMouseLeave={hideTooltip}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (hasVariants) showTooltip(e, product);
+                        }}
+                        style={{ cursor: hasVariants ? 'pointer' : 'default' }}
                       >
                         <span className={`stock-badge ${status}`}>
                           {effectiveStock}
@@ -384,26 +384,29 @@ export function StorePage() {
 
       {/* Portal tooltip — renders outside table to avoid overflow clipping */}
       {tooltipProduct && tooltipProduct.variant_stock_details && createPortal(
-        <div
-          className="variant-stock-tooltip"
-          style={{ top: tooltipPos.top, left: tooltipPos.left }}
-          onMouseEnter={() => clearTimeout(tooltipTimeout.current)}
-          onMouseLeave={hideTooltip}
-        >
-          <div className="variant-stock-tooltip-title">Stock by Variant</div>
-          {tooltipProduct.variant_stock_details.map((d, i) => (
-            <div key={i} className="variant-stock-row">
-              <span className="variant-stock-label">{d.label}</span>
-              <span className={`variant-stock-qty ${d.stock <= 0 ? 'out' : ''}`}>
-                {d.stock}
-              </span>
+        <>
+          <div className="variant-stock-backdrop" onClick={(e) => { e.stopPropagation(); setTooltipProduct(null); }} />
+          <div
+            className="variant-stock-tooltip"
+            style={{ top: tooltipPos.top, left: tooltipPos.left }}
+          >
+            <div className="variant-stock-tooltip-title">Stock by Variant</div>
+            <div className="variant-stock-scrollarea">
+              {tooltipProduct.variant_stock_details.map((d, i) => (
+                <div key={i} className="variant-stock-row">
+                  <span className="variant-stock-label">{d.label}</span>
+                  <span className={`variant-stock-qty ${d.stock <= 0 ? 'out' : ''}`}>
+                    {d.stock}
+                  </span>
+                </div>
+              ))}
             </div>
-          ))}
-          <div className="variant-stock-total">
-            <span>Total</span>
-            <span>{effectiveStockFor(tooltipProduct)}</span>
+            <div className="variant-stock-total">
+              <span>Total</span>
+              <span>{effectiveStockFor(tooltipProduct)}</span>
+            </div>
           </div>
-        </div>,
+        </>,
         document.body
       )}
     </PageShell>

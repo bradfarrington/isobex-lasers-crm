@@ -107,6 +107,10 @@
   line-height: var(--line-height-tight);
 }
 
+.onboarding-title:first-child {
+  margin-top: var(--space-8);
+}
+
 .onboarding-subtitle {
   font-size: var(--font-size-md);
   color: var(--color-text-secondary);

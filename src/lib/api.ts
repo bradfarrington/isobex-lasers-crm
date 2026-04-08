@@ -686,7 +686,7 @@ export async function fetchProducts(): Promise<Product[]> {
     const pvariants = variantsByProduct.get(p.id);
     if (pvariants && pvariants.length > 0) {
       const details = pvariants.map((v: any) => ({
-        label: (v.option_values || []).map((ov: any) => ov.value).join(' / ') || 'Default',
+        label: (v.option_values || []).map((ov: any) => `${ov.group_name}: ${ov.value}`).join(' / ') || 'Default',
         stock: v.stock_quantity ?? 0,
       }));
       const total = details.reduce((sum: number, d: { stock: number }) => sum + d.stock, 0);
