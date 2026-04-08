@@ -231,6 +231,7 @@ export interface Product {
   pack_quantity: number;
   weight_kg: number;
   continue_selling_when_out_of_stock: boolean;
+  barcode: string | null;
   created_at: string;
   updated_at: string;
   // Joined
@@ -327,6 +328,7 @@ export interface ProductVariant {
   price_override: number | null;
   compare_at_price: number | null;
   sku: string | null;
+  barcode: string | null;
   stock_quantity: number;
   created_at: string;
 }
@@ -342,6 +344,7 @@ export interface InventoryItem {
   variant_id: string | null;
   variant_label: string | null;
   variant_sku: string | null;
+  barcode: string | null;
   stock_quantity: number;
   min_stock_threshold: number;
   continue_selling_when_out_of_stock: boolean;
@@ -583,6 +586,7 @@ export interface OrderItem {
   variant_label: string | null;
   product_image_url: string | null;
   sku: string | null;
+  barcode: string | null;
   quantity: number;
   unit_price: number;
   total_price: number;

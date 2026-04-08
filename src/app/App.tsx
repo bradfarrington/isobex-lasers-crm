@@ -18,6 +18,7 @@ import { DomainPage } from '@/features/store/DomainPage';
 import { UnifiedBuilder } from '@/features/store/UnifiedBuilder';
 import { OrdersPage } from '@/features/orders/OrdersPage';
 import { OrderDetailPage } from '@/features/orders/OrderDetailPage';
+import { OrderPickingPage } from '@/features/orders/OrderPickingPage';
 import { EmailMarketingPage } from '@/features/email-marketing/EmailMarketingPage';
 import { EmailBuilderPage } from '@/features/email-marketing/EmailBuilderPage';
 import { ReviewsPage } from '@/features/reviews/ReviewsPage';
@@ -113,6 +114,7 @@ export function App() {
 
             <Route path="orders" element={<OrdersPage />} />
             <Route path="orders/:id" element={<OrderDetailPage />} />
+            <Route path="orders/:id/picking" element={<OrderPickingPage />} />
             <Route path="email-marketing" element={<EmailMarketingPage />} />
             <Route path="email-marketing/builder" element={<EmailBuilderPage />} />
             <Route path="email-marketing/builder/:id" element={<EmailBuilderPage />} />

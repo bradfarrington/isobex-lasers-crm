@@ -166,22 +166,24 @@
 .products-table:not(.inventory-table):not(.variants-table) th:nth-child(7),
 .products-table:not(.inventory-table):not(.variants-table) td:nth-child(7) { width: 8%; text-align: center; }
 
-/* Variant table column widths (6 columns: checkbox, combo, price, compare-at, SKU, stock) */
+/* Variant table column widths (7 columns: checkbox, combo, price, compare-at, SKU, barcode, stock) */
 .products-table.variants-table {
   table-layout: fixed;
 }
 .products-table.variants-table th:nth-child(1),
-.products-table.variants-table td:nth-child(1) { width: 5%; text-align: center; }
+.products-table.variants-table td:nth-child(1) { width: 4%; text-align: center; } /* Checkbox */
 .products-table.variants-table th:nth-child(2),
-.products-table.variants-table td:nth-child(2) { width: 27%; }
+.products-table.variants-table td:nth-child(2) { width: 22%; } /* Combo */
 .products-table.variants-table th:nth-child(3),
-.products-table.variants-table td:nth-child(3) { width: 18%; }
+.products-table.variants-table td:nth-child(3) { width: 14%; } /* Price */
 .products-table.variants-table th:nth-child(4),
-.products-table.variants-table td:nth-child(4) { width: 18%; }
+.products-table.variants-table td:nth-child(4) { width: 14%; } /* Compare */
 .products-table.variants-table th:nth-child(5),
-.products-table.variants-table td:nth-child(5) { width: 18%; }
+.products-table.variants-table td:nth-child(5) { width: 14%; } /* SKU */
 .products-table.variants-table th:nth-child(6),
-.products-table.variants-table td:nth-child(6) { width: 14%; }
+.products-table.variants-table td:nth-child(6) { width: 22%; } /* Barcode */
+.products-table.variants-table th:nth-child(7),
+.products-table.variants-table td:nth-child(7) { width: 10%; } /* Stock */
 
 /* Inventory table column widths (8 columns: product, variant, sku, stock, threshold, price, continue, status) */
 .products-table.inventory-table {

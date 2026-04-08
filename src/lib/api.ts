@@ -1132,14 +1132,14 @@ export async function assignProductCollections(
 export async function fetchInventorySummary(): Promise<InventoryItem[]> {
   const { data: products, error: pErr } = await supabase
     .from('products')
-    .select('id, name, sku, price, stock_quantity, min_stock_threshold, continue_selling_when_out_of_stock')
+    .select('id, name, sku, barcode, price, stock_quantity, min_stock_threshold, continue_selling_when_out_of_stock')
     .order('name', { ascending: true });
 
   if (pErr) throw pErr;
 
   const { data: variants, error: vErr } = await supabase
     .from('product_variants')
-    .select('id, product_id, option_values, price_override, sku, stock_quantity');
+    .select('id, product_id, option_values, price_override, sku, barcode, stock_quantity');
 
   if (vErr) throw vErr;
 
@@ -1171,6 +1171,7 @@ export async function fetchInventorySummary(): Promise<InventoryItem[]> {
           min_stock_threshold: product.min_stock_threshold ?? 0,
           continue_selling_when_out_of_stock: product.continue_selling_when_out_of_stock ?? false,
           price: v.price_override ?? product.price ?? 0,
+          barcode: v.barcode || product.barcode || null,
         });
       }
     } else {
@@ -1185,6 +1186,7 @@ export async function fetchInventorySummary(): Promise<InventoryItem[]> {
         min_stock_threshold: product.min_stock_threshold ?? 0,
         continue_selling_when_out_of_stock: product.continue_selling_when_out_of_stock ?? false,
         price: product.price ?? 0,
+        barcode: product.barcode || null,
       });
     }
   }
@@ -1485,7 +1487,7 @@ export async function fetchOrderItems(orderId: string): Promise<OrderItem[]> {
   // Batch-fetch products (name, pack_quantity, sku)
   const { data: products } = await supabase
     .from('products')
-    .select('id, name, pack_quantity, sku')
+    .select('id, name, pack_quantity, sku, barcode')
     .in('id', productIds);
   const productMap = new Map((products || []).map((p: any) => [p.id, p]));
 
@@ -1495,7 +1497,7 @@ export async function fetchOrderItems(orderId: string): Promise<OrderItem[]> {
   if (variantIds.length > 0) {
     const { data: variants } = await supabase
       .from('product_variants')
-      .select('id, option_values, sku')
+      .select('id, option_values, sku, barcode')
       .in('id', variantIds);
     variantMap = new Map((variants || []).map((v: any) => [v.id, v]));
   }
@@ -1519,6 +1521,7 @@ export async function fetchOrderItems(orderId: string): Promise<OrderItem[]> {
       product_name: product.name,
       product_image_url: thumbnails[item.product_id] || item.product_image_url,
       sku: variant?.sku || product.sku || item.sku,
+      barcode: variant?.barcode || product.barcode || item.barcode || null,
       variant_label: variantLabel,
       pack_quantity: product.pack_quantity ?? 1,
     };

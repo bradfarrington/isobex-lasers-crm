@@ -36,6 +36,7 @@ interface VariantDraft {
   price_override: string;
   compare_at_price: string;
   sku: string;
+  barcode: string;
   stock_quantity: string;
 }
 
@@ -53,6 +54,7 @@ export function ProductEditorPage() {
   const [price, setPrice] = useState('');
   const [compareAtPrice, setCompareAtPrice] = useState('');
   const [sku, setSku] = useState('');
+  const [barcode, setBarcode] = useState('');
   const [isVisible, setIsVisible] = useState(false);
   const [continueSelling, setContinueSelling] = useState(false);
   const [stockQuantity, setStockQuantity] = useState('0');
@@ -81,6 +83,7 @@ export function ProductEditorPage() {
   // ─── State ──────────────────────────────────
   const [loading, setLoading] = useState(!isNew);
   const [saving, setSaving] = useState(false);
+  const [previewBarcode, setPreviewBarcode] = useState<string | null>(null);
 
   // ─── Load data ──────────────────────────────
   const loadProduct = useCallback(async () => {
@@ -107,6 +110,7 @@ export function ProductEditorPage() {
       setPrice(String(product.price));
       setCompareAtPrice(product.compare_at_price ? String(product.compare_at_price) : '');
       setSku(product.sku || '');
+      setBarcode(product.barcode || '');
       setIsVisible(product.is_visible);
       setContinueSelling(product.continue_selling_when_out_of_stock ?? false);
       setStockQuantity(String(product.stock_quantity));
@@ -132,6 +136,7 @@ export function ProductEditorPage() {
         price_override: v.price_override ? String(v.price_override) : '',
         compare_at_price: v.compare_at_price ? String(v.compare_at_price) : '',
         sku: v.sku || '',
+        barcode: v.barcode || '',
         stock_quantity: String(v.stock_quantity),
       }));
       setVariants(varDrafts);
@@ -198,6 +203,7 @@ export function ProductEditorPage() {
         price_override: '',
         compare_at_price: '',
         sku: '',
+        barcode: '',
         stock_quantity: '0',
       };
     });
@@ -403,6 +409,7 @@ export function ProductEditorPage() {
         price: Number(price),
         compare_at_price: compareAtPrice ? Number(compareAtPrice) : null,
         sku: sku.trim() || null,
+        barcode: barcode.trim() || null,
         is_visible: isVisible,
         continue_selling_when_out_of_stock: continueSelling,
         stock_quantity: Number(stockQuantity) || 0,
@@ -439,6 +446,7 @@ export function ProductEditorPage() {
           price_override: v.price_override ? Number(v.price_override) : null,
           compare_at_price: v.compare_at_price ? Number(v.compare_at_price) : null,
           sku: v.sku.trim() || null,
+          barcode: v.barcode.trim() || null,
           stock_quantity: Number(v.stock_quantity) || 0,
         }));
 
@@ -452,6 +460,42 @@ export function ProductEditorPage() {
       showAlert({ title: 'Error', message: 'Failed to save product.', variant: 'danger' });
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handlePrintBarcode = (itemBarcode: string, itemName: string) => {
+    if (!itemBarcode) return;
+    const printContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Print Label</title>
+        <style>
+          @page { size: auto; margin: 0; }
+          body { 
+            margin: 0; 
+            padding: 12px;
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            justify-content: center;
+            font-family: -apple-system, sans-serif;
+            text-align: center;
+          }
+          .barcode { height: 70px; mix-blend-mode: multiply; }
+          .code-text { margin-top: 10px; font-family: monospace; font-size: 16px; letter-spacing: 3px; font-weight: 500; }
+        </style>
+      </head>
+      <body>
+        <img class="barcode" src="https://bwipjs-api.metafloor.com/?bcid=code128&text=${encodeURIComponent(itemBarcode)}&scale=3&height=12" onload="window.print()" />
+        <div class="code-text">${itemBarcode}</div>
+      </body>
+      </html>
+    `;
+    const printWindow = window.open('', '_blank', 'width=800,height=600');
+    if (printWindow) {
+      printWindow.document.write(printContent);
+      printWindow.document.close();
     }
   };
 
@@ -806,6 +850,7 @@ export function ProductEditorPage() {
                         <th>Price (£)</th>
                         <th>Compare at (£)</th>
                         <th>SKU</th>
+                        <th>Barcode</th>
                         <th>Stock</th>
                       </tr>
                     </thead>
@@ -830,6 +875,7 @@ export function ProductEditorPage() {
                             <input
                               type="number"
                               className="form-input form-input-sm"
+                              style={{ width: '80px' }}
                               value={v.price_override}
                               onChange={(e) => updateVariant(vi, 'price_override', e.target.value)}
                               placeholder="0.00"
@@ -841,6 +887,7 @@ export function ProductEditorPage() {
                             <input
                               type="number"
                               className="form-input form-input-sm"
+                              style={{ width: '80px' }}
                               value={v.compare_at_price}
                               onChange={(e) => updateVariant(vi, 'compare_at_price', e.target.value)}
                               placeholder="—"
@@ -852,15 +899,58 @@ export function ProductEditorPage() {
                             <input
                               type="text"
                               className="form-input form-input-sm"
+                              style={{ width: '90px' }}
                               value={v.sku}
                               onChange={(e) => updateVariant(vi, 'sku', e.target.value)}
                               placeholder="SKU"
                             />
                           </td>
+                          <td data-label="Barcode">
+                            {!v.barcode ? (
+                              <div style={{ display: 'flex', gap: '0.25rem' }}>
+                                <input
+                                  type="text"
+                                  className="form-input form-input-sm"
+                                  style={{ width: '100px' }}
+                                  value={v.barcode}
+                                  onChange={(e) => updateVariant(vi, 'barcode', e.target.value)}
+                                  placeholder="Barcode"
+                                />
+                                <button type="button" className="btn btn-secondary btn-icon-sm" onClick={() => updateVariant(vi, 'barcode', 'ISO-' + Math.random().toString(36).substr(2, 8).toUpperCase())} title="Generate Barcode">
+                                  ✨
+                                </button>
+                              </div>
+                            ) : (
+                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#fff', padding: '0.25rem 0.5rem', border: '1px solid #e2e8f0', borderRadius: '0.375rem', width: '100%' }}>
+                                <div 
+                                  style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minWidth: 0, cursor: 'zoom-in', padding: '4px 0' }}
+                                  onClick={() => setPreviewBarcode(v.barcode)}
+                                >
+                                  <img 
+                                    src={`https://bwipjs-api.metafloor.com/?bcid=code128&text=${encodeURIComponent(v.barcode)}&scale=2&height=8`} 
+                                    alt="Preview" 
+                                    style={{ height: 28, mixBlendMode: 'multiply' }} 
+                                  />
+                                  <div style={{ marginTop: '4px', fontFamily: 'monospace', fontSize: '10px', letterSpacing: '1px', fontWeight: 500, color: '#000' }}>
+                                    {v.barcode}
+                                  </div>
+                                </div>
+                                <div style={{ display: 'flex', gap: '4px', borderLeft: '1px solid #e2e8f0', paddingLeft: '8px', flexShrink: 0 }}>
+                                  <button type="button" className="btn btn-ghost btn-icon-sm" style={{ padding: '2px', color: 'var(--color-danger)' }} onClick={() => updateVariant(vi, 'barcode', '')} title="Clear barcode">
+                                    <Trash2 size={15} />
+                                  </button>
+                                  <button type="button" className="btn btn-ghost btn-icon-sm" style={{ padding: '2px' }} onClick={() => handlePrintBarcode(v.barcode, `${name} - ${v.option_values.map(o => o.value).join(' ')}`)} title="Print Label">
+                                    🖨️
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+                          </td>
                           <td data-label="Stock">
                             <input
                               type="number"
                               className="form-input form-input-sm"
+                              style={{ width: '70px' }}
                               value={v.stock_quantity}
                               onChange={(e) => updateVariant(vi, 'stock_quantity', e.target.value)}
                               min="0"
@@ -978,16 +1068,67 @@ export function ProductEditorPage() {
               />
             </div>
             {variants.length === 0 && (
-              <div className="form-group">
-                <label className="form-label">Stock Quantity</label>
-                <input
-                  type="number"
-                  className="form-input"
-                  value={stockQuantity}
-                  onChange={(e) => setStockQuantity(e.target.value)}
-                  min="0"
-                />
-              </div>
+              <>
+                <div className="form-group">
+                  <label className="form-label">Barcode</label>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                      <input
+                        type="text"
+                        className="form-input"
+                        value={barcode}
+                        onChange={(e) => setBarcode(e.target.value)}
+                        placeholder="Barcode"
+                        style={{ flex: 1 }}
+                      />
+                      <button type="button" className="btn btn-secondary" onClick={() => setBarcode('ISO-' + Math.random().toString(36).substr(2, 8).toUpperCase())}>
+                        ✨ Generate
+                      </button>
+                    </div>
+                    {barcode && (
+                      <div style={{ 
+                        padding: '1rem', 
+                        background: '#fff', 
+                        borderRadius: '0.5rem', 
+                        border: '1px solid #e2e8f0', 
+                        display: 'flex', 
+                        flexDirection: 'column',
+                        justifyContent: 'center', 
+                        alignItems: 'center',
+                        gap: '0.75rem',
+                        boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
+                      }}>
+                        <div 
+                          style={{ cursor: 'zoom-in', textAlign: 'center' }} 
+                          onClick={() => setPreviewBarcode(barcode)}
+                        >
+                          <img 
+                            src={`https://bwipjs-api.metafloor.com/?bcid=code128&text=${encodeURIComponent(barcode)}&scale=2&height=12`} 
+                            alt="Preview" 
+                            style={{ height: 48, mixBlendMode: 'multiply' }} 
+                          />
+                          <div style={{ marginTop: '8px', fontFamily: 'monospace', fontSize: '14px', letterSpacing: '2px', fontWeight: 500, color: '#000' }}>
+                            {barcode}
+                          </div>
+                        </div>
+                        <button type="button" className="btn btn-secondary btn-sm" onClick={() => handlePrintBarcode(barcode, name)}>
+                          🖨️ Print Label
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Stock Quantity</label>
+                  <input
+                    type="number"
+                    className="form-input"
+                    value={stockQuantity}
+                    onChange={(e) => setStockQuantity(e.target.value)}
+                    min="0"
+                  />
+                </div>
+              </>
             )}
             <div className="form-group">
               <label className="form-label">Min. Stock Alert Threshold</label>
@@ -1127,6 +1268,40 @@ export function ProductEditorPage() {
             )}
           </div>
         </div>
+
+        {previewBarcode && (
+          <div 
+            style={{ 
+              position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(0,0,0,0.6)', 
+              display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem',
+              animation: 'fadeIn 0.2s ease'
+            }}
+            onClick={() => setPreviewBarcode(null)}
+          >
+            <div 
+              style={{ background: '#fff', padding: '2.5rem', borderRadius: '0.75rem', display: 'flex', flexDirection: 'column', alignItems: 'center', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)' }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 style={{ margin: '0 0 1.5rem', fontSize: '1rem', fontWeight: 600, color: 'var(--color-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Barcode Preview</h3>
+              <img 
+                src={`https://bwipjs-api.metafloor.com/?bcid=code128&text=${encodeURIComponent(previewBarcode)}&scale=4&height=16`} 
+                alt="Barcode" 
+                style={{ height: 100, mixBlendMode: 'multiply' }} 
+              />
+              <div style={{ marginTop: '1.25rem', fontFamily: 'monospace', fontSize: '24px', letterSpacing: '4px', fontWeight: 500, color: '#000' }}>
+                {previewBarcode}
+              </div>
+              <button 
+                type="button" 
+                className="btn btn-secondary" 
+                style={{ marginTop: '2rem', width: '100%' }}
+                onClick={() => setPreviewBarcode(null)}
+              >
+                Close Preview
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </PageShell>
   );

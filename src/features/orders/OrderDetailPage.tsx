@@ -160,13 +160,17 @@ export function OrderDetailPage() {
           .slip-totals-row.discount { color: #22854a; }
           .slip-tracking { margin-top: 24px; padding-top: 16px; border-top: 1px solid #ddd; font-size: 12px; color: #666; }
           .slip-footer { margin-top: 48px; padding-top: 16px; border-top: 1px solid #ddd; text-align: center; font-size: 11px; color: #999; }
-          @media print { body { padding: 20px; } }
+          .slip-barcode-img { height: 40px; margin-top: 8px; mix-blend-mode: multiply; }
+          @media print { 
+            @page { size: portrait; margin: 15mm; }
+            body { padding: 0; } 
+          }
         </style>
       </head>
       <body>
         <div class="slip-header">
           <div>
-            <div class="slip-company">ISOBEX LASERS</div>
+            <img src="${window.location.origin}/LOGO%20-%20NO%20HIGH%20RES.png" style="height: 48px; display: block; margin-bottom: 4px;" alt="ISOBEX LASERS" />
             <div class="slip-company-sub">Laser Parts &amp; Consumables</div>
           </div>
           <div class="slip-order-info">
@@ -211,9 +215,21 @@ export function OrderDetailPage() {
             ${items.map(item => `
               <tr>
                 <td>
-                  <strong>${item.product_name}</strong>
-                  ${item.variant_label ? '<br><span style="color:#666;font-size:12px;">Variant: ' + item.variant_label + '</span>' : ''}
-                  ${item.sku ? '<br><span style="color:#666;font-size:11px;">SKU: ' + item.sku + '</span>' : ''}
+                  <div style="display: flex; gap: 16px; align-items: flex-start; justify-content: space-between;">
+                    <div style="display: flex; gap: 16px;">
+                      ${item.product_image_url ? `<img src="${item.product_image_url}" style="width: 48px; height: 48px; object-fit: cover; border-radius: 4px; border: 1px solid #eee; flex-shrink: 0;" />` : `<div style="width: 48px; height: 48px; background: #f9f9f9; border-radius: 4px; border: 1px solid #eee; flex-shrink: 0;"></div>`}
+                      <div>
+                        <strong>${item.product_name}</strong>
+                        ${item.variant_label ? '<br><span style="color:#666;font-size:12px;">Variant: ' + item.variant_label + '</span>' : ''}
+                        ${item.sku ? '<br><span style="color:#666;font-size:11px;">SKU: ' + item.sku + '</span>' : ''}
+                      </div>
+                    </div>
+                    ${item.barcode ? `
+                      <div style="display: flex; flex-direction: column; align-items: center; min-width: 140px; padding-left: 16px; border-left: 1px solid #eee;">
+                        <img src="https://bwipjs-api.metafloor.com/?bcid=code128&text=${encodeURIComponent(item.barcode)}&scale=2&height=10&includetext=true" style="height: 48px; mix-blend-mode: multiply;" alt="barcode" />
+                      </div>
+                    ` : ''}
+                  </div>
                 </td>
                 <td class="col-qty">${item.quantity}</td>
                 <td class="col-price">£${Number(item.total_price).toFixed(2)}</td>
@@ -326,9 +342,14 @@ export function OrderDetailPage() {
         <Link to="/orders" className="btn btn-ghost btn-sm">
           <ArrowLeft size={16} /> Back to Orders
         </Link>
-        <button className="btn btn-ghost btn-sm" onClick={handlePrintPackingSlip}>
-          <Printer size={16} /> Print Packing Slip
-        </button>
+        <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <Link to={`/orders/${order.id}/picking`} className="btn btn-secondary btn-sm" style={{ background: '#ecfdf5', color: '#059669', borderColor: '#d1fae5' }}>
+            <Package size={16} /> Start Picking
+          </Link>
+          <button className="btn btn-ghost btn-sm" onClick={handlePrintPackingSlip}>
+            <Printer size={16} /> Print Packing Slip
+          </button>
+        </div>
       </div>
 
       <div className="order-detail-layout">
@@ -348,15 +369,31 @@ export function OrderDetailPage() {
                   ) : (
                     <div className="order-item-img placeholder" />
                   )}
-                  <div className="order-item-info">
-                    <div className="order-item-name">
-                      {item.product_name}
-                      {item.pack_quantity && item.pack_quantity > 1 && (
-                        <span className="order-item-pack-badge">Pack of {item.pack_quantity}</span>
-                      )}
+                 <div className="order-item-info" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '24px' }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div className="order-item-name" style={{ margin: 0, marginBottom: '2px' }}>
+                        {item.product_name}
+                        {item.pack_quantity && item.pack_quantity > 1 && (
+                          <span className="order-item-pack-badge" style={{ marginLeft: '6px' }}>Pack of {item.pack_quantity}</span>
+                        )}
+                      </div>
+                      {item.variant_label && <div className="order-item-variant">Size: {item.variant_label}</div>}
+                      {item.sku && <div className="order-item-sku">SKU: {item.sku}</div>}
                     </div>
-                    {item.variant_label && <div className="order-item-variant">Size: {item.variant_label}</div>}
-                    {item.sku && <div className="order-item-sku">SKU: {item.sku}</div>}
+                    {item.barcode && (
+                      <div className="order-item-barcode-card" style={{ display: 'flex', alignItems: 'center', background: '#fff', padding: '0.25rem 0.5rem', border: '1px solid #e2e8f0', borderRadius: '0.375rem', width: '160px', flexShrink: 0 }}>
+                        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+                          <img 
+                            src={`https://bwipjs-api.metafloor.com/?bcid=code128&text=${encodeURIComponent(item.barcode)}&scale=2&height=8`} 
+                            alt="Barcode" 
+                            style={{ height: 28, mixBlendMode: 'multiply' }} 
+                          />
+                          <div style={{ marginTop: '4px', fontFamily: 'monospace', fontSize: '10px', letterSpacing: '1px', fontWeight: 500, color: '#000' }}>
+                            {item.barcode}
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                   <div className="order-item-qty">× {item.quantity}</div>
                   <div className="order-item-price">£{Number(item.total_price).toFixed(2)}</div>
