@@ -26,6 +26,7 @@ import { InstallationsPage } from '@/features/installations/InstallationsPage';
 import { SupportPage } from '@/features/support/SupportPage';
 import { ReportingPage } from '@/features/reporting/ReportingPage';
 import { SettingsPage } from '@/features/settings/SettingsPage';
+import { KnowledgeHubPage } from '@/features/help/KnowledgeHubPage';
 import { StorefrontLayout } from '@/features/storefront/StorefrontLayout';
 import { StorefrontHome } from '@/features/storefront/StorefrontHome';
 import { StorefrontProducts } from '@/features/storefront/StorefrontProducts';
@@ -121,6 +122,7 @@ export function App() {
             <Route path="support" element={<SupportPage />} />
             <Route path="reporting" element={<ReportingPage />} />
             <Route path="settings" element={<SettingsPage />} />
+            <Route path="help" element={<KnowledgeHubPage />} />
           </Route>
 
           {/* Unified Store Builder — Full-width, no CRM chrome */}

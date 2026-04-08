@@ -1,5 +1,5 @@
 import { useLocation, Link } from 'react-router-dom';
-import { Settings } from 'lucide-react';
+import { Settings, BookOpen, HelpCircle } from 'lucide-react';
 import { navigationSections } from '@/config/navigation';
 import { useTheme } from '@/hooks/useTheme';
 import { useAuth } from '@/context/AuthContext';
@@ -9,9 +9,10 @@ import './Sidebar.css';
 interface SidebarProps {
   isOpen: boolean;
   onClose: () => void;
+  onHelpTourClick?: () => void;
 }
 
-export function Sidebar({ isOpen, onClose }: SidebarProps) {
+export function Sidebar({ isOpen, onClose, onHelpTourClick }: SidebarProps) {
   const location = useLocation();
   const { theme } = useTheme();
   const { hasPermission } = useAuth();
@@ -61,6 +62,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                       <Link
                         to={item.path}
                         className={`sidebar-item ${active ? 'active' : ''}`}
+                        data-tour-target={item.path}
                         onClick={() => {
                           // Close sidebar on mobile when navigating
                           if (window.innerWidth <= 768) onClose();
@@ -82,7 +84,19 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
       {/* Footer pinned settings */}
       <div className="sidebar-footer">
         <Link
+          to="/help"
+          className={`sidebar-item ${isActive('/help') ? 'active' : ''}`}
+          onClick={() => {
+            if (window.innerWidth <= 768) onClose();
+          }}
+        >
+          <BookOpen size={18} className="sidebar-item-icon" />
+          <span className="sidebar-item-label">Knowledge Hub</span>
+          {isActive('/help') && <div className="sidebar-item-indicator" />}
+        </Link>
+        <Link
           to="/settings"
+          data-tour-target="/settings"
           className={`sidebar-item ${isActive('/settings') ? 'active' : ''}`}
           onClick={() => {
             if (window.innerWidth <= 768) onClose();
@@ -92,6 +106,16 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
           <span className="sidebar-item-label">Settings</span>
           {isActive('/settings') && <div className="sidebar-item-indicator" />}
         </Link>
+        {onHelpTourClick && (
+          <button
+            className="sidebar-item"
+            style={{ width: '100%', border: 'none', background: 'transparent', cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit' }}
+            onClick={onHelpTourClick}
+          >
+            <HelpCircle size={18} className="sidebar-item-icon" />
+            <span className="sidebar-item-label">Help & Tutorial</span>
+          </button>
+        )}
       </div>
     </aside>
   );

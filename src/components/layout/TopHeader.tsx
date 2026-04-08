@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Menu, PanelLeftClose, Sun, Moon, LogOut, KeyRound } from 'lucide-react';
+import { Menu, PanelLeftClose, Sun, Moon, LogOut, KeyRound, HelpCircle } from 'lucide-react';
 import { useTheme } from '@/hooks/useTheme';
 import { supabase } from '@/lib/supabase';
 import { useAlert } from '@/components/ui/AlertDialog';
@@ -10,9 +10,11 @@ import './TopHeader.css';
 interface TopHeaderProps {
   onToggleSidebar: () => void;
   sidebarOpen: boolean;
+  onHelpClick?: () => void;
+  showHelpButton?: boolean;
 }
 
-export function TopHeader({ onToggleSidebar, sidebarOpen }: TopHeaderProps) {
+export function TopHeader({ onToggleSidebar, sidebarOpen, onHelpClick, showHelpButton }: TopHeaderProps) {
   const { theme, toggleTheme } = useTheme();
   const { showConfirm } = useAlert();
   const { appUser } = useAuth();
@@ -78,6 +80,17 @@ export function TopHeader({ onToggleSidebar, sidebarOpen }: TopHeaderProps) {
         </div>
 
         <div className="top-header-right">
+          {showHelpButton && onHelpClick && (
+            <button
+              className="top-header-icon-btn"
+              onClick={onHelpClick}
+              title="Page Guide"
+              style={{ marginRight: 'var(--space-2)' }}
+            >
+              <HelpCircle size={18} />
+            </button>
+          )}
+
           <button
             className="top-header-icon-btn"
             onClick={toggleTheme}
