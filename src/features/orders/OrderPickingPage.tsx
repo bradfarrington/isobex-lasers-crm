@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { PageShell } from '@/components/layout/PageShell';
-import { useAlert } from '@/components/ui/AlertDialog';
+
 import * as api from '@/lib/api';
 import type { Order, OrderItem } from '@/types/database';
 import { ArrowLeft, Check, X, Box, Plus, Minus } from 'lucide-react';
@@ -34,7 +34,7 @@ function ScanFlash({ type, visible, onHide }: { type: 'success' | 'error' | null
 
 export function OrderPickingPage() {
   const { id } = useParams<{ id: string }>();
-  const { showAlert } = useAlert();
+
   
   const [order, setOrder] = useState<Order | null>(null);
   const [items, setItems] = useState<OrderItem[]>([]);
@@ -82,7 +82,7 @@ export function OrderPickingPage() {
 
     scanner.render((decodedText) => {
       handleScan(decodedText);
-    }, (error) => {
+    }, () => {
       // ignore frame errors
     });
 

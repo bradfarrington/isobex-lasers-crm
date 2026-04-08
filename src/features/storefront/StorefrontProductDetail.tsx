@@ -59,11 +59,11 @@ export function StorefrontProductDetail({ previewSlug }: { previewSlug?: string 
               id: 'preview', name: 'Premium Laser Cutting Head', slug: 'preview', product_type: 'physical', sku: 'ISOBEX-HEAD-01',
               description: 'Advanced auto-focus laser cutting head designed for high-precision industrial applications. Features integrated water cooling and debris protection.',
               price: 1299.00, compare_at_price: 1499.00, is_visible: true, created_at: '', updated_at: '',
-              min_stock_threshold: 5, stock_quantity: 10, continue_selling_when_out_of_stock: true, pack_quantity: 1, weight_kg: 2.5
+              min_stock_threshold: 5, stock_quantity: 10, continue_selling_when_out_of_stock: true, pack_quantity: 1, weight_kg: 2.5, barcode: null
             });
             setImages([{ id: 'img1', product_id: 'preview', media_url: 'https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?auto=format&fit=crop&q=80&w=800', media_type: 'image', file_name: null, sort_order: 1, created_at: '' }]);
             setOptions([{ id: 'opt1', product_id: 'preview', name: 'Power Rating', sort_order: 1, values: [{ id: 'val1', option_group_id: 'opt1', value: '3.3KW', sort_order: 1 }, { id: 'val2', option_group_id: 'opt1', value: '6.0KW', sort_order: 2 }] }]);
-            setVariants([{ id: 'var1', product_id: 'preview', sku: 'ISOBEX-HEAD-33', price_override: null, compare_at_price: null, stock_quantity: 10, option_values: [{ group_id: 'opt1', group_name: 'Power Rating', value_id: 'val1', value: '3.3KW' }], created_at: '' }]);
+            setVariants([{ id: 'var1', product_id: 'preview', sku: 'ISOBEX-HEAD-33', price_override: null, compare_at_price: null, stock_quantity: 10, option_values: [{ group_id: 'opt1', group_name: 'Power Rating', value_id: 'val1', value: '3.3KW' }], created_at: '', barcode: null }]);
             setCompatibilities([{ id: 'c1', name: 'BM111 Series', sort_order: 1, created_at: '' }]);
             setSelectedOptions({ opt1: 'val1' });
             setLoading(false);
@@ -157,6 +157,7 @@ export function StorefrontProductDetail({ previewSlug }: { previewSlug?: string 
       imageUrl: images[0]?.media_url || null,
       weightKg: product.weight_kg || 0,
       sku: matchingVariant?.sku || product.sku || null,
+      barcode: matchingVariant?.barcode || product.barcode || null,
       slug: product.slug || product.id,
     });
 

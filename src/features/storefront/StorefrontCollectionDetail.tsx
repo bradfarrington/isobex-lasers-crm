@@ -40,7 +40,7 @@ export function StorefrontCollectionDetail({ previewSlug }: { previewSlug?: stri
               {
                 id: 'prod1', name: 'Laser Focusing Lens', slug: 'lens', product_type: 'physical', sku: 'LNS-01',
                 description: '', price: 150.00, compare_at_price: null, is_visible: true, created_at: '', updated_at: '',
-                min_stock_threshold: 5, stock_quantity: 50, continue_selling_when_out_of_stock: true, pack_quantity: 1, weight_kg: 0.2
+                min_stock_threshold: 5, stock_quantity: 50, continue_selling_when_out_of_stock: true, pack_quantity: 1, weight_kg: 0.2, barcode: null
               }
             ]);
             setThumbnails({ prod1: 'https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?auto=format&fit=crop&q=80&w=800' });

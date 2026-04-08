@@ -463,7 +463,7 @@ export function ProductEditorPage() {
     }
   };
 
-  const handlePrintBarcode = (itemBarcode: string, itemName: string) => {
+  const handlePrintBarcode = (itemBarcode: string, itemName?: string) => {
     if (!itemBarcode) return;
     const printContent = `
       <!DOCTYPE html>
@@ -487,6 +487,7 @@ export function ProductEditorPage() {
         </style>
       </head>
       <body>
+        ${itemName ? `<div style="font-size: 14px; font-weight: 600; margin-bottom: 4px;">${itemName}</div>` : ''}
         <img class="barcode" src="https://bwipjs-api.metafloor.com/?bcid=code128&text=${encodeURIComponent(itemBarcode)}&scale=3&height=12" onload="window.print()" />
         <div class="code-text">${itemBarcode}</div>
       </body>

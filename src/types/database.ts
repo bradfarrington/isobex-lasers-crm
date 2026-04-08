@@ -748,6 +748,7 @@ export interface CartItem {
   imageUrl: string | null;
   weightKg: number;
   sku: string | null;
+  barcode: string | null;
   slug: string;
 }
 

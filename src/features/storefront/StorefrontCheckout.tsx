@@ -194,6 +194,7 @@ function StorefrontCheckoutInner() {
           variant_label: item.variantLabel,
           product_image_url: item.imageUrl,
           sku: item.sku,
+          barcode: item.barcode,
           quantity: item.quantity,
           unit_price: item.price,
           total_price: item.price * item.quantity,

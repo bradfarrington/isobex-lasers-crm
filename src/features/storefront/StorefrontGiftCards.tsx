@@ -198,6 +198,7 @@ function StorefrontGiftCardsInner() {
         unit_price: effectiveAmount,
         total_price: effectiveAmount,
         unit_weight_kg: 0,
+        barcode: null,
       }]);
 
       // --- Stripe Payment ---
