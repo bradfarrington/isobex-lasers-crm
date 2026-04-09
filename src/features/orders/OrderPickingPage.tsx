@@ -167,7 +167,7 @@ export function OrderPickingPage() {
         
         html5QrCode.start(
           selectedCamera,
-          { fps: 10, qrbox: { width: 250, height: 100 }, aspectRatio: 1.0 },
+          { fps: 10, qrbox: { width: 250, height: 100 }, aspectRatio: 2.0 },
           (decodedText) => {
             if (Date.now() - lastScannedTime.current < 1500) return;
 
@@ -267,7 +267,7 @@ export function OrderPickingPage() {
   const pickedQty = currentItem ? (picked[currentItem.id] || 0) : 0;
 
   return (
-    <div style={{ backgroundColor: '#f8fafc', minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+    <div className="order-picking-layout">
       <ScanFlash type={flash} visible={flashVisible} onHide={() => setFlashVisible(false)} />
       
       <header style={{ background: '#fff', borderBottom: '1px solid #e2e8f0', padding: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, zIndex: 10 }}>
@@ -280,7 +280,7 @@ export function OrderPickingPage() {
         </div>
       </header>
 
-      <div style={{ padding: '1rem', flex: 1, display: 'flex', flexDirection: 'column', gap: '1rem', maxWidth: 800, margin: '0 auto', width: '100%' }}>
+      <div style={{ padding: '0.5rem', flex: 1, display: 'flex', flexDirection: 'column', gap: '0.75rem', maxWidth: 800, margin: '0 auto', width: '100%' }}>
         
         {workflowState === 'setup' && (
           <div style={{ background: '#fff', borderRadius: '1.5rem', padding: '2rem', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05), 0 10px 15px -3px rgba(0,0,0,0.1)', border: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%', maxWidth: 400, margin: '2rem auto' }}>
@@ -316,17 +316,17 @@ export function OrderPickingPage() {
         )}
 
         {(workflowState === 'picking' && currentItem) && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', flex: 1 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', flex: 1, minHeight: 0 }}>
             {/* Scanner View */}
             {isScanning && (
-              <div style={{ width: '100%', borderRadius: '1rem', overflow: 'hidden', background: '#0f172a', position: 'relative', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' }}>
-                <div id="reader" style={{ width: '100%', border: 'none' }}></div>
+              <div style={{ width: '100%', maxHeight: '40vh', minHeight: '180px', borderRadius: '1rem', overflow: 'hidden', background: '#0f172a', position: 'relative', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                <div id="reader" style={{ width: '100%', minWidth: '300px' }}></div>
               </div>
             )}
 
             {/* Current Item Card */}
-            <div style={{ background: '#fff', borderRadius: '1.5rem', padding: '1.5rem', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05), 0 10px 15px -3px rgba(0,0,0,0.1)', border: '1px solid #e2e8f0', flex: 1, display: 'flex', flexDirection: 'column' }}>
-               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+            <div style={{ background: '#fff', borderRadius: '1rem', padding: '1rem', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05), 0 10px 15px -3px rgba(0,0,0,0.1)', border: '1px solid #e2e8f0', flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflowY: 'auto' }}>
+               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', flexShrink: 0 }}>
                   <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                      Item {currentIndex + 1} of {items.length}
                   </span>
@@ -339,7 +339,7 @@ export function OrderPickingPage() {
                   {currentItem.product_name}
                </h3>
                {(currentItem.variant_label || currentItem.sku || currentItem.barcode) && (
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '1.5rem' }}>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '0.75rem' }}>
                      {currentItem.variant_label && <span style={{ fontSize: '0.875rem', color: '#475569', fontWeight: 500 }}>{currentItem.variant_label}</span>}
                      {currentItem.sku && <span style={{ fontSize: '0.75rem', color: '#64748b', background: '#f8fafc', border: '1px solid #e2e8f0', padding: '0.125rem 0.375rem', borderRadius: '0.25rem' }}>SKU: {currentItem.sku}</span>}
                      {currentItem.barcode && <span style={{ fontSize: '0.75rem', color: '#64748b', background: '#f8fafc', border: '1px solid #e2e8f0', padding: '0.125rem 0.375rem', borderRadius: '0.25rem' }}>BC: {currentItem.barcode}</span>}
@@ -347,9 +347,9 @@ export function OrderPickingPage() {
                )}
 
                {!isScanned ? (
-                  <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '1rem', padding: '2rem 1.5rem', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '0.75rem', margin: 'auto 0' }}>
-                      <ScanLine size={40} color="#3b82f6" style={{ opacity: 0.9 }} />
-                      <p style={{ color: '#1e3a8a', fontWeight: 600, margin: 0, textAlign: 'center' }}>Scan item barcode to verify</p>
+                  <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '0.75rem', padding: '0.75rem', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '0.25rem', margin: 'auto 0' }}>
+                      <ScanLine size={24} color="#3b82f6" style={{ opacity: 0.9 }} />
+                      <p style={{ color: '#1e3a8a', fontSize: '0.875rem', fontWeight: 600, margin: 0, textAlign: 'center' }}>Scan item barcode to verify</p>
                   </div>
                ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', margin: 'auto 0', animation: 'fadeIn 0.3s ease-out' }}>
@@ -369,23 +369,23 @@ export function OrderPickingPage() {
                )}
 
                {isScanned ? (
-                  <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1.5rem' }}>
-                     <button onClick={handlePrev} disabled={currentIndex === 0} style={{ flex: 1, padding: '1rem', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '0.75rem', fontSize: '1rem', fontWeight: 600, color: '#475569', cursor: currentIndex === 0 ? 'not-allowed' : 'pointer', opacity: currentIndex === 0 ? 0.5 : 1, transition: 'all 0.1s' }}>
+                  <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1rem' }}>
+                     <button onClick={handlePrev} disabled={currentIndex === 0} style={{ flex: 1, padding: '0.75rem', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '0.75rem', fontSize: '1rem', fontWeight: 600, color: '#475569', cursor: currentIndex === 0 ? 'not-allowed' : 'pointer', opacity: currentIndex === 0 ? 0.5 : 1, transition: 'all 0.1s' }}>
                         Previous
                      </button>
                      
                      {(currentIndex === items.length - 1 && isFullyPicked) ? (
-                        <button onClick={handleFinishPicking} style={{ flex: 2, padding: '1rem', background: '#10b981', border: 'none', borderRadius: '0.75rem', fontSize: '1rem', fontWeight: 600, color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyItems: 'center', justifyContent: 'center', gap: '0.5rem', boxShadow: '0 4px 6px -1px rgba(16, 185, 129, 0.2)', transition: 'all 0.1s' }}>
+                        <button onClick={handleFinishPicking} style={{ flex: 2, padding: '0.75rem', background: '#10b981', border: 'none', borderRadius: '0.75rem', fontSize: '1rem', fontWeight: 600, color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyItems: 'center', justifyContent: 'center', gap: '0.5rem', boxShadow: '0 4px 6px -1px rgba(16, 185, 129, 0.2)', transition: 'all 0.1s' }}>
                            <Check size={20} /> Finish Picking
                         </button>
                      ) : (
-                        <button onClick={handleNext} style={{ flex: 2, padding: '1rem', background: '#2563eb', border: 'none', borderRadius: '0.75rem', fontSize: '1rem', fontWeight: 600, color: '#fff', cursor: 'pointer', boxShadow: '0 4px 6px -1px rgba(37, 99, 235, 0.2)', transition: 'all 0.1s' }}>
+                        <button onClick={handleNext} style={{ flex: 2, padding: '0.75rem', background: '#2563eb', border: 'none', borderRadius: '0.75rem', fontSize: '1rem', fontWeight: 600, color: '#fff', cursor: 'pointer', boxShadow: '0 4px 6px -1px rgba(37, 99, 235, 0.2)', transition: 'all 0.1s' }}>
                            {(!isFullyPicked && currentIndex === items.length - 1) ? 'Find Missing' : 'Next Item'}
                         </button>
                      )}
                   </div>
                ) : (
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '1.5rem', borderTop: '1px solid #f1f5f9', paddingTop: '1.25rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '0.75rem', borderTop: '1px solid #f1f5f9', paddingTop: '0.75rem' }}>
                      <button onClick={handlePrev} disabled={currentIndex === 0} style={{ background: 'none', border: 'none', fontSize: '0.875rem', fontWeight: 600, color: '#64748b', cursor: currentIndex === 0 ? 'not-allowed' : 'pointer', opacity: currentIndex === 0 ? 0.3 : 1 }}>
                         ← Prev Item
                      </button>

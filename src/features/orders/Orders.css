@@ -451,8 +451,30 @@
   }
 }
 
+/* ── Order Picking Full Viewport ── */
+.order-picking-layout {
+  display: flex;
+  flex-direction: column;
+  background-color: #f8fafc;
+  overflow: hidden;
+  margin-left: calc(-1 * var(--space-8));
+  margin-right: calc(-1 * var(--space-8));
+  margin-bottom: calc(-1 * var(--space-8));
+  margin-top: calc(-1 * var(--space-8));
+  height: calc(100dvh - var(--header-height, 64px));
+}
+
 @media (max-width: 1279px) {
-  .desktop-only {
+  .order-picking-layout {
+    margin-left: calc(-1 * var(--space-4));
+    margin-right: calc(-1 * var(--space-4));
+    margin-bottom: calc(-1 * var(--space-4));
+    margin-top: calc(-1 * var(--space-4));
+  }
+}
+
+@media (max-width: 768px) {
+  .orders-table td::before {
     display: none !important;
   }
 
