@@ -339,15 +339,15 @@ export function OrderDetailPage() {
         </div>
       )}
       <div className="order-top-actions">
-        <Link to="/orders" className="btn btn-ghost btn-sm">
-          <ArrowLeft size={16} /> Back to Orders
+        <Link to="/orders" className="btn btn-ghost btn-sm order-back-btn">
+          <ArrowLeft size={16} style={{ flexShrink: 0 }} /> Back to Orders
         </Link>
-        <div style={{ display: 'flex', gap: '0.5rem' }}>
+        <div className="order-top-action-group" style={{ display: 'flex', gap: '0.5rem' }}>
           <Link to={`/orders/${order.id}/picking`} className="btn btn-secondary btn-sm" style={{ background: '#ecfdf5', color: '#059669', borderColor: '#d1fae5' }}>
-            <Package size={16} /> Start Picking
+            <Package size={16} style={{ flexShrink: 0 }} /> Start Picking
           </Link>
           <button className="btn btn-ghost btn-sm" onClick={handlePrintPackingSlip}>
-            <Printer size={16} /> Print Packing Slip
+            <Printer size={16} style={{ flexShrink: 0 }} /> Print Packing Slip
           </button>
         </div>
       </div>
@@ -369,34 +369,39 @@ export function OrderDetailPage() {
                   ) : (
                     <div className="order-item-img placeholder" />
                   )}
-                 <div className="order-item-info" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '24px' }}>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div className="order-item-name" style={{ margin: 0, marginBottom: '2px' }}>
-                        {item.product_name}
-                        {item.pack_quantity && item.pack_quantity > 1 && (
-                          <span className="order-item-pack-badge" style={{ marginLeft: '6px' }}>Pack of {item.pack_quantity}</span>
-                        )}
-                      </div>
-                      {item.variant_label && <div className="order-item-variant">Size: {item.variant_label}</div>}
-                      {item.sku && <div className="order-item-sku">SKU: {item.sku}</div>}
+                  
+                  <div className="order-item-details">
+                    <div className="order-item-name">
+                      {item.product_name}
+                      {item.pack_quantity && item.pack_quantity > 1 && (
+                        <span className="order-item-pack-badge">Pack of {item.pack_quantity}</span>
+                      )}
                     </div>
-                    {item.barcode && (
-                      <div className="order-item-barcode-card" style={{ display: 'flex', alignItems: 'center', background: '#fff', padding: '0.25rem 0.5rem', border: '1px solid #e2e8f0', borderRadius: '0.375rem', width: '160px', flexShrink: 0 }}>
-                        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+                    {item.variant_label && <div className="order-item-variant">Size: {item.variant_label}</div>}
+                    {item.sku && <div className="order-item-sku">SKU: {item.sku}</div>}
+                  </div>
+
+                  {item.barcode && (
+                    <div className="order-item-barcode">
+                      <div className="order-item-barcode-card">
+                        <div className="order-item-barcode-inner">
                           <img 
                             src={`https://bwipjs-api.metafloor.com/?bcid=code128&text=${encodeURIComponent(item.barcode)}&scale=2&height=8`} 
                             alt="Barcode" 
-                            style={{ height: 28, mixBlendMode: 'multiply' }} 
+                            className="order-item-barcode-img"
                           />
-                          <div style={{ marginTop: '4px', fontFamily: 'monospace', fontSize: '10px', letterSpacing: '1px', fontWeight: 500, color: '#000' }}>
+                          <div className="order-item-barcode-text">
                             {item.barcode}
                           </div>
                         </div>
                       </div>
-                    )}
+                    </div>
+                  )}
+
+                  <div className="order-item-meta">
+                    <div className="order-item-qty">× {item.quantity}</div>
+                    <div className="order-item-price">£{Number(item.total_price).toFixed(2)}</div>
                   </div>
-                  <div className="order-item-qty">× {item.quantity}</div>
-                  <div className="order-item-price">£{Number(item.total_price).toFixed(2)}</div>
                 </div>
               ))}
             </div>

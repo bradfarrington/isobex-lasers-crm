@@ -169,16 +169,11 @@
 
 /* ─── Order Items ───────────────────────── */
 
-.order-items-list {
-  display: flex;
-  flex-direction: column;
-}
-
 .order-item-row {
   display: flex;
   align-items: center;
-  gap: 1rem;
-  padding: 0.75rem 0;
+  gap: 1.25rem;
+  padding: 1rem 0;
   border-bottom: 1px solid var(--color-border);
 }
 
@@ -198,36 +193,85 @@
   background: var(--color-hover);
 }
 
-.order-item-info {
+.order-item-details {
   flex: 1;
   min-width: 0;
 }
 
 .order-item-name {
+  margin: 0 0 4px 0;
   font-weight: 500;
-  font-size: 0.875rem;
+  font-size: 0.9375rem;
+  line-height: 1.3;
 }
 
 .order-item-variant {
-  font-size: 0.75rem;
+  font-size: 0.8125rem;
   color: var(--color-text-secondary);
+  margin-bottom: 2px;
 }
 
 .order-item-sku {
-  font-size: 0.6875rem;
-  color: var(--color-text-secondary);
+  font-size: 0.75rem;
+  color: var(--color-text-tertiary);
+}
+
+.order-item-barcode {
+  flex: 0 0 auto;
+}
+
+.order-item-barcode-card {
+  display: inline-flex;
+  align-items: center;
+  background: #fff;
+  padding: 0.375rem 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  width: 160px;
+  flex-shrink: 0;
+}
+
+.order-item-barcode-inner {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.order-item-barcode-img {
+  height: 28px;
+  mix-blend-mode: multiply;
+}
+
+.order-item-barcode-text {
+  margin-top: 4px;
+  font-family: monospace;
+  font-size: 10px;
+  letter-spacing: 1px;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.order-item-meta {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  flex-shrink: 0;
 }
 
 .order-item-qty {
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   color: var(--color-text-secondary);
-  white-space: nowrap;
+  font-weight: 500;
 }
 
 .order-item-price {
   font-weight: 600;
-  font-size: 0.875rem;
+  font-size: 0.9375rem;
   white-space: nowrap;
+  min-width: 64px;
+  text-align: right;
 }
 
 /* Pack quantity badge */
@@ -317,6 +361,93 @@
 @media (max-width: 1279px) {
   .order-detail-layout {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .order-item-row {
+    display: grid;
+    grid-template-columns: 56px 1fr;
+    grid-template-areas:
+      "img details"
+      "img meta"
+      "barcode barcode";
+    gap: 0.5rem 1rem;
+    padding: 1.25rem 0;
+    align-items: start;
+  }
+  
+  .order-item-img {
+    grid-area: img;
+    width: 56px;
+    height: 56px;
+  }
+
+  .order-item-details {
+    grid-area: details;
+    min-width: 0;
+    flex: unset;
+  }
+
+  .order-item-meta {
+    grid-area: meta;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1.5rem;
+    flex: unset;
+    margin-top: 0.25rem;
+  }
+  
+  .order-item-price {
+    min-width: auto;
+    text-align: right;
+  }
+
+  .order-item-qty {
+    color: var(--color-text-secondary);
+  }
+
+  .order-item-barcode {
+    grid-area: barcode;
+    margin-top: 0.75rem;
+    flex: unset;
+    order: unset;
+  }
+
+  .order-item-barcode-card {
+    width: 100%;
+    max-width: none;
+    justify-content: center;
+  }
+
+  /* Top Actions Mobile */
+  .order-top-actions {
+    flex-wrap: wrap;
+    gap: 1rem;
+    align-items: center;
+  }
+
+  .order-back-btn {
+    flex: 1 1 100%;
+    justify-content: flex-start;
+    padding-left: 0;
+    margin-bottom: 0.5rem;
+  }
+
+  .order-top-action-group {
+    flex: 1 1 100%;
+    display: grid !important;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem !important;
+  }
+
+  .order-top-action-group .btn {
+    width: 100%;
+    justify-content: center;
+    padding: 0.875rem 0.5rem;
+    font-size: 0.875rem;
+    white-space: nowrap;
   }
 }
 

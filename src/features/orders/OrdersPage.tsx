@@ -227,8 +227,10 @@ export function OrdersPage() {
                   </td>
                   <td className="orders-col-date mobile-secondary-detail" data-label="Date">{formatDate(order.created_at)}</td>
                   <td className="orders-col-customer mobile-secondary-detail" data-label="Customer">
-                    <div className="orders-customer-name">{order.customer_name}</div>
-                    <div className="orders-customer-email">{order.customer_email}</div>
+                    <div className="orders-customer-info-wrap">
+                      <div className="orders-customer-name">{order.customer_name}</div>
+                      <div className="orders-customer-email">{order.customer_email}</div>
+                    </div>
                   </td>
                   <td data-label="Status" className="mobile-secondary-detail">
                     <span
