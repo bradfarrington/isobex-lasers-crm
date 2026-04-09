@@ -732,7 +732,7 @@ export function PhonePanel() {
                                 <ArrowRight size={16} /> Buy a Number
                             </button>
                         )}
-                        {(bundleStatus === 'rejected' || bundleStatus === 'draft') && (
+                        {(bundleStatus === 'rejected' || bundleStatus === 'draft' || bundleStatus === 'pending-review') && (
                             <button
                                 className="btn-outline phone-release-btn"
                                 onClick={handleDeleteBundle}
@@ -1204,10 +1204,10 @@ export function PhonePanel() {
                                         <select className="smtp-input" value={bundleForm.addressDocType}
                                             onChange={e => setBundleForm(f => ({ ...f, addressDocType: e.target.value }))}>
                                             <option value="utility_bill">Utility Bill</option>
-                                            <option value="government_issued_id">Government-issued ID</option>
-                                            <option value="tax_notice">Tax Notice</option>
-                                            <option value="rent_receipt">Rent Receipt</option>
+                                            <option value="tax_document">Tax Notice / Tax Document</option>
+                                            <option value="rental_receipt">Rent Receipt</option>
                                             <option value="title_deed">Title Deed</option>
+                                            <option value="bank_statement">Bank Statement</option>
                                         </select>
                                     </div>
                                     <div>

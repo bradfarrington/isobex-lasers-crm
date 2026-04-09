@@ -367,13 +367,13 @@ serve(async (req) => {
 
             // Create End-User
             const { businessName } = body;
-            const resolvedEndUserType = endUserType || 'business';
+            const resolvedEndUserType = endUserType || 'individual';
             const endUserName = resolvedEndUserType === 'business'
                 ? (businessName || [firstName, lastName].filter(Boolean).join(' ') || 'Business')
                 : ([firstName, lastName].filter(Boolean).join(' ') || 'Individual');
             const endUserAttrs: Record<string, string> = resolvedEndUserType === 'business'
                 ? { business_name: businessName || endUserName }
-                : { first_name: firstName || '', last_name: lastName || '' };
+                : { first_name: firstName || '', last_name: lastName || '', email: bundleEmail };
             if (contactPhone) endUserAttrs.phone_number = contactPhone;
 
             const endUserRes = await fetch(`${numbersApiBase}/EndUsers`, {
@@ -443,12 +443,37 @@ serve(async (req) => {
 
             // ── Supporting Document 3: Proof of Address (file upload) ──
             // Only upload if the regulation requires a file-based address proof
-            // (separate from the Address resource which is already assigned directly)
-            if (addressProofFile && addressProofDocTypeFromReg) {
+            // SAFEGUARD: Never upload two docs of the same type — Twilio will reject
+            let finalAddrDocType = addressProofDocTypeFromReg;
+            const resolvedIdType = identityDocTypeFromReg || identityDocType || 'government_issued_id';
+            if (finalAddrDocType && finalAddrDocType === resolvedIdType) {
+                console.log(`Address proof type '${finalAddrDocType}' duplicates identity doc — finding alternative...`);
+                // Re-scan the regulation for an alternative address type
+                for (const reqGroup of supportingDocReqs) {
+                    const group = Array.isArray(reqGroup) ? reqGroup : [reqGroup];
+                    for (const req of group) {
+                        const rn = (req.name || '').toLowerCase();
+                        const rrn = (req.requirement_name || '').toLowerCase();
+                        if (rn.includes('address') || rrn.includes('address')) {
+                            const alt = (req.accepted_documents || []).find((a: any) => a.type !== resolvedIdType);
+                            if (alt) {
+                                finalAddrDocType = alt.type;
+                                console.log(`Using alternative address type: ${finalAddrDocType}`);
+                            }
+                        }
+                    }
+                }
+                // If still duplicate after scanning, skip the address proof upload
+                if (finalAddrDocType === resolvedIdType) {
+                    console.log('No alternative address type found — skipping address proof upload to prevent duplicate');
+                    finalAddrDocType = '';
+                }
+            }
+            if (addressProofFile && finalAddrDocType) {
                 const addrProofFormData = new FormData();
                 addrProofFormData.append('FriendlyName', 'Proof of Address');
-                console.log('Creating address proof doc with type:', addressProofDocTypeFromReg);
-                addrProofFormData.append('Type', addressProofDocTypeFromReg);
+                console.log('Creating address proof doc with type:', finalAddrDocType);
+                addrProofFormData.append('Type', finalAddrDocType);
                 addrProofFormData.append('Attributes', JSON.stringify({
                     address_sids: [addressSid],
                 }));
@@ -469,8 +494,8 @@ serve(async (req) => {
                     return jsonResponse({ error: addrProofDocData.message || 'Failed to upload proof of address. Please try again.' }, 400);
                 }
                 itemSids.push(addrProofDocData.sid);
-            } else if (addressProofFile && !addressProofDocTypeFromReg) {
-                console.log('Skipping address proof file upload — regulation does not require a file-based address proof (Address SID is already assigned).');
+            } else if (addressProofFile && !finalAddrDocType) {
+                console.log('Skipping address proof file upload — no valid non-duplicate type available.');
             }
 
             // Assign all items to bundle
@@ -500,7 +525,44 @@ serve(async (req) => {
 
             if (!submitRes.ok) {
                 console.error('Bundle submission failed:', submitData);
-                return jsonResponse({ error: submitData.message || 'Failed to submit bundle for review. Please check all documents are uploaded correctly.' }, 400);
+                
+                // Try to fetch evaluation details for a better error message
+                let failureDetails = '';
+                if (submitData.message && submitData.message.includes('Evaluations/')) {
+                    try {
+                        const evalMatch = submitData.message.match(/(https:\/\/numbers\.twilio\.com\/v2\/RegulatoryCompliance\/Bundles\/[^\s]+)/);
+                        if (evalMatch) {
+                            const evalRes = await fetch(evalMatch[1], { headers: numbersAuth });
+                            if (evalRes.ok) {
+                                const evalData = await evalRes.json();
+                                console.log('Evaluation details:', JSON.stringify(evalData));
+                                const results = evalData.results || [];
+                                const failures = results.filter((r: any) => r.passed === false || r.status === 'noncompliant');
+                                if (failures.length > 0) {
+                                    failureDetails = failures.map((f: any) => 
+                                        `${f.requirement_friendly_name || f.requirement_name || 'Requirement'}: ${f.failure_reason || 'Not met'}`
+                                    ).join('; ');
+                                }
+                            }
+                        }
+                    } catch (evalErr) {
+                        console.error('Failed to fetch evaluation details:', evalErr);
+                    }
+                }
+                
+                // Auto-cleanup the failed draft so it doesn't orphan in Twilio
+                try {
+                    console.log(`Cleaning up failed draft bundle ${bundleSid}...`);
+                    await fetch(`${numbersApiBase}/Bundles/${bundleSid}`, { method: 'DELETE', headers: numbersAuth });
+                    console.log('Draft bundle cleaned up successfully');
+                } catch (cleanupErr) {
+                    console.error('Failed to cleanup draft bundle:', cleanupErr);
+                }
+                
+                const errorMsg = failureDetails 
+                    ? `Bundle compliance check failed: ${failureDetails}` 
+                    : (submitData.message || 'Failed to submit bundle for review. Please check all documents are uploaded correctly.');
+                return jsonResponse({ error: errorMsg }, 400);
             }
 
             // Check final status
@@ -1089,6 +1151,48 @@ serve(async (req) => {
             return jsonResponse({
                 ok: true,
                 message: `Bundle ${bundleSid} has been deleted. You can now create a new bundle.`,
+            });
+        }
+
+        /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+           CLEANUP DRAFT BUNDLES
+           ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+        if (action === 'cleanupDraftBundles') {
+            const numbersApiBase = 'https://numbers.twilio.com/v2/RegulatoryCompliance';
+            const numbersAuth = { 'Authorization': 'Basic ' + btoa(`${twilioSid}:${twilioAuth}`) };
+
+            const listRes = await fetch(`${numbersApiBase}/Bundles?Status=draft&PageSize=50`, {
+                headers: numbersAuth,
+            });
+            const listData = await listRes.json();
+            const drafts = listData.results || [];
+            console.log(`Found ${drafts.length} draft bundles to clean up`);
+
+            let deleted = 0;
+            let failed = 0;
+            for (const draft of drafts) {
+                try {
+                    const delRes = await fetch(`${numbersApiBase}/Bundles/${draft.sid}`, {
+                        method: 'DELETE',
+                        headers: numbersAuth,
+                    });
+                    if (delRes.ok || delRes.status === 404) {
+                        deleted++;
+                        console.log(`Deleted draft bundle ${draft.sid} (${draft.friendly_name})`);
+                    } else {
+                        failed++;
+                    }
+                } catch (err) {
+                    failed++;
+                }
+            }
+
+            return jsonResponse({
+                ok: true,
+                message: `Cleaned up ${deleted} draft bundles${failed > 0 ? ` (${failed} failed)` : ''}.`,
+                deleted,
+                failed,
+                total: drafts.length,
             });
         }
 
