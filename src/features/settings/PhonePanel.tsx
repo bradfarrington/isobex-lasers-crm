@@ -125,7 +125,6 @@ export function PhonePanel() {
         businessName: '',
         firstName: '',
         lastName: '',
-        contactEmail: '',
         phoneCountryCode: '+44',
         phoneNumber: '',
         // Address
@@ -170,6 +169,7 @@ export function PhonePanel() {
     }, []);
 
     const [refreshingStatus, setRefreshingStatus] = useState(false);
+    const [deletingBundle, setDeletingBundle] = useState(false);
 
     const fetchBundleStatus = useCallback(async () => {
         setRefreshingStatus(true);
@@ -197,6 +197,25 @@ export function PhonePanel() {
         }
     };
 
+    const handleDeleteBundle = async () => {
+        const ok = await showConfirm({
+            title: 'Delete Bundle?',
+            message: 'This will permanently delete the rejected bundle and clear it from your account. You can then create a new bundle from scratch.',
+            confirmLabel: 'Delete Bundle',
+        });
+        if (!ok) return;
+        setDeletingBundle(true);
+        try {
+            const result = await phoneApi('deleteBundle');
+            showAlert({ title: 'Bundle Deleted', message: result.message || 'Bundle deleted. You can now create a new one.', variant: 'success' });
+            await fetchBundleStatus();
+        } catch (err: any) {
+            showAlert({ title: 'Delete Failed', message: err.message || 'Failed to delete bundle', variant: 'danger' });
+        } finally {
+            setDeletingBundle(false);
+        }
+    };
+
     const handleCreateBundle = async () => {
         setSettingUpCompliance(true);
         try {
@@ -219,7 +238,6 @@ export function PhonePanel() {
                 businessName: bundleForm.businessName,
                 firstName: bundleForm.firstName,
                 lastName: bundleForm.lastName,
-                contactEmail: bundleForm.contactEmail,
                 phoneNumber: phone,
                 addressStreet: bundleForm.addressStreet,
                 addressStreet2: bundleForm.addressStreet2,
@@ -683,6 +701,18 @@ export function PhonePanel() {
                                 </div>
                             </div>
                         )}
+                        {bundleStatus === 'rejected' && (
+                            <div className="smtp-info-box" style={{ background: 'rgba(239, 68, 68, 0.08)', borderColor: 'rgba(239, 68, 68, 0.3)' }}>
+                                <AlertTriangle size={14} style={{ color: '#ef4444', flexShrink: 0 }} />
+                                <div>
+                                    <strong>Rejected</strong>
+                                    <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--text-secondary)', marginTop: 4 }}>
+                                        Your regulatory bundle was rejected. Delete it and submit a new one with corrected information.
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
 
                         {(bundleStatus === 'none' || bundleStatus === 'loading') && (
                             <div className="smtp-info-box">
@@ -700,6 +730,16 @@ export function PhonePanel() {
                         {bundleStatus === 'approved' && (
                             <button className="btn-primary" onClick={() => setActiveSection('buy')} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                                 <ArrowRight size={16} /> Buy a Number
+                            </button>
+                        )}
+                        {(bundleStatus === 'rejected' || bundleStatus === 'draft') && (
+                            <button
+                                className="btn-outline phone-release-btn"
+                                onClick={handleDeleteBundle}
+                                disabled={deletingBundle}
+                                style={{ display: 'flex', alignItems: 'center', gap: 6 }}
+                            >
+                                {deletingBundle ? <><Loader2 size={14} className="spin" /> Deleting…</> : <><Trash2 size={14} /> Delete & Start Over</>}
                             </button>
                         )}
                     </div>
@@ -1043,11 +1083,7 @@ export function PhonePanel() {
                                     <input className="smtp-input" placeholder="Last Name" value={bundleForm.lastName}
                                         onChange={e => setBundleForm(f => ({ ...f, lastName: e.target.value }))} />
                                 </div>
-                                <div>
-                                    <label className="smtp-label">Contact Email</label>
-                                    <input className="smtp-input" type="email" placeholder="Contact Email" value={bundleForm.contactEmail}
-                                        onChange={e => setBundleForm(f => ({ ...f, contactEmail: e.target.value }))} />
-                                </div>
+
                                 <div>
                                     <label className="smtp-label">Phone Number</label>
                                     <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
@@ -1208,7 +1244,7 @@ export function PhonePanel() {
                                         <ChevronLeft size={14} /> Previous
                                     </button>
                                     <button className="btn-brand" onClick={() => setBundleStep(3)}
-                                        disabled={!bundleForm.firstName || !bundleForm.lastName || !bundleForm.contactEmail}
+                                        disabled={!bundleForm.firstName || !bundleForm.lastName}
                                         style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                                         Next <ChevronRight size={14} />
                                     </button>

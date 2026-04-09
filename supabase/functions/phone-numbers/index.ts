@@ -224,23 +224,22 @@ serve(async (req) => {
             // Use form data from wizard
             const {
                 endUserType, numberType, firstName, lastName,
-                contactEmail, phoneNumber: contactPhone,
+                phoneNumber: contactPhone,
                 // Address fields
                 addressStreet, addressStreet2, addressCity, addressRegion, addressPostalCode,
                 // Document files (base64-encoded)
                 identityDocType, identityFile, identityFileName, identityFileMime,
                 addressDocType, addressProofFile, addressProofFileName, addressProofFileMime,
             } = body;
-            const email = contactEmail || '';
 
-            if (!email) {
-                return jsonResponse({ error: 'Please provide a contact email.' }, 400);
+            // All bundle notifications MUST go to the platform admin email
+            // This keeps Twilio completely invisible to end users
+            if (!twilioNotificationEmail) {
+                console.error('TWILIO_NOTIFICATION_EMAIL env var is not set — cannot create bundle');
+                return jsonResponse({ error: 'Platform notification email is not configured. Please contact support.' }, 500);
             }
-
-            // Use the admin notification email for ALL Twilio communications
-            // This prevents the CRM end user from receiving Twilio-branded emails
-            const bundleEmail = twilioNotificationEmail || email;
-            console.log('Bundle notification email:', bundleEmail === email ? '(using form email - set TWILIO_NOTIFICATION_EMAIL to override)' : '(using admin override)');
+            const bundleEmail = twilioNotificationEmail;
+            console.log('Bundle notification email: using admin override —', bundleEmail);
 
             // Check if we already have a stored bundle
             const { data: existingProfile } = await supabase
@@ -341,16 +340,22 @@ serve(async (req) => {
             console.log('Using identity document type:', identityDocTypeFromReg || '(using frontend value)');
             console.log('Using address proof file type:', addressProofDocTypeFromReg || '(not required)');
 
+            // Build the status callback URL so Twilio posts bundle status changes
+            // to our webhook instead of sending emails
+            const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+            const bundleStatusCallbackUrl = `${supabaseUrl}/functions/v1/bundle-status`;
+
             // Create bundle
             const bundleRes = await fetch(`${numbersApiBase}/Bundles`, {
                 method: 'POST',
                 headers: { ...numbersAuth, 'Content-Type': 'application/x-www-form-urlencoded' },
                 body: new URLSearchParams({
-                    FriendlyName: `CRM UK ${resolvedNumberType.charAt(0).toUpperCase() + resolvedNumberType.slice(1)} Bundle`,
+                    FriendlyName: `Isobex Lasers UK ${resolvedNumberType.charAt(0).toUpperCase() + resolvedNumberType.slice(1)} Bundle`,
                     Email: bundleEmail,
                     RegulationSid: regulationSid,
                     IsoCountry: 'GB',
                     NumberType: resolvedNumberType,
+                    StatusCallback: bundleStatusCallbackUrl,
                 }).toString(),
             });
             const bundleData = await bundleRes.json();
@@ -370,7 +375,6 @@ serve(async (req) => {
                 ? { business_name: businessName || endUserName }
                 : { first_name: firstName || '', last_name: lastName || '' };
             if (contactPhone) endUserAttrs.phone_number = contactPhone;
-            if (email) endUserAttrs.email = email;
 
             const endUserRes = await fetch(`${numbersApiBase}/EndUsers`, {
                 method: 'POST',
@@ -615,16 +619,17 @@ serve(async (req) => {
                     return jsonResponse({ error: 'Could not find UK local number regulations. Please contact support.' }, 500);
                 }
 
-                // Step 2: Create a fresh bundle
+                // Step 2: Create a fresh bundle (use admin email, never client email)
                 const bundleRes = await fetch(`${numbersApiBase}/Bundles`, {
                     method: 'POST',
                     headers: { ...numbersAuth, 'Content-Type': 'application/x-www-form-urlencoded' },
                     body: new URLSearchParams({
-                        FriendlyName: 'CRM UK Local Bundle',
-                        Email: bizProfile.business_email || '',
+                        FriendlyName: 'Isobex Lasers UK Local Bundle',
+                        Email: twilioNotificationEmail || '',
                         RegulationSid: regulationSid,
                         IsoCountry: 'GB',
                         NumberType: 'local',
+                        StatusCallback: `${supabaseUrl}/functions/v1/bundle-status`,
                     }).toString(),
                 });
                 const bundleData = await bundleRes.json();
@@ -1009,6 +1014,82 @@ serve(async (req) => {
             };
 
             return jsonResponse({ usage: usage || [], stats });
+        }
+
+        /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+           DELETE BUNDLE
+           ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+        if (action === 'deleteBundle') {
+            const numbersApiBase = 'https://numbers.twilio.com/v2/RegulatoryCompliance';
+            const numbersAuth = { 'Authorization': 'Basic ' + btoa(`${twilioSid}:${twilioAuth}`) };
+
+            // Get the stored bundle SID
+            const { data: bizProfile } = await supabase
+                .from('business_profile')
+                .select('id, twilio_bundle_sid')
+                .limit(1)
+                .single();
+
+            if (!bizProfile?.twilio_bundle_sid) {
+                return jsonResponse({ error: 'No bundle SID stored in database.' }, 400);
+            }
+
+            const bundleSid = bizProfile.twilio_bundle_sid;
+
+            // Fetch current bundle status — can only delete draft, approved, or rejected
+            const bundleRes = await fetch(
+                `${numbersApiBase}/Bundles/${bundleSid}`,
+                { headers: numbersAuth }
+            );
+
+            if (!bundleRes.ok) {
+                // Bundle may already be deleted
+                console.log('Bundle not found on Twilio — clearing local reference');
+            } else {
+                const bundleData = await bundleRes.json();
+                const status = bundleData.status;
+                console.log(`Bundle ${bundleSid} current status: ${status}`);
+
+                if (status === 'pending-review' || status === 'in-review') {
+                    return jsonResponse({
+                        error: `Cannot delete a bundle that is ${status}. Wait for review to complete first.`
+                    }, 400);
+                }
+
+                // Delete from Twilio
+                const deleteRes = await fetch(`${numbersApiBase}/Bundles/${bundleSid}`, {
+                    method: 'DELETE',
+                    headers: numbersAuth,
+                });
+
+                if (!deleteRes.ok && deleteRes.status !== 404) {
+                    const errData = await deleteRes.json().catch(() => ({}));
+                    console.error('Twilio bundle delete error:', errData);
+                    return jsonResponse({
+                        error: errData.message || 'Failed to delete bundle from Twilio'
+                    }, 400);
+                }
+
+                console.log(`Bundle ${bundleSid} deleted from Twilio`);
+            }
+
+            // Clear the stored bundle SID and cached status from business_profile
+            await supabase
+                .from('business_profile')
+                .update({
+                    twilio_bundle_sid: null,
+                    twilio_bundle_status: null,
+                    twilio_bundle_status_updated_at: null,
+                    twilio_bundle_failure_reason: null,
+                })
+                .eq('id', bizProfile.id);
+
+            console.log('Cleared bundle SID from business_profile');
+
+            return jsonResponse({
+                ok: true,
+                message: `Bundle ${bundleSid} has been deleted. You can now create a new bundle.`,
+            });
         }
 
         return jsonResponse({ error: `Unknown action: ${action}` }, 400);
