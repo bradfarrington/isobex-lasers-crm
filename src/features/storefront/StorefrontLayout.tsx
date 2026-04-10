@@ -41,14 +41,14 @@ function StorefrontShell() {
 
   // Dynamically inject favicon into document head
   useEffect(() => {
-    if (!config?.favicon_url) return;
+    const faviconHref = config?.favicon_url || '/FAVICON.png';
     let link = document.querySelector("link[rel~='icon']") as HTMLLinkElement | null;
     if (!link) {
       link = document.createElement('link');
       link.rel = 'icon';
       document.head.appendChild(link);
     }
-    link.href = config.favicon_url;
+    link.href = faviconHref;
     return () => {
       if (link && link.parentNode) link.parentNode.removeChild(link);
     };
