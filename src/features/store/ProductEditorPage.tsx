@@ -4,6 +4,8 @@ import { PageShell } from '@/components/layout/PageShell';
 import { useData } from '@/context/DataContext';
 import { useAlert } from '@/components/ui/AlertDialog';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
+import { BarcodeLabelPrinter } from './BarcodeLabelPrinter';
+import type { LabelData } from './BarcodeLabelPrinter';
 import * as api from '@/lib/api';
 import type {
   ProductType,
@@ -23,6 +25,7 @@ import {
   GripVertical,
   Check,
   FileText,
+  Printer,
 } from 'lucide-react';
 import './StorePage.css';
 
@@ -84,6 +87,11 @@ export function ProductEditorPage() {
   const [loading, setLoading] = useState(!isNew);
   const [saving, setSaving] = useState(false);
   const [previewBarcode, setPreviewBarcode] = useState<string | null>(null);
+
+  // ─── Label printer state ──────────────────
+  const [labelPrinterOpen, setLabelPrinterOpen] = useState(false);
+  const [labelPrinterMode, setLabelPrinterMode] = useState<'single' | 'bulk'>('single');
+  const [labelPrinterData, setLabelPrinterData] = useState<{ single?: LabelData; bulk?: LabelData[] }>({});
 
   // ─── Load data ──────────────────────────────
   const loadProduct = useCallback(async () => {
@@ -463,41 +471,29 @@ export function ProductEditorPage() {
     }
   };
 
-  const handlePrintBarcode = (itemBarcode: string, itemName?: string) => {
-    if (!itemBarcode) return;
-    const printContent = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>Print Label</title>
-        <style>
-          @page { size: auto; margin: 0; }
-          body { 
-            margin: 0; 
-            padding: 12px;
-            display: flex; 
-            flex-direction: column; 
-            align-items: center; 
-            justify-content: center;
-            font-family: -apple-system, sans-serif;
-            text-align: center;
-          }
-          .barcode { height: 70px; mix-blend-mode: multiply; }
-          .code-text { margin-top: 10px; font-family: monospace; font-size: 16px; letter-spacing: 3px; font-weight: 500; }
-        </style>
-      </head>
-      <body>
-        ${itemName ? `<div style="font-size: 14px; font-weight: 600; margin-bottom: 4px;">${itemName}</div>` : ''}
-        <img class="barcode" src="https://bwipjs-api.metafloor.com/?bcid=code128&text=${encodeURIComponent(itemBarcode)}&scale=3&height=12" onload="window.print()" />
-        <div class="code-text">${itemBarcode}</div>
-      </body>
-      </html>
-    `;
-    const printWindow = window.open('', '_blank', 'width=800,height=600');
-    if (printWindow) {
-      printWindow.document.write(printContent);
-      printWindow.document.close();
+  const openLabelPrinter = (pMode: 'single' | 'bulk', label?: LabelData, labels?: LabelData[]) => {
+    setLabelPrinterMode(pMode);
+    setLabelPrinterData({ single: label, bulk: labels });
+    setLabelPrinterOpen(true);
+  };
+
+  const handlePrintAllLabels = () => {
+    const labels: LabelData[] = [];
+    if (variants.length > 0) {
+      for (const v of variants) {
+        const bc = v.barcode?.trim();
+        if (!bc) continue;
+        labels.push({
+          barcode: bc,
+          productName: name,
+          variantLabel: v.option_values.map((o) => o.value).join(' / '),
+        });
+      }
+    } else if (barcode.trim()) {
+      labels.push({ barcode: barcode.trim(), productName: name });
     }
+    if (labels.length === 0) return;
+    openLabelPrinter('bulk', undefined, labels);
   };
 
   // ─── Delete ───────────────────────────────
@@ -794,6 +790,11 @@ export function ProductEditorPage() {
               <div className="variants-section">
                 <div className="variants-header-row">
                   <h4>Variants ({variants.length})</h4>
+                  {variants.some(v => v.barcode?.trim()) && (
+                    <button type="button" className="btn btn-secondary btn-sm" onClick={handlePrintAllLabels}>
+                      <Printer size={14} /> Print All Labels
+                    </button>
+                  )}
                 </div>
 
                 {/* Multi-select action bar */}
@@ -940,8 +941,8 @@ export function ProductEditorPage() {
                                   <button type="button" className="btn btn-ghost btn-icon-sm" style={{ padding: '2px', color: 'var(--color-danger)' }} onClick={() => updateVariant(vi, 'barcode', '')} title="Clear barcode">
                                     <Trash2 size={15} />
                                   </button>
-                                  <button type="button" className="btn btn-ghost btn-icon-sm" style={{ padding: '2px' }} onClick={() => handlePrintBarcode(v.barcode, `${name} - ${v.option_values.map(o => o.value).join(' ')}`)} title="Print Label">
-                                    🖨️
+                                  <button type="button" className="btn btn-ghost btn-icon-sm" style={{ padding: '2px' }} onClick={() => openLabelPrinter('single', { barcode: v.barcode, productName: name, variantLabel: v.option_values.map(o => o.value).join(' / ') })} title="Print Label">
+                                    <Printer size={15} />
                                   </button>
                                 </div>
                               </div>
@@ -1112,8 +1113,8 @@ export function ProductEditorPage() {
                             {barcode}
                           </div>
                         </div>
-                        <button type="button" className="btn btn-secondary btn-sm" onClick={() => handlePrintBarcode(barcode, name)}>
-                          🖨️ Print Label
+                        <button type="button" className="btn btn-secondary btn-sm" onClick={() => openLabelPrinter('single', { barcode, productName: name })}>
+                          <Printer size={14} /> Print Label
                         </button>
                       </div>
                     )}
@@ -1303,6 +1304,15 @@ export function ProductEditorPage() {
             </div>
           </div>
         )}
+
+        {/* Label Printer Modal */}
+        <BarcodeLabelPrinter
+          open={labelPrinterOpen}
+          onClose={() => setLabelPrinterOpen(false)}
+          mode={labelPrinterMode}
+          singleLabel={labelPrinterData.single}
+          bulkLabels={labelPrinterData.bulk}
+        />
       </div>
     </PageShell>
   );

@@ -2,9 +2,11 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PageShell } from '@/components/layout/PageShell';
 import { StoreTabBar } from './StoreTabBar';
+import { BarcodeLabelPrinter } from './BarcodeLabelPrinter';
+import type { LabelData } from './BarcodeLabelPrinter';
 import * as api from '@/lib/api';
 import type { InventoryItem } from '@/types/database';
-import { Search, Download, BarChart3, AlertTriangle, XCircle, Package, ChevronUp, ChevronDown } from 'lucide-react';
+import { Search, Download, BarChart3, AlertTriangle, XCircle, Package, ChevronUp, ChevronDown, Printer } from 'lucide-react';
 import './StorePage.css';
 
 type FilterTab = 'all' | 'low' | 'out';
@@ -20,6 +22,7 @@ export function InventoryPage() {
   const [sortColumn, setSortColumn] = useState<InventorySortColumn | null>('product');
   const [sortDir, setSortDir] = useState<SortDir>('asc');
   const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
+  const [labelPrinterOpen, setLabelPrinterOpen] = useState(false);
 
   useEffect(() => {
     loadInventory();
@@ -227,7 +230,18 @@ export function InventoryPage() {
     }
   };
 
+  const barcodeLabels = useMemo((): LabelData[] => {
+    return filtered
+      .filter((item) => item.barcode)
+      .map((item) => ({
+        barcode: item.barcode!,
+        productName: item.product_name,
+        variantLabel: item.variant_label || undefined,
+      }));
+  }, [filtered]);
+
   return (
+    <>
     <PageShell
       title="Online Store"
       subtitle="Manage your ecommerce products, categories, and storefront."
@@ -292,6 +306,12 @@ export function InventoryPage() {
           <Download size={16} />
           <span>Export PDF</span>
         </button>
+        {barcodeLabels.length > 0 && (
+          <button className="btn btn-secondary" onClick={() => setLabelPrinterOpen(true)}>
+            <Printer size={16} />
+            <span>Print All Barcodes</span>
+          </button>
+        )}
       </div>
 
       {loading ? (
@@ -405,5 +425,14 @@ export function InventoryPage() {
         </div>
       )}
     </PageShell>
+
+    {/* Label Printer Modal */}
+    <BarcodeLabelPrinter
+      open={labelPrinterOpen}
+      onClose={() => setLabelPrinterOpen(false)}
+      mode="bulk"
+      bulkLabels={barcodeLabels}
+    />
+    </>
   );
 }
