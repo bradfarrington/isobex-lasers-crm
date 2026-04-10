@@ -52,7 +52,7 @@ export function OrderNotifications() {
   const [panelOpen, setPanelOpen] = useState(false);
   const [toast, setToast] = useState<OrderNotification | null>(null);
   const panelRef = useRef<HTMLDivElement>(null);
-  const toastTimerRef = useRef<ReturnType<typeof setTimeout>>();
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const unreadCount = notifications.filter(n => !n.read).length;
 

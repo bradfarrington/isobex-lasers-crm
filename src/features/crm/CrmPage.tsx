@@ -18,11 +18,12 @@ import {
   ChevronUp,
   ChevronDown,
   Tags,
+  Filter,
 } from 'lucide-react';
 import './CrmPage.css';
 import { useIsMobile } from '@/hooks/useIsMobile';
 
-type SortColumn = 'name' | 'email' | 'phone' | 'type' | 'company' | 'source' | 'status';
+type SortColumn = 'name' | 'email' | 'phone' | 'type' | 'company' | 'source' | 'status' | 'tags';
 type SortDir = 'asc' | 'desc';
 
 const contactTypes: { label: string; value: ContactType | 'All' }[] = [
@@ -68,13 +69,70 @@ export function CrmPage() {
   const [sortColumn, setSortColumn] = useState<SortColumn | null>(() => getInitialState('crmSortCol', 'name'));
   const [sortDir, setSortDir] = useState<SortDir>(() => getInitialState('crmSortDir', 'asc'));
 
+  const [filterTags, setFilterTags] = useState<Set<string>>(() => new Set(getInitialState('crmFilterTags', [])));
+  const [filterCompanies, setFilterCompanies] = useState<Set<string>>(() => new Set(getInitialState('crmFilterCompanies', [])));
+  const [filterTypes, setFilterTypes] = useState<Set<string>>(() => new Set(getInitialState('crmFilterTypes', [])));
+  const [filterSources, setFilterSources] = useState<Set<string>>(() => new Set(getInitialState('crmFilterSources', [])));
+  const [filterStatuses, setFilterStatuses] = useState<Set<string>>(() => new Set(getInitialState('crmFilterStatuses', [])));
+
+  const [filterMenuOpen, setFilterMenuOpen] = useState(false);
+  const filterMenuRef = useRef<HTMLDivElement>(null);
+
+  const [filterExpanded, setFilterExpanded] = useState<Record<string, boolean>>({
+    tags: false,
+    type: false,
+    company: false,
+    source: false,
+    status: false
+  });
+
+  const toggleFilterSection = (section: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setFilterExpanded(prev => ({ ...prev, [section]: !prev[section] }));
+  };
+
   // Save state on change
   useEffect(() => {
     sessionStorage.setItem('crmSearch', JSON.stringify(search));
     sessionStorage.setItem('crmActiveTab', JSON.stringify(activeTab));
     sessionStorage.setItem('crmSortCol', JSON.stringify(sortColumn));
     sessionStorage.setItem('crmSortDir', JSON.stringify(sortDir));
-  }, [search, activeTab, sortColumn, sortDir]);
+    sessionStorage.setItem('crmFilterTags', JSON.stringify(Array.from(filterTags)));
+    sessionStorage.setItem('crmFilterCompanies', JSON.stringify(Array.from(filterCompanies)));
+    sessionStorage.setItem('crmFilterTypes', JSON.stringify(Array.from(filterTypes)));
+    sessionStorage.setItem('crmFilterSources', JSON.stringify(Array.from(filterSources)));
+    sessionStorage.setItem('crmFilterStatuses', JSON.stringify(Array.from(filterStatuses)));
+  }, [search, activeTab, sortColumn, sortDir, filterTags, filterCompanies, filterTypes, filterSources, filterStatuses]);
+
+  useEffect(() => {
+    if (!filterMenuOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (filterMenuRef.current && !filterMenuRef.current.contains(e.target as Node)) {
+        setFilterMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [filterMenuOpen]);
+
+  const toggleFilter = (setFn: React.Dispatch<React.SetStateAction<Set<string>>>, id: string) => {
+    setFn(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const clearFilters = () => {
+    setFilterTags(new Set());
+    setFilterCompanies(new Set());
+    setFilterTypes(new Set());
+    setFilterSources(new Set());
+    setFilterStatuses(new Set());
+  };
+
+  const activeFilterCount = filterTags.size + filterCompanies.size + filterTypes.size + filterSources.size + filterStatuses.size;
 
   // Scroll Restoration
   const hasRestoredRef = useRef(false);
@@ -141,6 +199,30 @@ export function CrmPage() {
       );
     }
 
+    // Multi-select filters
+    if (filterTypes.size > 0) {
+      list = list.filter(c => filterTypes.has(c.contact_type));
+    }
+    if (filterCompanies.size > 0) {
+      list = list.filter(c => c.company_id && filterCompanies.has(c.company_id));
+    }
+    if (filterSources.size > 0) {
+      list = list.filter(c => c.source && filterSources.has(c.source));
+    }
+    if (filterStatuses.size > 0) {
+      list = list.filter(c => c.status && filterStatuses.has(c.status));
+    }
+    if (filterTags.size > 0) {
+      list = list.filter(c => {
+        if (!c.tags) return false;
+        const contactTagIds = new Set(c.tags.map(t => t.id));
+        for (const tagId of filterTags) {
+          if (!contactTagIds.has(tagId)) return false;
+        }
+        return true;
+      });
+    }
+
     // Sort
     if (sortColumn) {
       const dir = sortDir === 'asc' ? 1 : -1;
@@ -175,6 +257,10 @@ export function CrmPage() {
           case 'status':
             aVal = (a.status || '').toLowerCase();
             bVal = (b.status || '').toLowerCase();
+            break;
+          case 'tags':
+            aVal = (a.tags || []).map(t => t.name).sort().join(', ').toLowerCase();
+            bVal = (b.tags || []).map(t => t.name).sort().join(', ').toLowerCase();
             break;
         }
         if (aVal < bVal) return -1 * dir;
@@ -352,6 +438,151 @@ export function CrmPage() {
               onChange={(e) => setSearch(e.target.value)}
             />
           </div>
+          
+          <div className="crm-filter-wrap" ref={filterMenuRef}>
+            <button 
+              className={`btn-secondary ${activeFilterCount > 0 ? 'active' : ''}`}
+              onClick={() => setFilterMenuOpen(!filterMenuOpen)}
+            >
+              <Filter size={16} />
+              <span className="btn-text-mobile-hide">Filter</span>
+              {activeFilterCount > 0 && <span className="crm-filter-badge">{activeFilterCount}</span>}
+            </button>
+            
+            {filterMenuOpen && (
+              <div className="crm-filter-menu">
+                <div className="crm-filter-menu-header">
+                  <h3>Filters</h3>
+                  {activeFilterCount > 0 && (
+                    <button className="crm-filter-clear" onClick={clearFilters}>
+                      Clear all
+                    </button>
+                  )}
+                </div>
+                
+                <div className="crm-filter-menu-body">
+                  {/* Tags */}
+                  {state.tags.length > 0 && (
+                    <div className="crm-filter-section">
+                      <button className="crm-filter-section-btn" onClick={(e) => toggleFilterSection('tags', e)}>
+                        <h4>Tags {filterTags.size > 0 && `(${filterTags.size})`}</h4>
+                        {filterExpanded.tags ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                      </button>
+                      {filterExpanded.tags && (
+                        <div className="crm-filter-options">
+                          {state.tags.map(tag => (
+                            <label key={tag.id} className="crm-filter-option">
+                              <input 
+                                type="checkbox" 
+                                checked={filterTags.has(tag.id)} 
+                                onChange={() => toggleFilter(setFilterTags, tag.id)} 
+                              />
+                              <span>{tag.name}</span>
+                            </label>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Contact Type */}
+                  <div className="crm-filter-section">
+                    <button className="crm-filter-section-btn" onClick={(e) => toggleFilterSection('type', e)}>
+                      <h4>Type {filterTypes.size > 0 && `(${filterTypes.size})`}</h4>
+                      {filterExpanded.type ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                    </button>
+                    {filterExpanded.type && (
+                      <div className="crm-filter-options">
+                        {['Customer', 'Lead'].map(type => (
+                          <label key={type} className="crm-filter-option">
+                            <input 
+                              type="checkbox" 
+                              checked={filterTypes.has(type)} 
+                              onChange={() => toggleFilter(setFilterTypes, type)} 
+                            />
+                            <span>{type}</span>
+                          </label>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Company */}
+                  {state.companies.length > 0 && (
+                    <div className="crm-filter-section">
+                      <button className="crm-filter-section-btn" onClick={(e) => toggleFilterSection('company', e)}>
+                        <h4>Company {filterCompanies.size > 0 && `(${filterCompanies.size})`}</h4>
+                        {filterExpanded.company ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                      </button>
+                      {filterExpanded.company && (
+                        <div className="crm-filter-options">
+                          {state.companies.map(company => (
+                            <label key={company.id} className="crm-filter-option">
+                              <input 
+                                type="checkbox" 
+                                checked={filterCompanies.has(company.id)} 
+                                onChange={() => toggleFilter(setFilterCompanies, company.id)} 
+                              />
+                              <span>{company.name}</span>
+                            </label>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Lead Sources */}
+                  {state.leadSources.length > 0 && (
+                    <div className="crm-filter-section">
+                      <button className="crm-filter-section-btn" onClick={(e) => toggleFilterSection('source', e)}>
+                        <h4>Lead Source {filterSources.size > 0 && `(${filterSources.size})`}</h4>
+                        {filterExpanded.source ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                      </button>
+                      {filterExpanded.source && (
+                        <div className="crm-filter-options">
+                          {state.leadSources.map(source => (
+                            <label key={source.id} className="crm-filter-option">
+                              <input 
+                                type="checkbox" 
+                                checked={filterSources.has(source.name)} 
+                                onChange={() => toggleFilter(setFilterSources, source.name)} 
+                              />
+                              <span>{source.name}</span>
+                            </label>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Lead Statuses */}
+                  {state.leadStatuses.length > 0 && (
+                    <div className="crm-filter-section">
+                      <button className="crm-filter-section-btn" onClick={(e) => toggleFilterSection('status', e)}>
+                        <h4>Lead Status {filterStatuses.size > 0 && `(${filterStatuses.size})`}</h4>
+                        {filterExpanded.status ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                      </button>
+                      {filterExpanded.status && (
+                        <div className="crm-filter-options">
+                          {state.leadStatuses.map(status => (
+                            <label key={status.id} className="crm-filter-option">
+                              <input 
+                                type="checkbox" 
+                                checked={filterStatuses.has(status.name)} 
+                                onChange={() => toggleFilter(setFilterStatuses, status.name)} 
+                              />
+                              <span>{status.name}</span>
+                            </label>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+
           <button className="btn-primary" onClick={() => openNewModal(activeTab === 'Lead' ? 'Lead' : 'Customer')}>
             <UserPlus size={16} />
             <span className="btn-text-mobile-hide">
@@ -407,6 +638,7 @@ export function CrmPage() {
                 <SortHeader col="name" label="Name" />
                 <SortHeader col="email" label="Email" />
                 <SortHeader col="phone" label="Phone" />
+                <SortHeader col="tags" label="Tags" />
                 {activeTab === 'All' && <SortHeader col="type" label="Type" />}
                 {activeTab !== 'Lead' && <SortHeader col="company" label="Company" />}
                 {activeTab === 'Lead' && <SortHeader col="source" label="Source" />}
@@ -447,7 +679,11 @@ export function CrmPage() {
                         {contact.message}
                       </div>
                     )}
-                    {(contact.tags?.length ?? 0) > 0 && (
+                  </td>
+                  <td data-label="Email" className="mobile-secondary-detail">{contact.email || '—'}</td>
+                  <td data-label="Phone" className="mobile-secondary-detail">{contact.phone || '—'}</td>
+                  <td data-label="Tags" className="mobile-secondary-detail">
+                    {(contact.tags?.length ?? 0) > 0 ? (
                       <div className="contact-row-tags">
                         {contact.tags!.slice(0, 3).map(t => (
                           <span key={t.id} className="tag-pill">{t.name}</span>
@@ -456,10 +692,10 @@ export function CrmPage() {
                           <span className="tag-pill" style={{ opacity: 0.6 }}>+{contact.tags!.length - 3}</span>
                         )}
                       </div>
+                    ) : (
+                      '—'
                     )}
                   </td>
-                  <td data-label="Email" className="mobile-secondary-detail">{contact.email || '—'}</td>
-                  <td data-label="Phone" className="mobile-secondary-detail">{contact.phone || '—'}</td>
                   {activeTab === 'All' && (
                     <td data-label="Type" className="mobile-secondary-detail">
                       <span className={`status-badge ${contact.contact_type?.toLowerCase()}`}>
