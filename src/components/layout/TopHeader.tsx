@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase';
 import { useAlert } from '@/components/ui/AlertDialog';
 import { useAuth } from '@/context/AuthContext';
 import { GlobalSearch } from './GlobalSearch';
+import { OrderNotifications } from './OrderNotifications';
 import './TopHeader.css';
 
 interface TopHeaderProps {
@@ -85,11 +86,12 @@ export function TopHeader({ onToggleSidebar, sidebarOpen, onHelpClick, showHelpB
               className="top-header-icon-btn"
               onClick={onHelpClick}
               title="Page Guide"
-              style={{ marginRight: 'var(--space-2)' }}
             >
               <HelpCircle size={18} />
             </button>
           )}
+
+          <OrderNotifications />
 
           <button
             className="top-header-icon-btn"

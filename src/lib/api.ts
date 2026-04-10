@@ -2211,6 +2211,21 @@ const SYSTEM_TEMPLATES = [
     ],
     settings: { width: 600, bodyBg: '#f4f4f4', contentBg: '#ffffff', fontFamily: "'Inter', sans-serif", textColor: '#1f2937', linkColor: '#3b82f6', logoUrl: '', footerText: '© {{business_name}}', subject: 'How did we do? — {{business_name}}', previewText: 'We would love to hear your feedback' },
   },
+  {
+    system_key: 'new_order_admin',
+    name: 'New Order (Admin)',
+    subject: '🛒 New Order #{{order_number}} — £{{order_total_raw}}',
+    blocks: [
+      { id: 'sys-noa-1', type: 'heading', data: { content: '<p style="text-align: center">New Order Received 🛒</p>', level: 'h2', color: '#16a34a', bgColor: '', fontFamily: '', padding: { top: 8, right: 0, bottom: 0, left: 0 } } },
+      { id: 'sys-noa-2', type: 'text', data: { content: '<p>A new order has been placed on your store.</p>', color: '', bgColor: '', fontFamily: '', padding: { top: 8, right: 20, bottom: 0, left: 20 } } },
+      { id: 'sys-noa-3', type: 'text', data: { content: '<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:16px 20px;margin:8px 0;"><div style="display:table;width:100%;"><div style="display:table-cell;vertical-align:middle;"><div style="color:#6b7280;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:4px;">Customer</div><div style="color:#111827;font-size:15px;font-weight:600;">{{customer_name}}</div><div style="color:#6b7280;font-size:13px;margin-top:2px;">{{customer_email}}</div></div><div style="display:table-cell;vertical-align:middle;text-align:right;"><div style="color:#6b7280;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:4px;">Order</div><div style="color:#111827;font-size:15px;font-weight:600;">#{{order_number}}</div></div></div></div>', color: '', bgColor: '', fontFamily: '', padding: { top: 4, right: 20, bottom: 0, left: 20 } } },
+      { id: 'sys-noa-4', type: 'divider', data: { style: 'solid', color: '#e5e7eb', thickness: '1', width: '100', marginTop: '8', marginBottom: '4', padding: { top: 0, right: 0, bottom: 0, left: 0 } } },
+      { id: 'sys-noa-details', type: 'order_details', data: { showImages: true, showBreakdown: true, padding: { top: 0, right: 0, bottom: 0, left: 0 } } },
+      { id: 'sys-noa-5', type: 'divider', data: { style: 'solid', color: '#e5e7eb', thickness: '1', width: '100', marginTop: '4', marginBottom: '12', padding: { top: 0, right: 0, bottom: 0, left: 0 } } },
+      { id: 'sys-noa-6', type: 'text', data: { content: '<p style="font-size: 13px; color: #888; text-align: center;">Log in to your CRM to manage this order.</p>', color: '', bgColor: '', fontFamily: '', padding: { top: 0, right: 20, bottom: 8, left: 20 } } },
+    ],
+    settings: { width: 600, bodyBg: '#f4f4f4', contentBg: '#ffffff', fontFamily: "'Inter', sans-serif", textColor: '#1f2937', linkColor: '#16a34a', logoUrl: '', footerText: '© {{business_name}}', subject: '🛒 New Order #{{order_number}} — £{{order_total_raw}}', previewText: 'A new order has been placed on your store' },
+  },
 ];
 
 async function seedSystemEmailTemplates(): Promise<void> {

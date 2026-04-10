@@ -258,13 +258,20 @@ function StorefrontCheckoutInner() {
 
       // In test mode, trigger confirmation email + SMS directly (normally Stripe webhook does this)
       if (isTestMode) {
-        supabase.functions.invoke('send-email', {
-          body: { action: 'send_order_confirmation', orderId: order.id },
-        }).catch(err => console.error('Test order confirmation email failed:', err));
-
-        supabase.functions.invoke('send-sms', {
-          body: { action: 'order_confirmation', orderId: order.id },
-        }).catch(err => console.error('Test order confirmation SMS failed:', err));
+        // Run all notifications concurrently but wait for them to dispatch before navigating
+        await Promise.allSettled([
+          supabase.functions.invoke('send-email', {
+            body: { action: 'send_order_confirmation', orderId: order.id },
+          }).catch(err => console.error('Test order confirmation email failed:', err)),
+          
+          supabase.functions.invoke('send-email', {
+            body: { action: 'send_admin_order_notification', orderId: order.id },
+          }).catch(err => console.error('Test admin notification email failed:', err)),
+          
+          supabase.functions.invoke('send-sms', {
+            body: { action: 'order_confirmation', orderId: order.id },
+          }).catch(err => console.error('Test order confirmation SMS failed:', err))
+        ]);
       }
 
       clearCart();

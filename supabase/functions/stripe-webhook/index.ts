@@ -296,6 +296,9 @@ Deno.serve(async (req: Request) => {
             // Send SMS
             await triggerSms(supabase, 'order_confirmation', orderId);
 
+            // Notify admin about the new order (non-blocking)
+            triggerEmail(supabase, 'send_admin_order_notification', orderId);
+
             return jsonRes({ received: true });
         }
 
