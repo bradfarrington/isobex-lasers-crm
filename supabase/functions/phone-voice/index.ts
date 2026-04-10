@@ -182,6 +182,32 @@ serve(async (req) => {
                 twilio_call_sid: callSid,
             });
 
+        // Automatically create a CRM contact if one doesn't exist
+        if (fromNumber) {
+            try {
+                const { data: existingContact } = await supabase
+                    .from('contacts')
+                    .select('id')
+                    .eq('phone', fromNumber)
+                    .maybeSingle();
+
+                if (!existingContact) {
+                    await supabase
+                        .from('contacts')
+                        .insert({
+                            first_name: 'New Caller',
+                            last_name: fromNumber, // Used phone as placeholder for last name
+                            phone: fromNumber,
+                            contact_type: 'Lead',
+                            source: 'Phone Inbound',
+                            notes: `Automatically created from incoming call to ${calledNumber}`
+                        });
+                }
+            } catch (createContactErr) {
+                console.error('Error auto-creating contact:', createContactErr);
+            }
+        }
+
         // Build TwiML response based on phone number config
         const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
         const statusCallback = `${supabaseUrl}/functions/v1/phone-voice?type=status`;
