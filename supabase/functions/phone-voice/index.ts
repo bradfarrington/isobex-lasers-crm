@@ -193,6 +193,12 @@ serve(async (req) => {
         if (phoneRecord.forward_enabled && phoneRecord.forward_to) {
             const forwardTo = phoneRecord.forward_to;
 
+            // Caller ID attribute
+            let callerIdAttr = '';
+            if (phoneRecord.pass_caller_id === false) {
+                callerIdAttr = ` callerId="${calledNumber}"`;
+            }
+
             // Option A: forward with voicemail fallback
             if (phoneRecord.voicemail_enabled) {
                 const greetingUrl = phoneRecord.voicemail_greeting_url || '';
@@ -202,7 +208,7 @@ serve(async (req) => {
 
                 return twimlResponse(`<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-    <Dial timeout="25" action="${statusCallback}"${recordAttr}>
+    <Dial timeout="25" action="${statusCallback}"${recordAttr}${callerIdAttr}>
         <Number statusCallback="${statusCallback}" statusCallbackEvent="initiated ringing answered completed">${forwardTo}</Number>
     </Dial>
     ${greetingTwiml}
@@ -214,7 +220,7 @@ serve(async (req) => {
             // Option B: simple forward, no voicemail
             return twimlResponse(`<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-    <Dial timeout="30"${recordAttr}>
+    <Dial timeout="30"${recordAttr}${callerIdAttr}>
         <Number statusCallback="${statusCallback}" statusCallbackEvent="initiated ringing answered completed">${forwardTo}</Number>
     </Dial>
     <Say voice="alice">Sorry, no one is available to take your call. Please try again later.</Say>

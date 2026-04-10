@@ -224,6 +224,34 @@ Deno.serve(async (req: Request) => {
                     status: 'completed',
                 });
             }
+
+            // Handle Phone Number Subscriptions
+            const phoneNumber = session.metadata?.phone_number;
+            if (phoneNumber) {
+                console.log(`Checkout completed for phone number ${phoneNumber}, starting provision...`);
+                // Invoke phone-numbers function to actually acquire the Twilio number
+                const { data, error } = await supabase.functions.invoke('phone-numbers', {
+                    body: { 
+                        action: 'provisionNumber',
+                        phoneNumber: session.metadata.phone_number,
+                        friendlyName: session.metadata.friendly_name,
+                        forwardTo: session.metadata.forward_to,
+                        addressSid: session.metadata.address_sid,
+                        bundleSid: session.metadata.bundle_sid,
+                        subscriptionId: session.subscription,
+                        priceId: session.metadata.price_id,
+                    }
+                });
+
+                if (error || (data && data.error)) {
+                    console.error('Failed to provision phone number in webhook:', error || data.error);
+                    // Throw error so Stripe retries the webhook if it was a temporary Twilio failure
+                    throw new Error(`Failed to provision number ${phoneNumber}: ${error?.message || data?.error}`);
+                }
+                
+                console.log(`Successfully provisioned phone number ${phoneNumber}`);
+            }
+
             return jsonRes({ received: true });
         }
 

@@ -1050,6 +1050,7 @@ export interface PhoneNumber {
   status: PhoneNumberStatus;
   forward_to: string | null;
   forward_enabled: boolean;
+  pass_caller_id: boolean;
   voicemail_enabled: boolean;
   voicemail_greeting_url: string | null;
   recording_enabled: boolean;

@@ -14,7 +14,7 @@ function jsonResponse(data: unknown, status = 200) {
     });
 }
 
-const MONTHLY_COST_PENCE = 300; // £3.00/month per number
+const MONTHLY_COST_PENCE = 500; // £5.00/month per number
 
 serve(async (req) => {
     if (req.method === 'OPTIONS') {
@@ -72,7 +72,7 @@ serve(async (req) => {
                 isoCountry: n.iso_country,
                 capabilities: {
                     voice: n.capabilities?.voice ?? true,
-                    sms: n.capabilities?.sms ?? true,
+                    sms: type === 'Local' || type === 'local' ? false : (n.capabilities?.sms ?? false),
                     mms: n.capabilities?.mms ?? false,
                 },
                 addressRequirements: n.address_requirements || 'none',
@@ -772,32 +772,10 @@ serve(async (req) => {
                 }
             }
 
-            // ── 1. Provision number in Twilio ──
-            const provisionBody = new URLSearchParams({
-                PhoneNumber: phoneNumber,
-                FriendlyName: friendlyName || phoneNumber,
-                VoiceUrl: voiceUrl,
-                VoiceMethod: 'POST',
-                StatusCallback: statusCallbackUrl,
-                StatusCallbackMethod: 'POST',
-                AddressSid: addressSid,
-                BundleSid: bundle.sid,
-            });
-
-            const twilioRes = await fetch(`${twilioBase}/IncomingPhoneNumbers.json`, {
-                method: 'POST',
-                headers: twilioHeaders,
-                body: provisionBody.toString(),
-            });
-            const twilioData = await twilioRes.json();
-
-            if (!twilioRes.ok) {
-                console.error('Twilio provision error:', twilioData);
-                return jsonResponse({ error: twilioData.message || 'Failed to provision number' }, 400);
-            }
-
-            // 2. Create Stripe subscription
-            // First create a product + price
+            // ── 1. Create Stripe Checkout Session ──
+            const { successUrl, cancelUrl } = body;
+            
+            // First create a product + price (or use existing if we wanted to, but creating is fine)
             const productBody = new URLSearchParams({
                 'name': `Phone Number: ${phoneNumber}`,
                 'metadata[phone_number]': phoneNumber,
@@ -828,7 +806,6 @@ serve(async (req) => {
             });
             const price = await priceRes.json();
 
-            // Create or find a customer
             // Look for existing customer in business profile
             const { data: profile } = await supabase
                 .from('business_profile')
@@ -864,28 +841,102 @@ serve(async (req) => {
                 }
             }
 
-            // Create subscription (first month paid immediately)
-            const subBody = new URLSearchParams({
+            // Create Checkout Session
+            const checkoutBody = new URLSearchParams({
+                'mode': 'subscription',
                 'customer': customerId!,
-                'items[0][price]': price.id,
-                'payment_behavior': 'default_incomplete',
+                'payment_method_types[0]': 'card',
+                'line_items[0][price]': price.id,
+                'line_items[0][quantity]': '1',
+                // metadata for the session
                 'metadata[phone_number]': phoneNumber,
-                'metadata[twilio_sid]': twilioData.sid,
+                'metadata[friendly_name]': friendlyName || '',
+                'metadata[forward_to]': forwardTo || '',
+                'metadata[address_sid]': addressSid,
+                'metadata[bundle_sid]': bundle.sid,
+                'metadata[price_id]': price.id,
+                // metadata for the resulting subscription
+                'subscription_data[metadata][phone_number]': phoneNumber,
+                'subscription_data[metadata][twilio_sid]': 'pending',
+                'success_url': successUrl ? `${successUrl}&phone_purchase=success` : 'https://example.com/success',
+                'cancel_url': cancelUrl || 'https://example.com/cancel',
             });
-            const subRes = await fetch('https://api.stripe.com/v1/subscriptions', {
+
+            const stripeRes = await fetch('https://api.stripe.com/v1/checkout/sessions', {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${STRIPE_KEY}`,
                     'Content-Type': 'application/x-www-form-urlencoded',
                 },
-                body: subBody.toString(),
+                body: checkoutBody.toString(),
             });
-            const subscription = await subRes.json();
 
-            // 3. Save to database
+            const stripeData = await stripeRes.json();
+
+            if (!stripeRes.ok) {
+                console.error('Stripe checkout error:', stripeData);
+                return jsonResponse({ error: stripeData.error?.message || 'Failed to create checkout session' }, 400);
+            }
+
+            return jsonResponse({ ok: true, checkoutUrl: stripeData.url });
+        }
+
+        /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+           PROVISION NUMBER (WEBHOOK ONLY)
+           ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+        if (action === 'provisionNumber') {
+            const { phoneNumber, friendlyName, forwardTo, addressSid, bundleSid, subscriptionId, priceId } = body;
+            
+            if (!phoneNumber || !bundleSid || !addressSid) {
+                return jsonResponse({ error: 'Missing required parameters' }, 400);
+            }
+
+            const supabaseUrl = Deno.env.get('SUPABASE_URL');
+            const voiceUrl = `${supabaseUrl}/functions/v1/phone-voice`;
+            const statusCallbackUrl = `${supabaseUrl}/functions/v1/phone-voice?type=status`;
+
+            // Provision number in Twilio
+            const provisionBody = new URLSearchParams({
+                PhoneNumber: phoneNumber,
+                FriendlyName: friendlyName || phoneNumber,
+                VoiceUrl: voiceUrl,
+                VoiceMethod: 'POST',
+                StatusCallback: statusCallbackUrl,
+                StatusCallbackMethod: 'POST',
+                AddressSid: addressSid,
+                BundleSid: bundleSid,
+            });
+
+            const twilioRes = await fetch(`${twilioBase}/IncomingPhoneNumbers.json`, {
+                method: 'POST',
+                headers: twilioHeaders,
+                body: provisionBody.toString(),
+            });
+            const twilioData = await twilioRes.json();
+
+            if (!twilioRes.ok) {
+                console.error('Twilio provision error:', twilioData);
+                return jsonResponse({ error: twilioData.message || 'Failed to provision number' }, 400);
+            }
+
+            // Update subscription with twilio SID
+            if (subscriptionId) {
+                const subUpdateBody = new URLSearchParams({
+                    'metadata[twilio_sid]': twilioData.sid,
+                });
+                await fetch(`https://api.stripe.com/v1/subscriptions/${subscriptionId}`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${STRIPE_KEY}`,
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: subUpdateBody.toString()
+                }).catch(err => console.error('Failed to update subscription metadata:', err));
+            }
+
             const capabilities = {
                 voice: twilioData.capabilities?.voice ?? true,
-                sms: twilioData.capabilities?.sms ?? true,
+                sms: false,  // Forcing false for local numbers to avoid confusion (Twilio UK local numbers often don't support true SMS)
                 mms: twilioData.capabilities?.mms ?? false,
             };
 
@@ -901,11 +952,9 @@ serve(async (req) => {
                     forward_to: forwardTo || null,
                     forward_enabled: !!forwardTo,
                     monthly_cost_pence: MONTHLY_COST_PENCE,
-                    stripe_subscription_id: subscription.id || null,
-                    stripe_price_id: price.id || null,
-                    next_billing_date: subscription.current_period_end
-                        ? new Date(subscription.current_period_end * 1000).toISOString()
-                        : null,
+                    stripe_subscription_id: subscriptionId || null,
+                    stripe_price_id: priceId || null,
+                    next_billing_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
                 })
                 .select()
                 .single();
@@ -922,7 +971,7 @@ serve(async (req) => {
            UPDATE NUMBER SETTINGS
            ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
         if (action === 'updateNumber') {
-            const { numberId, forwardTo, forwardEnabled, friendlyName, voicemailEnabled, recordingEnabled } = body;
+            const { numberId, forwardTo, forwardEnabled, passCallerId, friendlyName, voicemailEnabled, recordingEnabled } = body;
             if (!numberId) return jsonResponse({ error: 'numberId required' }, 400);
 
             // Get current record
@@ -938,6 +987,7 @@ serve(async (req) => {
             const updates: Record<string, any> = { updated_at: new Date().toISOString() };
             if (forwardTo !== undefined) updates.forward_to = forwardTo || null;
             if (forwardEnabled !== undefined) updates.forward_enabled = forwardEnabled;
+            if (passCallerId !== undefined) updates.pass_caller_id = passCallerId;
             if (friendlyName !== undefined) updates.friendly_name = friendlyName;
             if (voicemailEnabled !== undefined) updates.voicemail_enabled = voicemailEnabled;
             if (recordingEnabled !== undefined) updates.recording_enabled = recordingEnabled;
@@ -1068,11 +1118,11 @@ serve(async (req) => {
             const { data: allLogs } = await statsQuery;
             const stats = {
                 totalCalls: allLogs?.length || 0,
-                totalMinutes: Math.round((allLogs?.reduce((acc, l) => acc + (l.duration_seconds || 0), 0) || 0) / 60),
-                inboundCalls: allLogs?.filter(l => l.direction === 'inbound').length || 0,
-                outboundCalls: allLogs?.filter(l => l.direction === 'outbound').length || 0,
-                completedCalls: allLogs?.filter(l => l.status === 'completed').length || 0,
-                missedCalls: allLogs?.filter(l => l.status === 'no-answer' || l.status === 'busy').length || 0,
+                totalMinutes: Math.round((allLogs?.reduce((acc: number, l: any) => acc + (l.duration_seconds || 0), 0) || 0) / 60),
+                inboundCalls: allLogs?.filter((l: any) => l.direction === 'inbound').length || 0,
+                outboundCalls: allLogs?.filter((l: any) => l.direction === 'outbound').length || 0,
+                completedCalls: allLogs?.filter((l: any) => l.status === 'completed').length || 0,
+                missedCalls: allLogs?.filter((l: any) => l.status === 'no-answer' || l.status === 'busy').length || 0,
             };
 
             return jsonResponse({ usage: usage || [], stats });

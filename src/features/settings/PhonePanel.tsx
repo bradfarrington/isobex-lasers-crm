@@ -96,7 +96,7 @@ export function PhonePanel() {
     const [searchQuery, setSearchQuery] = useState('');
     const [searching, setSearching] = useState(false);
     const [searchResults, setSearchResults] = useState<TwilioAvailableNumber[]>([]);
-    const [monthlyCost, setMonthlyCost] = useState(300);
+    const [monthlyCost, setMonthlyCost] = useState(500);
 
     // Purchase state
     const [purchasing, setPurchasing] = useState<string | null>(null);
@@ -105,7 +105,7 @@ export function PhonePanel() {
 
     // Editing state
     const [editingId, setEditingId] = useState<string | null>(null);
-    const [editForm, setEditForm] = useState({ forward_to: '', forward_enabled: false, friendly_name: '', voicemail_enabled: false, recording_enabled: false });
+    const [editForm, setEditForm] = useState({ forward_to: '', forward_enabled: false, friendly_name: '', voicemail_enabled: false, recording_enabled: false, pass_caller_id: true });
     const [savingEdit, setSavingEdit] = useState(false);
 
     // Release state
@@ -280,7 +280,15 @@ export function PhonePanel() {
     useEffect(() => {
         Promise.all([fetchNumbers(), fetchCallLogs(), fetchUsage(), fetchBundleStatus()])
             .finally(() => setLoading(false));
-    }, [fetchNumbers, fetchCallLogs, fetchUsage, fetchBundleStatus]);
+
+        // Check if returning from Stripe purchase
+        const params = new URLSearchParams(window.location.search);
+        if (params.get('phone_purchase') === 'success') {
+            showAlert({ title: 'Number Purchased!', message: 'Your phone number has been successfully purchased and provisioned.', variant: 'success' });
+            // Clean up URL
+            window.history.replaceState({}, '', window.location.pathname + '?tab=phone');
+        }
+    }, [fetchNumbers, fetchCallLogs, fetchUsage, fetchBundleStatus, showAlert]);
 
     /* ── Search ── */
     const handleSearch = async () => {
@@ -300,7 +308,7 @@ export function PhonePanel() {
             const payload: any = { contains: digits };
             const data = await phoneApi('searchNumbers', payload);
             setSearchResults(data.numbers || []);
-            setMonthlyCost(data.monthlyCostPence || 300);
+            setMonthlyCost(data.monthlyCostPence || 500);
             if ((data.numbers || []).length === 0) {
                 showAlert({ title: 'No Results', message: 'No available numbers found for that search. Try a different area code.', variant: 'info' });
             }
@@ -319,10 +327,16 @@ export function PhonePanel() {
                 phoneNumber,
                 friendlyName: purchaseLabel || undefined,
                 forwardTo: purchaseForward.trim() || undefined,
+                successUrl: `${window.location.origin}/settings?tab=phone`,
+                cancelUrl: `${window.location.origin}/settings?tab=phone`,
             });
             // Check for pending response (regulatory bundle under review)
             if (result.pending) {
                 showAlert({ title: 'Purchase Pending', message: result.message || 'Your regulatory compliance bundle is under review. You will be able to purchase numbers once approved.', variant: 'warning' });
+                return;
+            }
+            if (result.checkoutUrl) {
+                window.location.href = result.checkoutUrl;
                 return;
             }
             showAlert({ title: 'Number Purchased!', message: `${formatPhoneDisplay(phoneNumber)} has been provisioned and is now active.`, variant: 'success' });
@@ -350,6 +364,7 @@ export function PhonePanel() {
                 friendlyName: editForm.friendly_name,
                 voicemailEnabled: editForm.voicemail_enabled,
                 recordingEnabled: editForm.recording_enabled,
+                passCallerId: editForm.pass_caller_id,
             });
             showAlert({ title: 'Updated', message: 'Phone number settings saved.', variant: 'success' });
             setEditingId(null);
@@ -389,6 +404,7 @@ export function PhonePanel() {
             friendly_name: n.friendly_name || '',
             voicemail_enabled: n.voicemail_enabled,
             recording_enabled: n.recording_enabled,
+            pass_caller_id: n.pass_caller_id ?? true,
         });
     };
 
@@ -531,6 +547,26 @@ export function PhonePanel() {
                                                             />
                                                             Enable Forwarding
                                                         </label>
+                                                    </div>
+                                                </div>
+
+                                                <div className="smtp-field-row" style={{ marginTop: '-8px', marginBottom: '16px' }}>
+                                                    <div className="smtp-field">
+                                                        <label className="smtp-field-label">Incoming Caller ID</label>
+                                                        <select
+                                                            className="smtp-field-input"
+                                                            value={editForm.pass_caller_id ? 'caller' : 'crm'}
+                                                            onChange={e => setEditForm(f => ({ ...f, pass_caller_id: e.target.value === 'caller' }))}
+                                                            disabled={!editForm.forward_enabled}
+                                                        >
+                                                            <option value="caller">Show Actual Caller's Number</option>
+                                                            <option value="crm">Show {formatPhoneDisplay(n.phone_number)}</option>
+                                                        </select>
+                                                        <div className="field-hint" style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginTop: '4px' }}>
+                                                            {editForm.pass_caller_id 
+                                                                ? "When someone calls, their number will appear on your device."
+                                                                : `When someone calls, ${formatPhoneDisplay(n.phone_number)} will appear on your device.`}
+                                                        </div>
                                                     </div>
                                                 </div>
 
