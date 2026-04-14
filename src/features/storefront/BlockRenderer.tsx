@@ -1089,7 +1089,9 @@ function CategoryLinksBlock({ config }: { config: Record<string, any> }) {
     api.fetchCollections()
       .then(all => {
         let selected: Collection[] = [];
-        if (config.collectionIds && config.collectionIds.length > 0) {
+        const isManual = config.mode === 'manual' || (config.mode === undefined && config.collectionIds && config.collectionIds.length > 0);
+        
+        if (isManual && config.collectionIds && config.collectionIds.length > 0) {
           selected = config.collectionIds.map((id: string) => all.find(c => c.id === id)).filter(Boolean) as Collection[];
         } else {
           selected = all;
@@ -1097,7 +1099,7 @@ function CategoryLinksBlock({ config }: { config: Record<string, any> }) {
         setCollections(selected.slice(0, config.limit || 3));
       })
       .catch(console.error);
-  }, [config.collectionIds, config.limit]);
+  }, [config.mode, config.collectionIds, config.limit]);
 
   const cols = config.columns || 3;
   const stackOnMobile = config.stackOnMobile ?? true;

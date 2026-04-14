@@ -8,6 +8,7 @@ import { supabase } from '@/lib/supabase';
 import * as api from '@/lib/api';
 import type { Collection } from '@/types/database';
 import { LinkPicker } from './LinkPicker';
+import { MultiSelect } from '@/components/ui/MultiSelect';
 
 interface Props {
   block: PageBlock;
@@ -1388,84 +1389,125 @@ function HeroBannerEditor({ config: c, set }: { config: Record<string, any>; set
 function CategoryLinksEditor({ config: c, set }: { config: Record<string, any>; set: (key: string, value: any) => void }) {
   const [collections, setCollections] = useState<Collection[]>([]);
   const selectedIds = c.collectionIds || [];
+  const mode = c.mode || (selectedIds.length > 0 ? 'manual' : 'auto');
 
   useEffect(() => {
     api.fetchCollections().then(setCollections).catch(console.error);
   }, []);
 
-  const toggleCollection = (id: string, checked: boolean) => {
-    if (checked) {
-      set('collectionIds', [...selectedIds, id]);
-    } else {
-      set('collectionIds', selectedIds.filter((x: string) => x !== id));
-    }
-  };
-
   return (
     <div className="builder-panel-content">
       <Card title="Collections" desc="Select the collections to feature on the storefront.">
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-          {collections.map(col => (
-            <label key={col.id} className="pb-checkbox" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <input 
-                type="checkbox" 
-                checked={selectedIds.includes(col.id)} 
-                onChange={(e) => toggleCollection(col.id, e.target.checked)} 
+        <div className="ub-settings-item-box" style={{ padding: '1rem' }}>
+          <div style={{ marginBottom: '1.25rem' }}>
+            <Field label="Selection Mode">
+              <SearchableSelect 
+                className="form-input" 
+                value={mode} 
+                onChange={(val) => set('mode', val)}
+                searchable={false}
+                sort={false}
+                clearable={false}
+                options={[
+                  { label: 'Automatic (Latest collections)', value: 'auto' },
+                  { label: 'Manual (Select specific collections)', value: 'manual' }
+                ]}
               />
-              {col.name}
-            </label>
-          ))}
-          {collections.length === 0 && <span style={{ color: 'var(--text-tertiary)', fontSize: '0.8125rem' }}>No collections found</span>}
-        </div>
-        <div className="form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-          <Field label="Limit (if none selected)">
-            <input className="form-input" type="number" value={c.limit || 3} min="1" max="10" onChange={(e) => set('limit', Number(e.target.value))} />
-          </Field>
+            </Field>
+          </div>
+          
+          {mode === 'manual' && (
+            <div style={{ marginBottom: '1.25rem', paddingTop: '1rem', borderTop: '1px solid var(--border-color)' }}>
+              {collections.length > 0 ? (
+                <Field label="Specific Collections">
+                  <MultiSelect
+                    options={collections.map(c => ({ label: c.name, value: c.id }))}
+                    value={selectedIds}
+                    onChange={(val) => set('collectionIds', val)}
+                    placeholder="Select collections..."
+                    clearable={true}
+                    searchable={true}
+                  />
+                </Field>
+              ) : (
+                <span style={{ color: 'var(--text-tertiary)', fontSize: '0.8125rem', fontStyle: 'italic' }}>No collections found</span>
+              )}
+            </div>
+          )}
+          
+          <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '1rem' }}>
+            <Field label="Limit (if none selected)">
+              <input 
+                className="form-input" 
+                type="number" 
+                value={c.limit || 3} 
+                min="1" 
+                max="20" 
+                onChange={(e) => set('limit', Number(e.target.value))} 
+                style={{ maxWidth: '120px' }}
+              />
+            </Field>
+          </div>
         </div>
       </Card>
       <Card title="Layout">
-        <div className="form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-          <Field label="Columns">
-            <SearchableSelect className="form-input" value={c.columns || 3} onChange={(val) => set('columns', Number(val))}
-  searchable={false}
-  sort={false}
-  options={[
-    { label: '2 Columns', value: '2' },
-    { label: '3 Columns', value: '3' },
-    { label: '4 Columns', value: '4' },
-    { label: '5 Columns', value: '5' },
-    { label: '6 Columns', value: '6' }
-  ]}
-/>
+        <div className="ub-settings-item-box" style={{ padding: '1rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          <Field label="Columns (Desktop)">
+            <SearchableSelect 
+              className="form-input" 
+              value={c.columns?.toString() || '3'} 
+              onChange={(val) => set('columns', Number(val))}
+              searchable={false}
+              sort={false}
+              clearable={false}
+              options={[
+                { label: '2 Columns', value: '2' },
+                { label: '3 Columns', value: '3' },
+                { label: '4 Columns', value: '4' },
+                { label: '5 Columns', value: '5' },
+                { label: '6 Columns', value: '6' }
+              ]}
+            />
           </Field>
+          
           <Field label="Image Aspect Ratio">
-            <SearchableSelect className="form-input" value={c.aspectRatio || 'auto'} onChange={(val) => set('aspectRatio', val)}
-  searchable={false}
-  sort={false}
-  options={[
-    { label: 'Auto (Original)', value: 'auto' },
-    { label: 'Square (1:1)', value: 'square' },
-    { label: 'Portrait (3:4)', value: 'portrait' },
-    { label: 'Landscape (4:3)', value: 'landscape' }
-  ]}
-/>
+            <SearchableSelect 
+              className="form-input" 
+              value={c.aspectRatio || 'auto'} 
+              onChange={(val) => set('aspectRatio', val)}
+              searchable={false}
+              sort={false}
+              clearable={false}
+              options={[
+                { label: 'Auto (Original)', value: 'auto' },
+                { label: 'Square (1:1)', value: 'square' },
+                { label: 'Portrait (3:4)', value: 'portrait' },
+                { label: 'Landscape (4:3)', value: 'landscape' }
+              ]}
+            />
           </Field>
+          
           <Field label="Text Position">
-            <SearchableSelect className="form-input" value={c.textPosition || 'below'} onChange={(val) => set('textPosition', val)}
-  searchable={false}
-  sort={false}
-  options={[
-    { label: 'Below Image', value: 'below' },
-    { label: 'Overlay on Image', value: 'overlay' }
-  ]}
-/>
+            <SearchableSelect 
+              className="form-input" 
+              value={c.textPosition || 'below'} 
+              onChange={(val) => set('textPosition', val)}
+              searchable={false}
+              sort={false}
+              clearable={false}
+              options={[
+                { label: 'Below Image', value: 'below' },
+                { label: 'Overlay on Image', value: 'overlay' }
+              ]}
+            />
           </Field>
-        </div>
-        <div style={{ marginTop: '1rem' }}>
-          <label className="ub-checkbox" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <input type="checkbox" checked={c.stackOnMobile ?? true} onChange={(e) => set('stackOnMobile', e.target.checked)} />
-            <span style={{ fontSize: '0.8125rem' }}>Stack items vertically on mobile view</span>
-          </label>
+          
+          <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '1rem', marginTop: '0.25rem' }}>
+            <label className="ub-checkbox" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <input type="checkbox" checked={c.stackOnMobile ?? true} onChange={(e) => set('stackOnMobile', e.target.checked)} />
+              <span style={{ fontSize: '0.875rem', color: 'var(--text-primary)' }}>Stack items vertically on mobile view</span>
+            </label>
+          </div>
         </div>
       </Card>
       <Card title="Card Styling">

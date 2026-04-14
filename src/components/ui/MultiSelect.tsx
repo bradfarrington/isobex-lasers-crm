@@ -1,16 +1,16 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { Search, ChevronDown, Check, X } from 'lucide-react';
-import './SearchableSelect.css';
+import './MultiSelect.css';
 
 interface Option {
   label: string;
   value: string;
 }
 
-interface SearchableSelectProps {
+interface MultiSelectProps {
   options: Option[];
-  value: string;
-  onChange: (value: string) => void;
+  value: string[];
+  onChange: (value: string[]) => void;
   placeholder?: string;
   className?: string;
   disabled?: boolean;
@@ -20,7 +20,7 @@ interface SearchableSelectProps {
   style?: React.CSSProperties;
 }
 
-export function SearchableSelect({
+export function MultiSelect({
   options,
   value,
   onChange,
@@ -31,13 +31,13 @@ export function SearchableSelect({
   sort = true,
   clearable = true,
   style,
-}: SearchableSelectProps) {
+}: MultiSelectProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const selectedOption = useMemo(() => options.find((o) => o.value === value), [options, value]);
+  const selectedOptions = useMemo(() => options.filter((o) => value.includes(o.value)), [options, value]);
 
   const filteredOptions = useMemo(() => {
     let sortedOptions = [...options];
@@ -71,38 +71,37 @@ export function SearchableSelect({
   }, [isOpen, searchable]);
 
   return (
-    <div className={`searchable-select-container ${isOpen ? 'open' : ''} ${className}`} style={style} ref={containerRef}>
+    <div className={`multi-select-container ${isOpen ? 'open' : ''} ${className}`} style={style} ref={containerRef}>
       <button
         type="button"
-        className={`searchable-select-trigger ${disabled ? 'disabled' : ''} ${isOpen ? 'open' : ''} ${!selectedOption && !value ? 'empty' : ''}`}
+        className={`multi-select-trigger ${disabled ? 'disabled' : ''} ${isOpen ? 'open' : ''} ${selectedOptions.length === 0 ? 'empty' : ''}`}
         onClick={() => !disabled && setIsOpen(!isOpen)}
         disabled={disabled}
       >
-        <div className="searchable-select-value">
-          {selectedOption ? selectedOption.label : (value ? 'Unknown Option' : placeholder)}
+        <div className="multi-select-value">
+          {selectedOptions.length > 0 ? selectedOptions.map(o => o.label).join(', ') : placeholder}
         </div>
-        <div className="searchable-select-actions">
-          {clearable && value && !disabled && (
+        <div className="multi-select-actions">
+          {clearable && value.length > 0 && !disabled && (
             <div
-              className="searchable-select-clear"
+              className="multi-select-clear"
               onClick={(e) => {
                 e.stopPropagation();
-                onChange('');
-                setIsOpen(false);
+                onChange([]);
               }}
               title="Clear selection"
             >
               <X size={14} />
             </div>
           )}
-          <ChevronDown size={14} className="searchable-select-icon" />
+          <ChevronDown size={14} className="multi-select-icon" />
         </div>
       </button>
 
       {isOpen && (
-        <div className="searchable-select-popover">
+        <div className="multi-select-popover">
           {searchable && (
-            <div className="searchable-select-search">
+            <div className="multi-select-search">
               <Search size={14} />
               <input
                 ref={inputRef}
@@ -114,23 +113,27 @@ export function SearchableSelect({
               />
             </div>
           )}
-          <ul className="searchable-select-list">
+          <ul className="multi-select-list">
             {options.length === 0 ? (
-              <li className="searchable-select-empty">No options available</li>
+              <li className="multi-select-empty">No options available</li>
             ) : filteredOptions.length === 0 ? (
-              <li className="searchable-select-empty">No matches found</li>
+              <li className="multi-select-empty">No matches found</li>
             ) : (
               filteredOptions.map((option) => (
                 <li
                   key={option.value}
-                  className={`searchable-select-item ${option.value === value ? 'selected' : ''}`}
-                  onClick={() => {
-                    onChange(option.value);
-                    setIsOpen(false);
+                  className={`multi-select-item ${value.includes(option.value) ? 'selected' : ''}`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (value.includes(option.value)) {
+                      onChange(value.filter(v => v !== option.value));
+                    } else {
+                      onChange([...value, option.value]);
+                    }
                   }}
                 >
                   {option.label}
-                  {option.value === value && <Check size={14} className="searchable-select-check" />}
+                  {value.includes(option.value) && <Check size={14} className="multi-select-check" />}
                 </li>
               ))
             )}
